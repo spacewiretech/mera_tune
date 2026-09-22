@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingHorizontal="20dp"
+    android:paddingVertical="12dp">
+
+    <FrameLayout
+        android:id="@+id/thumbnailWrapper"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.spacewire.meratune.ui.PlaybackRingView
+            android:id="@+id/playbackRing"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <FrameLayout
+            android:id="@+id/thumbnailContainer"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_category_devotional">
+
+            <ImageView
+                android:id="@+id/thumbnailIcon"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null"
+                tools:src="@drawable/ic_category_devotional" />
+
+            <ImageButton
+                android:id="@+id/playButton"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_play_button"
+                android:contentDescription="@string/play_tune"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_play"
+                app:tint="@color/navy" />
+        </FrameLayout>
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/tuneTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="12dp"
+        android:ellipsize="end"
+        android:fontFamily="sans-serif-medium"
+        android:maxLines="1"
+        android:textColor="@color/navy"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toStartOf="@id/setButton"
+        app:layout_constraintStart_toEndOf="@id/thumbnailWrapper"
+        app:layout_constraintTop_toTopOf="@id/thumbnailWrapper"
+        tools:text="Jai Shri Ram Rahul ji..." />
+
+    <LinearLayout
+        android:id="@+id/statsRow"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_marginTop="6dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toStartOf="@id/setButton"
+        app:layout_constraintStart_toEndOf="@id/thumbnailWrapper"
+        app:layout_constraintTop_toBottomOf="@id/tuneTitle">
+
+        <ImageView
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_heart"
+            app:tint="@color/text_secondary" />
+
+        <TextView
+            android:id="@+id/likesCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="12dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            tools:text="2.4k" />
+
+        <ImageView
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_eye"
+            app:tint="@color/text_secondary" />
+
+        <TextView
+            android:id="@+id/viewsCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            tools:text="19k" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/setButton"
+        android:layout_width="72dp"
+        android:layout_height="36dp"
+        android:background="@drawable/bg_set_button"
+        android:fontFamily="sans-serif-medium"
+        android:gravity="center"
+        android:text="@string/set"
+        android:textColor="@color/navy"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

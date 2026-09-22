@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:background="?attr/selectableItemBackgroundBorderless"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingHorizontal="4dp"
+    android:paddingVertical="8dp">
+
+    <ImageView
+        android:id="@+id/setRingtoneOptionIllustration"
+        android:layout_width="72dp"
+        android:layout_height="96dp"
+        android:contentDescription="@null"
+        android:scaleType="fitCenter"
+        tools:src="@drawable/ic_set_mode_audio" />
+
+    <TextView
+        android:id="@+id/setRingtoneOptionTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:gravity="center_horizontal|top"
+        android:lineSpacingExtra="1dp"
+        android:minHeight="52dp"
+        android:textColor="@color/navy"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        tools:text="Sirf Ringtone" />
+
+    <FrameLayout
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginTop="6dp">
+
+        <View
+            android:id="@+id/setRingtoneOptionIndicator"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_form_option_unselected" />
+
+        <ImageView
+            android:id="@+id/setRingtoneOptionCheck"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:layout_gravity="center"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_check_white"
+            android:visibility="gone"
+            tools:visibility="visible" />
+    </FrameLayout>
+
+</LinearLayout>

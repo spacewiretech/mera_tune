@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "632001126202",
+    "project_id": "mera-tune",
+    "storage_bucket": "mera-tune.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:632001126202:android:2e6758fbc15a6af292ba03",
+        "android_client_info": {
+          "package_name": "com.spacewire.meratune"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBBEySmp6Gp6Vjx9dEspLe67QFdxKI3mJE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,32 +1,96 @@
 package com.spacewire.meratune
 
-import android.animation.ValueAnimator
 import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
+import android.os.SystemClock
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
-import android.view.animation.LinearInterpolator
+import android.view.View
+import android.view.WindowManager
+import android.view.animation.DecelerateInterpolator
 import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import com.spacewire.meratune.analytics.firebaseAnalytics
+import com.spacewire.meratune.analytics.metaAnalytics
+import com.spacewire.meratune.analytics.mixpanelAnalytics
+import com.spacewire.meratune.data.GenerationErrorCode
+import com.spacewire.meratune.data.Languages
+import com.spacewire.meratune.data.Tune
+import com.spacewire.meratune.ui.GenerationState
 import com.spacewire.meratune.ui.ProcessingStepperController
+import com.spacewire.meratune.ui.RingtoneGenerationViewModel
+import com.spacewire.meratune.util.AuthStore
+import com.spacewire.meratune.util.Haptics
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/** Step 3: real generation via `generate-ringtone`, with a staged stepper while it runs. */
 class RingtoneProcessingActivity : AppCompatActivity() {
 
-    private var stepperAnimator: ValueAnimator? = null
+    private val viewModel: RingtoneGenerationViewModel by viewModels { RingtoneGenerationViewModel.Factory }
+
+    private lateinit var name: String
+    private lateinit var language: String
+    private lateinit var tune: Tune
+
+    private lateinit var stepper: ProcessingStepperController
+    private lateinit var stepperView: View
+    private lateinit var titleView: TextView
+    private lateinit var subtitleView: TextView
+    private lateinit var waveformView: View
+    private lateinit var footerView: TextView
+    private lateinit var tipView: TextView
+    private lateinit var errorContainer: View
+    private lateinit var errorMessageView: TextView
+    private lateinit var primaryActionButton: TextView
+    private lateinit var chooseAnotherButton: TextView
+
+    private val shownAtMs = SystemClock.elapsedRealtime()
+    private var generatingUiActive = false
+    private var readyAnimationStarted = false
+    private var pendingReady: GenerationState.Ready? = null
+    private var navigated = false
+    private var takingLongerJob: Job? = null
+    private var isTakingLonger = false
+    private var isWaiting = false
+
+    private val backCallback = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            viewModel.cancel()
+            Toast.makeText(this@RingtoneProcessingActivity, R.string.processing_cancel_toast, Toast.LENGTH_SHORT).show()
+            finish()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val extraName = intent.getStringExtra(EXTRA_NAME).orEmpty().trim()
+        val extraLanguage = intent.getStringExtra(EXTRA_LANGUAGE).orEmpty().trim()
+        val extraTune = Tune.fromIntentJson(intent.getStringExtra(EXTRA_TUNE_JSON))
+        if (extraName.isEmpty() || extraLanguage.isEmpty() || extraTune == null || AuthStore(this).getUserId() <= 0L) {
+            finish()
+            return
+        }
+        name = extraName
+        language = extraLanguage
+        tune = extraTune
+
         enableEdgeToEdge()
         setContentView(R.layout.activity_ringtone_processing)
 
@@ -36,52 +100,307 @@ class RingtoneProcessingActivity : AppCompatActivity() {
             insets
         }
 
-        val name = intent.getStringExtra(EXTRA_NAME).orEmpty().ifBlank { "Ram" }
-        findViewById<TextView>(R.id.processingTitle).text =
-            getString(R.string.processing_title, name)
+        bindViews()
+        onBackPressedDispatcher.addCallback(this, backCallback)
+
+        titleView.text = getString(R.string.processing_title, name)
         styleProcessingSubtitle()
-        startStepperLoading()
-        scheduleReadyScreen()
+        findViewById<TextView>(R.id.processingSongLine).text =
+            getString(R.string.processing_song_line, tune.name, voiceOrLanguageLabel())
+
+        viewModel.start(tune, name, language)
+        observeState()
+        rotateTips()
     }
 
-    private fun startStepperLoading() {
-        val stepperController = ProcessingStepperController(findViewById(R.id.processingStepper))
-        stepperAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = PROCESSING_DURATION_MS
-            interpolator = LinearInterpolator()
-            addUpdateListener { animator ->
-                stepperController.setProgress(animator.animatedValue as Float)
-            }
-            start()
-        }
+    override fun onResume() {
+        super.onResume()
+        navigateToReadyIfResumed()
     }
 
     override fun onDestroy() {
-        stepperAnimator?.cancel()
-        stepperAnimator = null
+        if (::stepper.isInitialized) stepper.cancel()
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         super.onDestroy()
     }
 
-    private fun scheduleReadyScreen() {
-        lifecycleScope.launch {
-            delay(PROCESSING_DURATION_MS)
-            if (isFinishing) return@launch
+    private fun bindViews() {
+        stepperView = findViewById(R.id.processingStepper)
+        stepper = ProcessingStepperController(stepperView)
+        titleView = findViewById(R.id.processingTitle)
+        subtitleView = findViewById(R.id.processingSubtitle)
+        waveformView = findViewById(R.id.processingWaveform)
+        footerView = findViewById(R.id.processingFooter)
+        tipView = findViewById(R.id.processingTip)
+        errorContainer = findViewById(R.id.processingErrorContainer)
+        errorMessageView = findViewById(R.id.errorMessage)
+        primaryActionButton = findViewById(R.id.primaryActionButton)
+        chooseAnotherButton = findViewById(R.id.chooseAnotherButton)
 
-            startActivity(
-                RingtoneReadyActivity.intent(
-                    context = this@RingtoneProcessingActivity,
-                    name = intent.getStringExtra(EXTRA_NAME).orEmpty().ifBlank { "Ram" },
-                    voice = intent.getStringExtra(EXTRA_VOICE).orEmpty(),
-                    category = intent.getStringExtra(EXTRA_CATEGORY).orEmpty(),
-                    language = intent.getStringExtra(EXTRA_LANGUAGE).orEmpty(),
-                ),
-            )
-            finish()
+        chooseAnotherButton.setOnClickListener { finish() }
+    }
+
+    private fun observeState() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.state.collect { state -> render(state) }
+            }
         }
     }
 
+    private fun render(state: GenerationState) {
+        when (state) {
+            GenerationState.Idle -> Unit
+            is GenerationState.Generating -> showGenerating(waiting = false)
+            is GenerationState.Waiting -> showGenerating(waiting = true)
+            is GenerationState.Ready -> onReady(state)
+            is GenerationState.Failed -> showError(state)
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Generating
+    // ---------------------------------------------------------------------------------------------
+
+    private fun showGenerating(waiting: Boolean) {
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        backCallback.isEnabled = true
+        isWaiting = waiting
+
+        if (!generatingUiActive) {
+            generatingUiActive = true
+            errorContainer.visibility = View.GONE
+            listOf(titleView, subtitleView, stepperView, waveformView, footerView, tipView)
+                .forEach { it.visibility = View.VISIBLE }
+            stepper.setProgress(0f)
+            stepper.animateTo(INDETERMINATE_TARGET, INDETERMINATE_DURATION_MS, DecelerateInterpolator())
+            scheduleTakingLongerFooter()
+        }
+        renderFooter()
+    }
+
+    private fun scheduleTakingLongerFooter() {
+        takingLongerJob?.cancel()
+        val startedAt = viewModel.currentAttemptStartedAtMs.takeIf { it > 0L } ?: SystemClock.elapsedRealtime()
+        val remaining = TAKING_LONGER_AFTER_MS - (SystemClock.elapsedRealtime() - startedAt)
+        isTakingLonger = remaining <= 0L
+        if (isTakingLonger) return
+        takingLongerJob = lifecycleScope.launch {
+            delay(remaining)
+            isTakingLonger = true
+            if (generatingUiActive) renderFooter()
+        }
+    }
+
+    private fun renderFooter() {
+        footerView.setText(
+            when {
+                isWaiting -> R.string.processing_waiting
+                isTakingLonger -> R.string.processing_taking_longer
+                else -> R.string.processing_footer
+            },
+        )
+    }
+
+    /** Crossfades through the three tips every 3 s while the screen is visible. */
+    private fun rotateTips() {
+        val tips = listOf(R.string.processing_tip_1, R.string.processing_tip_2, R.string.processing_tip_3)
+        tipView.setText(tips.first())
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                var index = tips.indexOfFirst { getString(it) == tipView.text.toString() }.coerceAtLeast(0)
+                while (true) {
+                    delay(TIP_INTERVAL_MS)
+                    if (!generatingUiActive) continue
+                    index = (index + 1) % tips.size
+                    val next = tips[index]
+                    tipView.animate().cancel()
+                    tipView.animate()
+                        .alpha(0f)
+                        .setDuration(TIP_FADE_MS)
+                        .withEndAction {
+                            tipView.setText(next)
+                            tipView.animate().alpha(1f).setDuration(TIP_FADE_MS).start()
+                        }
+                        .start()
+                }
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Ready
+    // ---------------------------------------------------------------------------------------------
+
+    private fun onReady(state: GenerationState.Ready) {
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        backCallback.isEnabled = false
+        takingLongerJob?.cancel()
+        if (readyAnimationStarted) return
+        readyAnimationStarted = true
+        generatingUiActive = false
+        isWaiting = false
+        footerView.setText(R.string.processing_footer)
+
+        val visibleMs = SystemClock.elapsedRealtime() - shownAtMs
+        val remainingToMinimum = (MIN_VISIBLE_MS - visibleMs).coerceAtLeast(0L)
+        stepper.animateTo(1f, READY_SNAP_MS + remainingToMinimum, DecelerateInterpolator()) {
+            Haptics.confirm(stepperView)
+            lifecycleScope.launch {
+                delay(READY_BEAT_MS)
+                pendingReady = state
+                navigateToReadyIfResumed()
+            }
+        }
+    }
+
+    /** Opens the Ready screen only while this screen is in front; otherwise waits for [onResume]. */
+    private fun navigateToReadyIfResumed() {
+        val ready = pendingReady ?: return
+        if (navigated || !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return
+        navigated = true
+        pendingReady = null
+        val result = ready.result
+        startActivity(
+            RingtoneReadyActivity.intent(
+                context = this,
+                name = name,
+                language = language,
+                tune = tune,
+                ringtoneUrl = result.ringtoneUrl,
+                title = result.title,
+                generationId = result.generationId,
+                cached = result.cached,
+            ),
+        )
+        finish()
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Failed
+    // ---------------------------------------------------------------------------------------------
+
+    private fun showError(state: GenerationState.Failed) {
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        backCallback.isEnabled = false
+        takingLongerJob?.cancel()
+        stepper.cancel()
+        generatingUiActive = false
+        isWaiting = false
+        isTakingLonger = false
+
+        listOf(titleView, subtitleView, stepperView, waveformView, footerView, tipView)
+            .forEach { it.visibility = View.GONE }
+        errorContainer.visibility = View.VISIBLE
+        errorMessageView.text = errorMessageFor(state.code)
+
+        val action = primaryActionFor(state)
+        primaryActionButton.setText(action.labelRes)
+        primaryActionButton.setOnClickListener { action.perform() }
+        chooseAnotherButton.visibility = if (action == PrimaryAction.CHOOSE_ANOTHER) View.GONE else View.VISIBLE
+    }
+
+    private enum class PrimaryAction(val labelRes: Int) {
+        RETRY(R.string.processing_retry),
+        LOGIN_AGAIN(R.string.processing_login_again),
+        SUBSCRIBE(R.string.subscription_try_now),
+        CHANGE_LANGUAGE(R.string.processing_change_language),
+        CHOOSE_ANOTHER(R.string.processing_choose_another),
+    }
+
+    private fun primaryActionFor(state: GenerationState.Failed): PrimaryAction = when {
+        state.code == GenerationErrorCode.UNAUTHORIZED -> PrimaryAction.LOGIN_AGAIN
+        state.code == GenerationErrorCode.SUBSCRIPTION_REQUIRED -> PrimaryAction.SUBSCRIBE
+        state.code == GenerationErrorCode.UNSUPPORTED_LANGUAGE -> PrimaryAction.CHANGE_LANGUAGE
+        state.retryable && viewModel.canRetry -> PrimaryAction.RETRY
+        else -> PrimaryAction.CHOOSE_ANOTHER
+    }
+
+    private fun PrimaryAction.perform() {
+        when (this) {
+            PrimaryAction.RETRY -> viewModel.retry()
+            PrimaryAction.LOGIN_AGAIN -> loginAgain()
+            PrimaryAction.SUBSCRIBE -> {
+                startActivity(SubscriptionActivity.intent(this@RingtoneProcessingActivity))
+                finish()
+            }
+
+            PrimaryAction.CHANGE_LANGUAGE -> {
+                Toast.makeText(
+                    this@RingtoneProcessingActivity,
+                    getString(R.string.processing_error_language_unsupported, languageLabel()),
+                    Toast.LENGTH_LONG,
+                ).show()
+                startActivity(
+                    CreateRingtoneActivity.intent(this@RingtoneProcessingActivity, name).addFlags(
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP,
+                    ),
+                )
+                finish()
+            }
+
+            PrimaryAction.CHOOSE_ANOTHER -> finish()
+        }
+    }
+
+    /** Same session teardown as `ProfileActivity`'s logout. */
+    private fun loginAgain() {
+        mixpanelAnalytics().logout(this)
+        metaAnalytics().clearUserId()
+        firebaseAnalytics().clearUserId()
+        startActivity(
+            PhoneAuthActivity.intent(this).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            },
+        )
+        finish()
+    }
+
+    private fun errorMessageFor(code: GenerationErrorCode): String = when (code) {
+        GenerationErrorCode.NETWORK -> getString(R.string.processing_error_network)
+        GenerationErrorCode.TIMEOUT -> getString(R.string.processing_error_timeout)
+        GenerationErrorCode.UNSUPPORTED_LANGUAGE ->
+            getString(R.string.processing_error_language_unsupported, languageLabel())
+
+        GenerationErrorCode.QUOTA_EXCEEDED -> {
+            val quota = getString(R.string.processing_error_quota)
+            if (AuthStore(this).getApiToken() == null) {
+                quota + "\n" + getString(R.string.processing_error_quota_legacy_hint)
+            } else {
+                quota
+            }
+        }
+
+        GenerationErrorCode.TUNE_NOT_FOUND,
+        GenerationErrorCode.TUNE_NOT_PERSONALIZABLE,
+        -> getString(R.string.processing_error_song_unavailable)
+
+        GenerationErrorCode.NAME_TOO_LONG_FOR_SONG -> getString(R.string.processing_error_name_too_long)
+        GenerationErrorCode.NAME_REJECTED,
+        GenerationErrorCode.INVALID_NAME,
+        -> getString(R.string.processing_error_name_rejected)
+
+        GenerationErrorCode.UNAUTHORIZED -> getString(R.string.processing_error_session)
+        GenerationErrorCode.SUBSCRIPTION_REQUIRED -> getString(R.string.processing_error_subscription)
+        else -> getString(R.string.processing_error_generic)
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------------------------------------
+
+    private fun languageLabel(): String {
+        val definition = Languages.all.firstOrNull { it.storageValue.equals(language, ignoreCase = true) }
+        return definition?.let { getString(it.nativeLabelRes) } ?: language
+    }
+
+    private fun voiceOrLanguageLabel(): String = when (tune.voiceKey) {
+        Tune.VOICE_MALE -> getString(R.string.create_form_voice_male)
+        Tune.VOICE_FEMALE -> getString(R.string.create_form_voice_female)
+        else -> languageLabel()
+    }
+
     private fun styleProcessingSubtitle() {
-        val subtitleView = findViewById<TextView>(R.id.processingSubtitle)
         val highlight = getString(R.string.processing_subtitle_highlight)
         val fullText = getString(R.string.processing_subtitle, highlight)
         val spannable = SpannableString(fullText)
@@ -107,23 +426,28 @@ class RingtoneProcessingActivity : AppCompatActivity() {
 
     companion object {
         private const val EXTRA_NAME = "extra_name"
-        private const val EXTRA_VOICE = "extra_voice"
-        private const val EXTRA_CATEGORY = "extra_category"
         private const val EXTRA_LANGUAGE = "extra_language"
-        private const val PROCESSING_DURATION_MS = 8_000L
+        private const val EXTRA_TUNE_JSON = "extra_tune_json"
 
-        fun intent(
-            context: Context,
-            name: String,
-            voice: String,
-            category: String,
-            language: String,
-        ): Intent {
+        private const val INDETERMINATE_TARGET = 0.9f
+        private const val INDETERMINATE_DURATION_MS = 12_000L
+        private const val READY_SNAP_MS = 400L
+        private const val MIN_VISIBLE_MS = 1_200L
+        private const val READY_BEAT_MS = 500L
+        private const val TAKING_LONGER_AFTER_MS = 45_000L
+        private const val TIP_INTERVAL_MS = 3_000L
+        private const val TIP_FADE_MS = 220L
+
+        /**
+         * @param name validated display name (never logged or tracked)
+         * @param language `Languages.storageValue` the name is spoken in
+         * @param tune the picked base song
+         */
+        fun intent(context: Context, name: String, language: String, tune: Tune): Intent {
             return Intent(context, RingtoneProcessingActivity::class.java)
                 .putExtra(EXTRA_NAME, name)
-                .putExtra(EXTRA_VOICE, voice)
-                .putExtra(EXTRA_CATEGORY, category)
                 .putExtra(EXTRA_LANGUAGE, language)
+                .putExtra(EXTRA_TUNE_JSON, tune.toIntentJson())
         }
     }
 }

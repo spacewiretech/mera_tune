@@ -13,3 +13,11 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Supabase CLI / Edge Function local secrets
+supabase/.temp/
+supabase/functions/.env
+
+# Cloud Run mixer (services/ringtone-mixer)
+services/ringtone-mixer/node_modules/
+services/ringtone-mixer/dist/

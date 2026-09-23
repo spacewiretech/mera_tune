@@ -27,13 +27,19 @@ data class SendOtpResponse(
 )
 
 @Serializable
-data class VerifyOtpRequest(val phone: String, val otp: String)
+data class VerifyOtpRequest(
+    val phone: String,
+    val otp: String,
+    @SerialName("app_version") val appVersion: String,
+)
 
 @Serializable
 data class VerifyOtpResponse(
     val verified: Boolean? = null,
     @SerialName("needs_name") val needsName: Boolean? = null,
     @SerialName("session_token") val sessionToken: String? = null,
+    /** Long-lived API token issued for returning users; persisted in `AuthStore`. */
+    @SerialName("api_token") val apiToken: String? = null,
     val user: User? = null,
     val error: String? = null,
 )
@@ -42,13 +48,22 @@ data class VerifyOtpResponse(
 data class CompleteSignupRequest(
     @SerialName("session_token") val sessionToken: String,
     val name: String,
+    @SerialName("app_version") val appVersion: String,
 )
 
 @Serializable
 data class CompleteSignupResponse(
     val success: Boolean? = null,
     val user: User? = null,
+    /** Long-lived API token issued for the new user; persisted in `AuthStore`. */
+    @SerialName("api_token") val apiToken: String? = null,
     val error: String? = null,
+)
+
+/** Result of a successful signup: the saved user plus the API token (null when the server did not issue one). */
+data class CompleteSignupResult(
+    val user: User,
+    val apiToken: String?,
 )
 
 class AuthRepository {
@@ -80,7 +95,7 @@ class AuthRepository {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer ${BuildConfig.SUPABASE_KEY}")
             header("apikey", BuildConfig.SUPABASE_KEY)
-            setBody(VerifyOtpRequest(phone, otp))
+            setBody(VerifyOtpRequest(phone, otp, appVersion = BuildConfig.VERSION_NAME))
         }.body<VerifyOtpResponse>()
 
         response.error?.let { throw AuthException(it) }
@@ -88,16 +103,20 @@ class AuthRepository {
         response
     }
 
-    suspend fun completeSignup(sessionToken: String, name: String): Result<User> = runCatching {
+    suspend fun completeSignup(sessionToken: String, name: String): Result<CompleteSignupResult> = runCatching {
         val response = httpClient.post("$functionsBaseUrl/complete-signup") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer ${BuildConfig.SUPABASE_KEY}")
             header("apikey", BuildConfig.SUPABASE_KEY)
-            setBody(CompleteSignupRequest(sessionToken, name))
+            setBody(CompleteSignupRequest(sessionToken, name, appVersion = BuildConfig.VERSION_NAME))
         }.body<CompleteSignupResponse>()
 
         response.error?.let { throw AuthException(it) }
-        response.user ?: throw AuthException("Could not save profile")
+        val user = response.user ?: throw AuthException("Could not save profile")
+        CompleteSignupResult(
+            user = user,
+            apiToken = response.apiToken?.takeIf { it.isNotBlank() },
+        )
     }
 }
 

@@ -69,8 +69,11 @@ class SignUpNameActivity : AppCompatActivity() {
 
             lifecycleScope.launch {
                 authRepository.completeSignup(sessionToken, name)
-                    .onSuccess { user ->
-                        AuthStore(this@SignUpNameActivity).saveUser(user)
+                    .onSuccess { result ->
+                        val user = result.user
+                        val authStore = AuthStore(this@SignUpNameActivity)
+                        authStore.saveUser(user)
+                        authStore.replaceApiToken(result.apiToken)
                         ProfileStore(this@SignUpNameActivity).saveUser(user.name.orEmpty(), user.phone)
 
                         val analytics = mixpanelAnalytics()

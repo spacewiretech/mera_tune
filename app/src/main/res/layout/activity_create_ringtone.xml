@@ -74,94 +74,28 @@
                 android:layout_marginTop="12dp"
                 android:background="@drawable/bg_search_bar"
                 android:hint="@string/search_hint"
-                android:imeOptions="actionNext"
+                android:imeOptions="actionDone"
+                android:importantForAutofill="no"
                 android:inputType="textPersonName|textCapWords"
+                android:maxLength="30"
+                android:maxLines="1"
                 android:paddingHorizontal="20dp"
                 android:textColor="@color/navy"
                 android:textColorHint="@color/text_secondary"
                 android:textSize="15sp" />
 
             <TextView
-                android:id="@+id/voiceSectionLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="28dp"
-                android:fontFamily="sans-serif-medium"
-                android:text="@string/create_form_choose_voice"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-
-            <LinearLayout
+                android:id="@+id/nameError"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:orientation="horizontal">
+                android:paddingHorizontal="4dp"
+                android:textColor="@color/gradient_pink"
+                android:textSize="13sp"
+                android:visibility="gone"
+                tools:text="@string/create_form_name_invalid"
+                tools:visibility="visible" />
 
-                <include
-                    android:id="@+id/voiceMaleOption"
-                    layout="@layout/item_form_option"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1" />
-
-                <include
-                    android:id="@+id/voiceFemaleOption"
-                    layout="@layout/item_form_option"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/categorySectionLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="28dp"
-                android:fontFamily="sans-serif-medium"
-                android:text="@string/create_form_choose_category"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:orientation="horizontal">
-
-                <include
-                    android:id="@+id/categoryRomanticOption"
-                    layout="@layout/item_form_option"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1" />
-
-                <include
-                    android:id="@+id/categoryDevotionalOption"
-                    layout="@layout/item_form_option"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <include
-                    android:id="@+id/categoryFamilyOption"
-                    layout="@layout/item_form_option"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1" />
-
-                <include
-                    android:id="@+id/categoryCinematicOption"
-                    layout="@layout/item_form_option"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1" />
-            </LinearLayout>
 
             <TextView
                 android:id="@+id/languageSectionLabel"
@@ -172,6 +106,15 @@
                 android:text="@string/create_form_choose_language"
                 android:textSize="16sp"
                 android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/languageHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/create_form_language_hint"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -230,6 +173,18 @@
                 </LinearLayout>
             </LinearLayout>
 
+            <TextView
+                android:id="@+id/languageComingSoonNote"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:lineSpacingExtra="2dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp"
+                android:visibility="gone"
+                tools:text="తెలుగు, தமிழ் jaldi aa raha hai"
+                tools:visibility="visible" />
+
         </LinearLayout>
     </ScrollView>
 
@@ -242,10 +197,15 @@
         android:background="@drawable/bg_create_ringtone_button"
         android:fontFamily="sans-serif-medium"
         android:gravity="center"
+        android:maxLines="1"
+        android:paddingHorizontal="16dp"
         android:text="@string/create_form_continue"
         android:textColor="@color/white"
         android:textSize="16sp"
         android:textStyle="bold"
+        app:autoSizeMaxTextSize="16sp"
+        app:autoSizeMinTextSize="12sp"
+        app:autoSizeTextType="uniform"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />

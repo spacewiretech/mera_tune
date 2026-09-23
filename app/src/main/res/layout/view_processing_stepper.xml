@@ -116,40 +116,46 @@
         android:orientation="horizontal">
 
         <TextView
+            android:id="@+id/stepOneLabel"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:gravity="center"
             android:text="@string/processing_step_preparing"
             android:textColor="@color/navy"
+            android:lineSpacingExtra="2dp"
             android:textSize="13sp" />
 
         <Space
             android:layout_width="0dp"
             android:layout_height="1dp"
-            android:layout_weight="1" />
+            android:layout_weight="0.35" />
 
         <TextView
+            android:id="@+id/stepTwoLabel"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:gravity="center"
             android:text="@string/processing_step_composing"
             android:textColor="@color/navy"
+            android:lineSpacingExtra="2dp"
             android:textSize="13sp" />
 
         <Space
             android:layout_width="0dp"
             android:layout_height="1dp"
-            android:layout_weight="1" />
+            android:layout_weight="0.35" />
 
         <TextView
+            android:id="@+id/stepThreeLabel"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:gravity="center"
             android:text="@string/processing_step_ready"
             android:textColor="@color/navy"
+            android:lineSpacingExtra="2dp"
             android:textSize="13sp"
             tools:text="Ringtone Ready!" />
     </LinearLayout>

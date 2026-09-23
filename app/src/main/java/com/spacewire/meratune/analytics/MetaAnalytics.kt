@@ -2,6 +2,7 @@ package com.spacewire.meratune.analytics
 
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import com.facebook.FacebookSdk
 import com.facebook.LoggingBehavior
 import com.facebook.appevents.AppEventsConstants
@@ -12,37 +13,51 @@ import com.spacewire.meratune.util.AuthStore
 
 class MetaAnalytics private constructor(context: Context) {
 
-    private val logger: AppEventsLogger = AppEventsLogger.newLogger(context.applicationContext)
+    // The SDK auto-initializes from the manifest app ID before Application.onCreate().
+    // When facebook.app_id is missing from local.properties the ID is blank, the SDK
+    // skips initialization, and every AppEventsLogger call would throw. Degrade to
+    // no-ops in that case so local builds still run.
+    private val logger: AppEventsLogger? =
+        if (FacebookSdk.isInitialized()) AppEventsLogger.newLogger(context.applicationContext) else null
 
     init {
-        if (BuildConfig.DEBUG) {
-            FacebookSdk.setIsDebugEnabled(true)
-            FacebookSdk.addLoggingBehavior(LoggingBehavior.APP_EVENTS)
+        if (logger == null) {
+            Log.w(TAG, "Facebook SDK not initialized (missing facebook.app_id?); Meta events disabled")
+        } else {
+            if (BuildConfig.DEBUG) {
+                FacebookSdk.setIsDebugEnabled(true)
+                FacebookSdk.addLoggingBehavior(LoggingBehavior.APP_EVENTS)
+            }
+            restoreIdentity(context)
         }
-        restoreIdentity(context)
     }
 
     fun identifyUser(user: User) {
+        logger ?: return
         AppEventsLogger.setUserID(user.id.toString())
     }
 
     fun clearUserId() {
+        logger ?: return
         AppEventsLogger.clearUserID()
     }
 
     fun trackCompleteRegistration(registrationMethod: String) {
+        val logger = logger ?: return
         val params = Bundle()
         params.putString(AppEventsConstants.EVENT_PARAM_REGISTRATION_METHOD, registrationMethod)
         logger.logEvent(AppEventsConstants.EVENT_NAME_COMPLETED_REGISTRATION, params)
     }
 
     fun trackSubscriptionScreenViewed() {
+        val logger = logger ?: return
         val params = Bundle()
         params.putString(AppEventsConstants.EVENT_PARAM_CONTENT_TYPE, "subscription")
         logger.logEvent(AppEventsConstants.EVENT_NAME_VIEWED_CONTENT, params)
     }
 
     fun trackSubscriptionStarted(authAmount: Double?, recurringAmount: Double?) {
+        val logger = logger ?: return
         val params = Bundle()
         params.putString(AppEventsConstants.EVENT_PARAM_CURRENCY, CURRENCY)
         params.putString(AppEventsConstants.EVENT_PARAM_CONTENT_TYPE, "subscription")
@@ -55,6 +70,7 @@ class MetaAnalytics private constructor(context: Context) {
     }
 
     fun trackTrialPaymentCompleted(amount: Double, subscriptionId: String) {
+        val logger = logger ?: return
         val params = Bundle()
         params.putString(AppEventsConstants.EVENT_PARAM_CURRENCY, CURRENCY)
         params.putString(AppEventsConstants.EVENT_PARAM_CONTENT_TYPE, "subscription")
@@ -63,7 +79,7 @@ class MetaAnalytics private constructor(context: Context) {
     }
 
     fun flush() {
-        logger.flush()
+        logger?.flush()
     }
 
     private fun restoreIdentity(context: Context) {
@@ -73,6 +89,7 @@ class MetaAnalytics private constructor(context: Context) {
     }
 
     companion object {
+        private const val TAG = "MetaAnalytics"
         private const val CURRENCY = "INR"
 
         @Volatile

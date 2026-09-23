@@ -1,5 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import type { ServiceClient } from "../_shared/supabase-client.ts";
+import { issueUserToken } from "../_shared/user-sessions.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,6 +23,20 @@ async function sha256(value: string): Promise<string> {
     .join("");
 }
 
+/** Login must not fail because token issuance did; the app then falls back to legacy user_id auth. */
+async function issueApiToken(
+  supabase: ServiceClient,
+  userId: number,
+  appVersion: unknown,
+): Promise<string | null> {
+  try {
+    return await issueUserToken(supabase, userId, typeof appVersion === "string" ? appVersion : null);
+  } catch (err) {
+    console.error("verify-otp: api_token issue failed:", err);
+    return null;
+  }
+}
+
 function normalizePhone(raw: string): string | null {
   const digits = raw.replace(/\D/g, "");
   if (digits.length === 10) return digits;
@@ -34,7 +50,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { phone, otp } = await req.json();
+    const { phone, otp, app_version } = await req.json();
     if (!phone || !otp) {
       return jsonResponse({ error: "Phone and OTP are required" }, 400);
     }
@@ -89,10 +105,14 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (existingUser?.name) {
+      const apiToken = await issueApiToken(supabase, Number(existingUser.id), app_version);
+      // The OTP session has done its job for a returning user; the api_token carries auth from here.
+      await supabase.from("otp_sessions").delete().eq("id", session.id);
       return jsonResponse({
         verified: true,
         needs_name: false,
         session_token: sessionToken,
+        api_token: apiToken,
         user: existingUser,
       });
     }

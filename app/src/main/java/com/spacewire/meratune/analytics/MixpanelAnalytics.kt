@@ -101,29 +101,152 @@ class MixpanelAnalytics private constructor(context: Context) {
         mixpanel.track("subscription_failed", props)
     }
 
-    fun trackRingtoneCreationStarted(voice: String, category: String, language: String) {
+    // ---------------------------------------------------------------------------------------------
+    // Personalized ringtone flow. Never pass the typed name or the generated title into these.
+    // `voice` is "male" | "female" (blank omitted); `category` is the DB category name.
+    // ---------------------------------------------------------------------------------------------
+
+    /** Continue on the create form (name + language). */
+    fun trackRingtoneCreationStarted(language: String, nameLength: Int) {
         val props = JSONObject()
-        props.put("voice", voice)
-        props.put("category", category)
-        props.put("language", language)
+        props.putIfNotBlank("language", language)
+        props.put("name_length", nameLength)
         props.put("platform", PLATFORM)
         mixpanel.track("ringtone_creation_started", props)
     }
 
-    fun trackRingtoneCreated(
-        voice: String,
-        category: String,
+    /** Song picker reached a terminal load state (content, empty or error). */
+    fun trackSongPickerViewed(
         language: String,
-        source: String,
+        songCount: Int,
+        categoryCount: Int,
+        fallbackLevel: String,
+        voiceFilter: String?,
     ) {
         val props = JSONObject()
-        props.put("voice", voice)
-        props.put("category", category)
-        props.put("language", language)
-        props.put("source", source)
+        props.putIfNotBlank("language", language)
+        props.put("song_count", songCount)
+        props.put("category_count", categoryCount)
+        props.putIfNotBlank("fallback_level", fallbackLevel)
+        props.putIfNotBlank("voice_filter", voiceFilter)
+        props.put("platform", PLATFORM)
+        mixpanel.track("song_picker_viewed", props)
+    }
+
+    /** Preview playback started for a card in the song picker. */
+    fun trackSampleSongPlayed(
+        tuneId: String,
+        category: String,
+        language: String,
+        voice: String,
+        rank: Int,
+    ) {
+        val props = JSONObject()
+        props.put("tune_id", tuneId)
+        props.putIfNotBlank("category", category)
+        props.putIfNotBlank("language", language)
+        props.putIfNotBlank("voice", voice)
+        props.put("rank", rank)
+        props.put("platform", PLATFORM)
+        mixpanel.track("sample_song_played", props)
+    }
+
+    /** First selection of a card in the song picker. */
+    fun trackSampleSongSelected(
+        tuneId: String,
+        category: String,
+        language: String,
+        voice: String,
+        rank: Int,
+        voiceFilter: String?,
+        categoryFilter: String?,
+    ) {
+        val props = JSONObject()
+        props.put("tune_id", tuneId)
+        props.putIfNotBlank("category", category)
+        props.putIfNotBlank("language", language)
+        props.putIfNotBlank("voice", voice)
+        props.put("rank", rank)
+        props.putIfNotBlank("voice_filter", voiceFilter)
+        props.putIfNotBlank("category_filter", categoryFilter)
+        props.put("platform", PLATFORM)
+        mixpanel.track("sample_song_selected", props)
+    }
+
+    /** One generate-ringtone attempt is about to be posted (once per attempt, including retries). */
+    fun trackRingtoneGenerationStarted(
+        tuneId: String,
+        category: String,
+        language: String,
+        voice: String,
+        nameLength: Int,
+        isRetry: Boolean,
+    ) {
+        val props = JSONObject()
+        props.put("tune_id", tuneId)
+        props.putIfNotBlank("category", category)
+        props.putIfNotBlank("language", language)
+        props.putIfNotBlank("voice", voice)
+        props.put("name_length", nameLength)
+        props.put("is_retry", isRetry)
+        props.put("platform", PLATFORM)
+        mixpanel.track("ringtone_generation_started", props)
+    }
+
+    /** Generation succeeded (fires exactly once per successful generation). */
+    fun trackRingtoneCreated(
+        tuneId: String,
+        category: String,
+        language: String,
+        voice: String,
+        cached: Boolean,
+        durationMs: Int?,
+        clientMs: Long,
+        generationId: String?,
+        source: String = SOURCE_CREATION_FLOW,
+    ) {
+        val props = JSONObject()
+        props.put("tune_id", tuneId)
+        props.putIfNotBlank("category", category)
+        props.putIfNotBlank("language", language)
+        props.putIfNotBlank("voice", voice)
+        props.put("cached", cached)
+        durationMs?.let { props.put("duration_ms", it) }
+        props.put("client_ms", clientMs)
+        props.putIfNotBlank("generation_id", generationId)
+        props.putIfNotBlank("source", source)
         props.put("platform", PLATFORM)
         mixpanel.track("ringtone_created", props)
-        mixpanel.people.set("last_ringtone_category", category)
+        if (category.isNotBlank()) {
+            mixpanel.people.set("last_ringtone_category", category)
+        }
+    }
+
+    /**
+     * Generation ended without a ringtone. [failureReason] is a lower-cased
+     * `GenerationErrorCode` name or `user_cancelled`.
+     */
+    fun trackRingtoneGenerationFailed(
+        tuneId: String,
+        category: String,
+        language: String,
+        voice: String,
+        failureReason: String,
+        httpStatus: Int?,
+        retryable: Boolean,
+        clientMs: Long,
+    ) {
+        val props = JSONObject()
+        props.put("tune_id", tuneId)
+        props.putIfNotBlank("category", category)
+        props.putIfNotBlank("language", language)
+        props.putIfNotBlank("voice", voice)
+        props.putIfNotBlank("failure_reason", failureReason)
+        httpStatus?.let { props.put("http_status", it) }
+        props.put("retryable", retryable)
+        props.put("client_ms", clientMs)
+        props.put("platform", PLATFORM)
+        mixpanel.track("ringtone_generation_failed", props)
     }
 
     fun trackRingtoneSet(
@@ -132,16 +255,22 @@ class MixpanelAnalytics private constructor(context: Context) {
         tuneId: String,
         tuneName: String,
         setMode: String = "audio_only",
+        generationId: String? = null,
+        personalized: Boolean = false,
     ) {
         val props = JSONObject()
         props.put("source", source)
-        props.put("category", category)
+        props.putIfNotBlank("category", category)
         props.put("tune_id", tuneId)
-        props.put("tune_name", tuneName)
+        props.putIfNotBlank("tune_name", tuneName)
         props.put("set_mode", setMode)
+        props.putIfNotBlank("generation_id", generationId)
+        props.put("personalized", personalized)
         props.put("platform", PLATFORM)
         mixpanel.track("ringtone_set", props)
-        mixpanel.people.set("last_ringtone_category", category)
+        if (category.isNotBlank()) {
+            mixpanel.people.set("last_ringtone_category", category)
+        }
     }
 
     fun trackLanguageSelected(language: String, locale: String, context: String) {
@@ -179,10 +308,12 @@ class MixpanelAnalytics private constructor(context: Context) {
         mixpanel.track("search_performed", props)
     }
 
-    fun trackCategoryFiltered(categoryId: String, categoryName: String) {
+    /** [source] is `"home"` (catalog chips) or `"song_picker"` (create-flow chips). */
+    fun trackCategoryFiltered(categoryId: String, categoryName: String, source: String = SOURCE_HOME) {
         val props = JSONObject()
         props.put("category_id", categoryId)
         props.put("category_name", categoryName)
+        props.putIfNotBlank("source", source)
         props.put("platform", PLATFORM)
         mixpanel.track("category_filtered", props)
     }
@@ -221,8 +352,15 @@ class MixpanelAnalytics private constructor(context: Context) {
         PaymentApp.BHIM -> "bhim"
     }
 
+    /** Convention: never send null or blank string properties; omit them instead. */
+    private fun JSONObject.putIfNotBlank(key: String, value: String?) {
+        if (!value.isNullOrBlank()) put(key, value)
+    }
+
     companion object {
         private const val PLATFORM = "android"
+        private const val SOURCE_HOME = "home"
+        private const val SOURCE_CREATION_FLOW = "creation_flow"
 
         @Volatile
         private var instance: MixpanelAnalytics? = null

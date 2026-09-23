@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/filterChip"
+    android:layout_width="wrap_content"
+    android:layout_height="36dp"
+    android:layout_marginEnd="8dp"
+    android:background="@drawable/bg_language_option_unselected"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="@drawable/fg_pill_ripple"
+    android:gravity="center"
+    android:maxLines="1"
+    android:minWidth="56dp"
+    android:paddingHorizontal="16dp"
+    android:textColor="@color/text_secondary"
+    android:textSize="14sp"
+    tools:text="Female voice" />

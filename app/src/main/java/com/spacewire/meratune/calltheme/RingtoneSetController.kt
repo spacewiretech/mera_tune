@@ -446,12 +446,15 @@ class RingtoneSetController(
         contactPhotoSaved: Boolean = true,
     ) {
         onSuccess(tune, uri)
+        val personalized = tune.generationId != null
         activity.mixpanelAnalytics().trackRingtoneSet(
             source = analyticsSource,
             category = categoryForTune(tune),
             tuneId = tune.id,
-            tuneName = tune.name,
+            tuneName = analyticsTuneName(tune, personalized),
             setMode = pendingMode.analyticsValue,
+            generationId = tune.generationId,
+            personalized = personalized,
         )
         val message = when {
             !saveTheme -> activity.getString(R.string.ringtone_set_success, tune.name)
@@ -466,6 +469,19 @@ class RingtoneSetController(
         }
         Toast.makeText(activity, message, Toast.LENGTH_LONG).show()
         clearPending()
+    }
+
+    /**
+     * A personalized tune's `name` is the generated title and contains the user's name, which
+     * must never reach analytics. Fall back to the base song as authored (`title_template` with
+     * `sample_name`), else send nothing (blank props are omitted by `MixpanelAnalytics`).
+     */
+    private fun analyticsTuneName(tune: Tune, personalized: Boolean): String {
+        if (!personalized) return tune.name
+        val template = tune.titleTemplate?.trim().orEmpty()
+        if (template.isEmpty()) return ""
+        val sampleName = tune.sampleName?.trim().orEmpty()
+        return if (sampleName.isNotEmpty()) template.replace("{name}", sampleName) else template
     }
 
     private fun handleSetFailure(tune: Tune, error: Throwable, retryWithTheme: Boolean) {

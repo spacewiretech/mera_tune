@@ -22,6 +22,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:animateLayoutChanges="true"
             android:gravity="center_horizontal"
             android:orientation="vertical"
             android:paddingHorizontal="24dp"
@@ -58,20 +59,36 @@
                 android:lineSpacingExtra="4dp"
                 android:textColor="@color/text_secondary"
                 android:textSize="15sp"
-                tools:text="Within 1 hour your ringtone will be ready!" />
+                tools:text="Bas 10–15 second me aapki ringtone taiyar!" />
+
+            <TextView
+                android:id="@+id/processingSongLine"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:background="@drawable/bg_voice_badge"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:maxLines="1"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="6dp"
+                android:textColor="@color/gradient_pink"
+                android:textSize="13sp"
+                tools:text="Gaana: Ram Bhajan Hook · Female voice" />
 
             <include
                 android:id="@+id/processingStepper"
                 layout="@layout/view_processing_stepper"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="36dp" />
+                android:layout_marginTop="32dp" />
 
             <com.spacewire.meratune.ui.WaveformView
                 android:id="@+id/processingWaveform"
                 android:layout_width="match_parent"
                 android:layout_height="72dp"
-                android:layout_marginTop="48dp" />
+                android:layout_marginTop="40dp" />
 
             <TextView
                 android:id="@+id/processingFooter"
@@ -84,6 +101,84 @@
                 android:textColor="@color/navy"
                 android:textSize="16sp"
                 android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/processingTip"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center"
+                android:lineSpacingExtra="2dp"
+                android:minLines="2"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp"
+                tools:text="@string/processing_tip_1" />
+
+            <LinearLayout
+                android:id="@+id/processingErrorContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <TextView
+                    android:id="@+id/errorTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-medium"
+                    android:gravity="center"
+                    android:text="@string/processing_error_title"
+                    android:textColor="@color/navy"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/errorMessage"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:gravity="center"
+                    android:lineSpacingExtra="4dp"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="15sp"
+                    tools:text="@string/processing_error_network" />
+
+                <TextView
+                    android:id="@+id/primaryActionButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="28dp"
+                    android:background="@drawable/bg_create_ringtone_button"
+                    android:fontFamily="sans-serif-medium"
+                    android:foreground="@drawable/fg_pill_ripple"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:paddingHorizontal="16dp"
+                    android:textColor="@color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    app:autoSizeMaxTextSize="16sp"
+                    app:autoSizeMinTextSize="12sp"
+                    app:autoSizeTextType="uniform"
+                    tools:text="@string/processing_retry" />
+
+                <TextView
+                    android:id="@+id/chooseAnotherButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="8dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:fontFamily="sans-serif-medium"
+                    android:gravity="center"
+                    android:paddingHorizontal="20dp"
+                    android:text="@string/processing_choose_another"
+                    android:textColor="@color/gradient_pink"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
 
         </LinearLayout>
     </ScrollView>

@@ -8,6 +8,7 @@ import com.spacewire.meratune.data.Category
 import com.spacewire.meratune.data.HomeRepository
 import com.spacewire.meratune.data.Tune
 import com.spacewire.meratune.util.ActiveRingtoneStore
+import com.spacewire.meratune.util.LoadErrorMapper
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -233,17 +234,7 @@ class HomeViewModel(
         }
     }
 
-    private fun mapLoadError(error: Throwable): String {
-        val message = error.message.orEmpty()
-        return when {
-            message.contains("timeout", ignoreCase = true) ->
-                "Could not reach the server. Check your internet connection and try again."
-            message.contains("Unable to resolve host", ignoreCase = true) ||
-                message.contains("UnknownHostException", ignoreCase = true) ->
-                "No internet connection. Please check your network and try again."
-            else -> error.message ?: "Failed to load data"
-        }
-    }
+    private fun mapLoadError(error: Throwable): String = LoadErrorMapper.message(error)
 
     private companion object {
         const val SEARCH_TRACK_DEBOUNCE_MS = 500L

@@ -35,8 +35,10 @@ MixpanelAnalytics.kt                 Webhooks
 
 | Source | Events | Transport |
 |--------|--------|-----------|
-| Android app | 16 events | Mixpanel Android SDK |
+| Android app | 21 events | Mixpanel Android SDK |
 | Cashfree webhook | 2 events | Mixpanel HTTP Track API (`https://api.mixpanel.com/track`) |
+
+The personalized-ringtone Edge Function `generate-ringtone` sends **nothing** to Mixpanel; the app owns every create-flow event. Ops and cost reporting for generation is SQL over `generated_ringtones` / `ringtone_renders`.
 
 `SUBSCRIPTION_AUTH_STATUS` updates the database (trial activation) but **does not** send a Mixpanel event. The first-payment Mixpanel event is `trial_payment_completed` from the app after verify succeeds.
 
@@ -120,7 +122,7 @@ After logout the SDK assigns a new anonymous ID. The next login `identify()` sho
 | `$name` | string | Login / signup / trial identify | App (`user.name`) |
 | `subscription_status` | string | Login / signup / trial / webhook | App: `user.status`; trial event forces `"trial"`; webhook `"active"` or `"cancelled"` |
 | `app_language` | string | Language continue | App |
-| `last_ringtone_category` | string | Ringtone created or set | App |
+| `last_ringtone_category` | string | Ringtone generated (`ringtone_created`) or set (`ringtone_set`) | App (DB category name) |
 | `total_renewals` | number | Each successful recurring charge | Webhook (`renewal_number`) |
 | `last_billing_month` | string | Latest recurring charge | Webhook (`YYYY-MM`) |
 | `last_renewal_amount` | number | Latest recurring charge amount | Webhook |
@@ -139,16 +141,22 @@ otp_sent
       → subscription_screen_viewed
           → subscription_started
               → trial_payment_completed          ← mandate / trial (app, auth amount, INR)
-                  → ringtone_creation_started
-                      → ringtone_created
-                          → ringtone_set
-                              → subscription_paid           ← recurring autopay (webhook)
-                                  → subscription_cancelled  ← churn (webhook)
+                  → create_ringtone_cta_tapped
+                      → ringtone_creation_started          ← name + language form
+                          → song_picker_viewed
+                              → sample_song_played
+                                  → sample_song_selected
+                                      → ringtone_generation_started
+                                          → ringtone_created | ringtone_generation_failed
+                                              → ringtone_set (personalized = true)
+                                                  → subscription_paid           ← recurring autopay (webhook)
+                                                      → subscription_cancelled  ← churn (webhook)
 ```
 
-Failures branch off checkout:
+Failures branch off checkout and off generation:
 
-`subscription_started` → `subscription_failed` (`stage` = `create` | `checkout` | `verify`)
+- `subscription_started` → `subscription_failed` (`stage` = `create` | `checkout` | `verify`)
+- `ringtone_generation_started` → `ringtone_generation_failed` (`failure_reason` = lower-cased `GenerationErrorCode` or `user_cancelled`)
 
 ### Trial vs recurring (do not mix these)
 
@@ -172,12 +180,14 @@ Webhook **skips** Mixpanel `subscription_paid` when:
 2. **Trial conversion:** `subscription_screen_viewed` → `subscription_started` → `trial_payment_completed`
 3. **Checkout drop-off:** `subscription_started` → `subscription_failed` (break down by `stage`, `payment_app`)
 4. **Activation:** `trial_payment_completed` → `ringtone_created` → `ringtone_set`
-5. **Paid retention:** `subscription_paid` where `renewal_number = 1` → `renewal_number ≥ 2`
-6. **Churn:** `trial_payment_completed` or `subscription_paid` → `subscription_cancelled`
+5. **Create flow:** `ringtone_creation_started` → `song_picker_viewed` → `sample_song_selected` → `ringtone_generation_started` → `ringtone_created` → `ringtone_set` (break down by `language`, `fallback_level`, `cached`)
+6. **Generation health:** `ringtone_generation_started` → `ringtone_generation_failed` (break down by `failure_reason`, `retryable`, `http_status`; watch `client_ms` on `ringtone_created`)
+7. **Paid retention:** `subscription_paid` where `renewal_number = 1` → `renewal_number ≥ 2`
+8. **Churn:** `trial_payment_completed` or `subscription_paid` → `subscription_cancelled`
 
 ---
 
-## Event catalog — Android (16)
+## Event catalog — Android (21)
 
 Every event also receives super properties `platform` and `app_version`. Tables below list **event-specific** properties.
 
@@ -253,32 +263,85 @@ This is the Mixpanel conversion event for **trial / mandate**. Meta `Purchase` a
 
 ---
 
-### Ringtone activation
+### Ringtone activation (personalized create flow)
+
+Shared property rules for this group:
+
+| Property | Value |
+|----------|-------|
+| `language` | Storage value (`Hindi`, `English`, `Telugu`, …), never the localized label |
+| `voice` | `male` or `female` from `Tune.voiceKey`; omitted when the tune has no recognised gender |
+| `category` | Database category name (`Devotional`, `Romantic`, …) |
+| `tune_id` | `tune.id` of the **base song** (the personalized copy keeps the same id) |
+| `rank` | 1-based position of the song in the unfiltered tier list of the picker |
+| `name_length` | Code-unit length of the validated name; the name itself is never sent |
+| `failure_reason` | Lower-cased `GenerationErrorCode` name (`quota_exceeded`, `timeout`, `network`, …) or `user_cancelled` |
+
+**Values before app version 1.3.0:** `ringtone_creation_started` and `ringtone_created` sent `voice`, `category`, `language` as localized form labels (for example "Female voice" or "भक्ति"). Segment by `app_version` when comparing across the change.
 
 #### `ringtone_creation_started`
 
 | | |
 |--|--|
-| Trigger | Continue on create form (`CreateRingtoneActivity`) |
-| Properties | `voice`, `category`, `language`, `platform` |
+| Trigger | Continue on the create form after the name passes `NameNormalizer.validate` (`CreateRingtoneActivity`) |
+| Properties | `language`, `name_length`, `platform` |
+
+#### `song_picker_viewed`
+
+| | |
+|--|--|
+| Trigger | Song picker reaches a terminal load state: content, empty (`song_count` = 0) or error (`ChooseSongActivity`) |
+| Properties | `language`, `song_count`, `category_count`, `fallback_level` (`none` / `hindi` / `any`), `voice_filter` (`male` / `female`; omitted for "all"), `platform` |
+
+`fallback_level` = `hindi` when the requested language had no songs and Hindi songs were shown; `any` when neither existed.
+
+#### `sample_song_played`
+
+| | |
+|--|--|
+| Trigger | Preview playback starts for a card in the picker (tap on card or play button) |
+| Properties | `tune_id`, `category`, `language`, `voice`, `rank`, `platform` |
+
+#### `sample_song_selected`
+
+| | |
+|--|--|
+| Trigger | First selection of a card in the picker (re-tapping the same card does not fire again) |
+| Properties | `tune_id`, `category`, `language`, `voice`, `rank`, `voice_filter` (omitted for all), `category_filter` (category id; omitted for all), `platform` |
+
+#### `ringtone_generation_started`
+
+| | |
+|--|--|
+| Trigger | A `generate-ringtone` request is posted (`RingtoneGenerationViewModel`); once per attempt, so manual retries fire again with `is_retry = true`. Automatic 409/503 back-off re-posts do **not** fire again. |
+| Properties | `tune_id`, `category`, `language`, `voice`, `name_length`, `is_retry`, `platform` |
 
 #### `ringtone_created`
 
 | | |
 |--|--|
-| Trigger | Ready screen shown (`RingtoneReadyActivity`) |
-| Properties | `voice`, `category`, `language`, `source` (`"creation_flow"`), `platform` |
+| Trigger | `generate-ringtone` returns a ringtone URL (`Ready` state); exactly once per successful generation |
+| Properties | `tune_id`, `category`, `language`, `voice`, `cached` (server render-cache hit), `duration_ms` (omitted if unknown), `client_ms` (wall time from first post to success), `generation_id`, `source` (`"creation_flow"`), `platform` |
 | People | `last_ringtone_category` |
+
+#### `ringtone_generation_failed`
+
+| | |
+|--|--|
+| Trigger | Generation ends without a ringtone: server error, transport error, retry budget exhausted, or the user backs out (`failure_reason` = `user_cancelled`) |
+| Properties | `tune_id`, `category`, `language`, `voice`, `failure_reason`, `http_status` (omitted for client-side failures), `retryable`, `client_ms`, `platform` |
 
 #### `ringtone_set`
 
 | | |
 |--|--|
 | Trigger | Ringtone successfully set as default (`RingtoneSetController.finishSuccess`) |
-| Properties | `source`, `category`, `tune_id`, `tune_name`, `set_mode`, `platform` |
+| Properties | `source`, `category`, `tune_id`, `tune_name`, `set_mode`, `generation_id` (omitted for catalog tunes), `personalized` (boolean), `platform` |
 | People | `last_ringtone_category` |
 
 `source` values: `"home"` (Home), `"creation_flow"` (ready screen)
+
+`tune_name` for a personalized tune is the base song as authored (`title_template` with `sample_name` substituted) so the user's name never leaves the device; it is omitted when the tune has no `title_template`.
 
 `set_mode` values (`RingtoneSetMode.analyticsValue`):
 
@@ -331,8 +394,8 @@ Raw query text is never sent.
 
 | | |
 |--|--|
-| Trigger | Category chip selected (not “All”, including not when toggling back to All) |
-| Properties | `category_id`, `category_name`, `platform` |
+| Trigger | Category chip selected (not “All”, including not when toggling back to All) on Home or in the song picker |
+| Properties | `category_id`, `category_name`, `source` (`"home"` / `"song_picker"`), `platform` |
 
 #### `create_ringtone_cta_tapped`
 
@@ -425,6 +488,7 @@ Mixpanel is the product analytics source of truth. Ads conversions use other too
 - Email addresses as `distinct_id`
 - OTP values
 - Raw search query text (only `query_length` and `result_count`)
+- The typed ringtone name or the generated title (only `name_length`; personalized `tune_name` falls back to the authored `title_template`)
 - Empty or null properties (omit instead)
 
 Consent is not gated yet. If EU/California users are added, initialize the SDK only after consent.
@@ -454,6 +518,8 @@ Consent is not gated yet. If EU/California users are added, initialize the SDK o
 | Language | `LanguageSelectionActivity.kt` |
 | Paywall / trial / failures / logout | `SubscriptionActivity.kt` |
 | Create form | `CreateRingtoneActivity.kt` |
+| Song picker | `ChooseSongActivity.kt` (`data/SongRanker.kt` for `rank` / `fallback_level`) |
+| Generation | `RingtoneProcessingActivity.kt`, `ui/RingtoneGenerationViewModel.kt`, `data/RingtoneGenerationRepository.kt` (`GenerationErrorCode` → `failure_reason`) |
 | Ready screen | `RingtoneReadyActivity.kt` |
 | Set ringtone | `calltheme/RingtoneSetController.kt`, `calltheme/RingtoneSetMode.kt` |
 | Home / play / empty CTA | `Home.kt` |
@@ -472,9 +538,9 @@ Consent is not gated yet. If EU/California users are added, initialize the SDK o
 | Auth / acquisition | 3 (`otp_sent`, `sign_up_completed`, `login_completed`) |
 | Subscription (app) | 4 (`subscription_screen_viewed`, `subscription_started`, `trial_payment_completed`, `subscription_failed`) |
 | Subscription (server) | 2 (`subscription_paid`, `subscription_cancelled`) |
-| Ringtone activation | 3 (`ringtone_creation_started`, `ringtone_created`, `ringtone_set`) |
+| Ringtone activation | 8 (`ringtone_creation_started`, `song_picker_viewed`, `sample_song_played`, `sample_song_selected`, `ringtone_generation_started`, `ringtone_created`, `ringtone_generation_failed`, `ringtone_set`) |
 | Engagement | 6 (`language_selected`, `home_viewed`, `tune_played`, `search_performed`, `category_filtered`, `create_ringtone_cta_tapped`) |
-| **Total** | **18** |
+| **Total** | **23** |
 
 ---
 
@@ -485,5 +551,6 @@ Consent is not gated yet. If EU/California users are added, initialize the SDK o
 3. **Logout:** next events use a new anonymous ID until login.
 4. **Trial vs paid:** `trial_payment_completed` only from the app; `subscription_paid` only from the webhook.
 5. **Webhook retries:** same `cf_payment_id` must not increment Mixpanel `subscription_paid` twice (`$insert_id` + DB unique payment).
-6. **Lexicon:** add descriptions for all 18 events in Mixpanel Data Management.
+6. **Lexicon:** add descriptions for all 23 events in Mixpanel Data Management.
 7. **Funnels:** build the Insights funnels listed in [Conversion funnel](#conversion-funnel).
+8. **Create flow:** run one generation end to end and confirm Live View shows `create_ringtone_cta_tapped → ringtone_creation_started → song_picker_viewed → sample_song_played → sample_song_selected → ringtone_generation_started → ringtone_created (cached=false) → ringtone_set (generation_id, personalized=true)` and that no property contains the typed name.

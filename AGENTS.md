@@ -25,15 +25,24 @@ Mixpanel is the product analytics tool for this project. All new user-action tra
 | `subscription_paid` | ₹249 recurring autopay succeeds (Cashfree webhook) | `amount`, `currency`, `payment_type`, `renewal_number`, `billing_month`, `subscription_id`, `cf_payment_id`, `platform` (`server`) |
 | `subscription_cancelled` | User cancels subscription (Cashfree webhook) | `cancellation_status`, `subscription_id`, `renewals_before_cancel`, `platform` (`server`) |
 | `subscription_failed` | Create, checkout, or verify failure | `stage`, `failure_reason`, `payment_app`, `platform` |
-| `ringtone_creation_started` | Continue on create form | `voice`, `category`, `language`, `platform` |
-| `ringtone_created` | Ringtone ready screen shown | `voice`, `category`, `language`, `source`, `platform` |
-| `ringtone_set` | Ringtone successfully set as default | `source`, `category`, `tune_id`, `tune_name`, `set_mode` (`audio_only` / `with_image_everyone` / `with_image_contact`), `platform` |
+| `ringtone_creation_started` | Continue on create form (name + language, `CreateRingtoneActivity`) | `language`, `name_length`, `platform` |
+| `song_picker_viewed` | Song picker reaches a terminal load state (content / empty / error, `ChooseSongActivity`) | `language`, `song_count`, `category_count`, `fallback_level` (`none` / `hindi` / `any`), `voice_filter` (`male` / `female`, omitted for all), `platform` |
+| `sample_song_played` | Preview starts for a card in the song picker | `tune_id`, `category`, `language`, `voice`, `rank`, `platform` |
+| `sample_song_selected` | First selection of a card in the song picker | `tune_id`, `category`, `language`, `voice`, `rank`, `voice_filter`, `category_filter`, `platform` |
+| `ringtone_generation_started` | `generate-ringtone` request posted (once per attempt, `RingtoneGenerationViewModel`) | `tune_id`, `category`, `language`, `voice`, `name_length`, `is_retry`, `platform` |
+| `ringtone_created` | `generate-ringtone` succeeds (exactly once per generation) | `tune_id`, `category`, `language`, `voice`, `cached`, `duration_ms`, `client_ms`, `generation_id`, `source` (`creation_flow`), `platform` |
+| `ringtone_generation_failed` | Generation ends without a ringtone (server error, transport error, or user cancel) | `tune_id`, `category`, `language`, `voice`, `failure_reason`, `http_status`, `retryable`, `client_ms`, `platform` |
+| `ringtone_set` | Ringtone successfully set as default | `source`, `category`, `tune_id`, `tune_name` (omitted for personalized tunes without a `title_template`), `set_mode` (`audio_only` / `with_image_everyone` / `with_image_contact`), `generation_id`, `personalized`, `platform` |
 | `language_selected` | Language continue tapped | `language`, `locale`, `context`, `platform` |
 | `home_viewed` | Home loads successfully (once per session) | `tune_count`, `category_count`, `platform` |
 | `tune_played` | Tune playback starts on Home | `tune_id`, `category`, `source`, `platform` |
 | `search_performed` | Search query debounced 500ms | `query_length`, `result_count`, `platform` |
-| `category_filtered` | Category chip selected | `category_id`, `category_name`, `platform` |
+| `category_filtered` | Category chip selected (Home catalog or song picker) | `category_id`, `category_name`, `source` (`home` / `song_picker`), `platform` |
 | `create_ringtone_cta_tapped` | Empty-search create CTA tapped | `source`, `prefill_name_length`, `platform` |
+
+Values before app version 1.3.0: `ringtone_creation_started` and `ringtone_created` carried `voice`, `category`, `language` as **localized form labels** (e.g. "Female voice", "भक्ति"). From 1.3.0 `voice` is `male` / `female`, `category` is the database category name and `language` is the storage value (`Hindi`, `English`, …). Segment by `app_version` when comparing across the change.
+
+Create-flow funnel: `create_ringtone_cta_tapped → ringtone_creation_started → song_picker_viewed → sample_song_played → sample_song_selected → ringtone_generation_started → ringtone_created | ringtone_generation_failed → ringtone_set`.
 
 ### Super properties (auto-attached)
 
@@ -61,7 +70,7 @@ Mixpanel is the product analytics tool for this project. All new user-action tra
 | `total_renewals` | Each successful ₹249 webhook charge |
 | `last_billing_month` | Latest recurring charge month |
 | `app_language` | Language selected |
-| `last_ringtone_category` | Ringtone created or set |
+| `last_ringtone_category` | Ringtone generated (`ringtone_created`) or set (`ringtone_set`) |
 
 ### Conventions
 
@@ -71,6 +80,8 @@ Mixpanel is the product analytics tool for this project. All new user-action tra
 - Omit properties when they have no value; do not send `null` or empty strings
 - Add new events via `MixpanelAnalytics` methods, not raw SDK calls scattered in activities
 - Do not send raw phone numbers, search queries, or OTP values
+- Create flow: never send the typed name or the generated ringtone title (only `name_length`); `voice` is `male` / `female` (`Tune.voiceKey`, omitted when blank); `category` is the DB category name; `language` is the storage value; `failure_reason` is the lower-cased `GenerationErrorCode` name (`quota_exceeded`, `timeout`, …) or `user_cancelled`
+- The client owns every create-flow event; `generate-ringtone` sends nothing to Mixpanel (ops/cost reporting is SQL on `generated_ringtones`)
 
 ### Consent
 

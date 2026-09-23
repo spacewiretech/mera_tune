@@ -118,6 +118,9 @@
             android:name=".RingtoneProcessingActivity"
             android:exported="false" />
         <activity
+            android:name=".ChooseSongActivity"
+            android:exported="false" />
+        <activity
             android:name=".CreateRingtoneActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />

@@ -25,8 +25,13 @@ object RingtoneHelper {
 
             val extension = extensionFromUrl(sourceUrl)
             val mimeType = mimeTypeForExtension(extension)
+            val fileName = fileNameFor(
+                title = tune.name,
+                suffix = tune.generationId ?: tune.id,
+                extension = extension,
+            )
             val bytes = downloadAudio(sourceUrl)
-            val uri = saveRingtone(context, tune.name, bytes, extension, mimeType)
+            val uri = saveRingtone(context, tune.name, fileName, bytes, mimeType)
 
             RingtoneManager.setActualDefaultRingtoneUri(
                 context,
@@ -47,6 +52,20 @@ object RingtoneHelper {
             addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
         }
 
+    /**
+     * File name for a saved ringtone: `<sanitized title or "meratune">_<first 8 chars of suffix>.<extension>`.
+     * The suffix (generation id or tune id) keeps Unicode-only titles from colliding on `meratune_ringtone`.
+     * Pure function so it is unit-tested on the JVM.
+     */
+    internal fun fileNameFor(title: String, suffix: String, extension: String): String {
+        val base = sanitizeFileName(title).ifBlank { DEFAULT_FILE_BASE }
+        val safeSuffix = suffix
+            .replace(Regex("[^a-zA-Z0-9]"), "")
+            .take(SUFFIX_LENGTH)
+        val ext = extension.trim().trimStart('.').lowercase().ifBlank { "mp3" }
+        return if (safeSuffix.isEmpty()) "$base.$ext" else "${base}_$safeSuffix.$ext"
+    }
+
     private fun downloadAudio(sourceUrl: String): ByteArray {
         val connection = (URL(sourceUrl).openConnection() as HttpURLConnection).apply {
             connectTimeout = 15_000
@@ -66,26 +85,25 @@ object RingtoneHelper {
     private fun saveRingtone(
         context: Context,
         title: String,
+        fileName: String,
         bytes: ByteArray,
-        extension: String,
         mimeType: String,
     ): Uri {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            saveRingtoneViaMediaStore(context, title, bytes, extension, mimeType)
+            saveRingtoneViaMediaStore(context, title, fileName, bytes, mimeType)
         } else {
-            saveRingtoneLegacy(context, title, bytes, extension, mimeType)
+            saveRingtoneLegacy(context, title, fileName, bytes, mimeType)
         }
     }
 
     private fun saveRingtoneViaMediaStore(
         context: Context,
         title: String,
+        fileName: String,
         bytes: ByteArray,
-        extension: String,
         mimeType: String,
     ): Uri {
         val resolver = context.contentResolver
-        val fileName = "${sanitizeFileName(title)}.$extension"
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
             put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
@@ -116,8 +134,8 @@ object RingtoneHelper {
     private fun saveRingtoneLegacy(
         context: Context,
         title: String,
+        fileName: String,
         bytes: ByteArray,
-        extension: String,
         mimeType: String,
     ): Uri {
         val directory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_RINGTONES)
@@ -125,7 +143,7 @@ object RingtoneHelper {
             throw IOException("Could not access ringtones folder")
         }
 
-        val file = File(directory, "${sanitizeFileName(title)}.$extension")
+        val file = File(directory, fileName)
         file.writeBytes(bytes)
 
         val values = ContentValues().apply {
@@ -162,8 +180,12 @@ object RingtoneHelper {
     private fun sanitizeFileName(title: String): String {
         return title
             .replace(Regex("[^a-zA-Z0-9._-]"), "_")
-            .trim('_')
-            .take(48)
-            .ifBlank { "meratune_ringtone" }
+            .replace(Regex("_{2,}"), "_")
+            .take(MAX_BASE_LENGTH)
+            .trim('_', '.')
     }
+
+    private const val DEFAULT_FILE_BASE = "meratune"
+    private const val SUFFIX_LENGTH = 8
+    private const val MAX_BASE_LENGTH = 48
 }

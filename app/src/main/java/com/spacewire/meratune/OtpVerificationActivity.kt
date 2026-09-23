@@ -187,7 +187,7 @@ class OtpVerificationActivity : AppCompatActivity() {
                     val sessionToken = response.sessionToken.orEmpty()
 
                     if (response.needsName == false && user != null) {
-                        completeLogin(user)
+                        completeLogin(user, response.apiToken)
                         return@launch
                     }
 
@@ -221,8 +221,10 @@ class OtpVerificationActivity : AppCompatActivity() {
         updateResendButtonEnabled(canResend && !isResending)
     }
 
-    private fun completeLogin(user: com.spacewire.meratune.data.User) {
-        AuthStore(this).saveUser(user)
+    private fun completeLogin(user: com.spacewire.meratune.data.User, apiToken: String?) {
+        val authStore = AuthStore(this)
+        authStore.saveUser(user)
+        authStore.replaceApiToken(apiToken)
         ProfileStore(this).saveUser(user.name.orEmpty(), user.phone)
         val analytics = mixpanelAnalytics()
         analytics.identifyUser(user)

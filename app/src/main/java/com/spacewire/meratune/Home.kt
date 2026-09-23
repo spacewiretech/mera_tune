@@ -1,6 +1,5 @@
 package com.spacewire.meratune
 
-import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.text.Editable
@@ -25,30 +24,48 @@ import com.spacewire.meratune.calltheme.RingtoneSetController
 import com.spacewire.meratune.data.Tune
 import com.spacewire.meratune.ui.CategoryAdapter
 import com.spacewire.meratune.ui.HomeViewModel
+import com.spacewire.meratune.ui.PreviewPlayerController
 import com.spacewire.meratune.ui.TuneAdapter
 import com.spacewire.meratune.util.GradientTextHelper
 import com.spacewire.meratune.util.StartupPermissionRequester
-import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class Home : AppCompatActivity() {
 
     private val viewModel: HomeViewModel by viewModels()
-    private var player: ExoPlayer? = null
-    private var currentPlayingTune: Tune? = null
-    private var progressJob: Job? = null
 
     private lateinit var tuneAdapter: TuneAdapter
     private lateinit var categoryAdapter: CategoryAdapter
     private lateinit var searchInput: EditText
     private var suppressSearchUpdates = false
     private var hasTrackedHomeView = false
+
+    private val previewPlayer: PreviewPlayerController by lazy {
+        PreviewPlayerController(
+            context = this,
+            scope = lifecycleScope,
+            listener = object : PreviewPlayerController.Listener {
+                override fun onProgress(id: String, progress: Float) {
+                    tuneAdapter.updatePlaybackProgress(progress)
+                }
+
+                override fun onPlayingChanged(id: String, isPlaying: Boolean) = Unit
+
+                override fun onEnded(id: String) {
+                    viewModel.onPlayToggle(id)
+                    stopPlayback()
+                }
+
+                override fun onError(id: String, error: PlaybackException) {
+                    Log.e(TAG, "Playback failed for tune $id", error)
+                    showPlaybackError(error.message ?: getString(R.string.playback_error))
+                    viewModel.onPlayToggle(id)
+                    stopPlayback()
+                }
+            },
+        )
+    }
 
     private val ringtoneSetController = RingtoneSetController(
         activity = this,
@@ -172,7 +189,7 @@ class Home : AppCompatActivity() {
                         )
                     }
 
-                    if (state.playingTuneId == null && player?.isPlaying == true) {
+                    if (state.playingTuneId == null && previewPlayer.isPlaying) {
                         stopPlayback()
                     }
 
@@ -193,7 +210,7 @@ class Home : AppCompatActivity() {
     }
 
     private fun togglePlayback(tune: Tune) {
-        if (currentPlayingTune?.id == tune.id && player?.isPlaying == true) {
+        if (previewPlayer.currentId == tune.id && previewPlayer.isPlaying) {
             viewModel.onPlayToggle(tune.id)
             stopPlayback()
             return
@@ -201,13 +218,11 @@ class Home : AppCompatActivity() {
 
         stopPlayback()
         viewModel.onPlayToggle(tune.id)
-        currentPlayingTune = tune
 
         val playbackUrl = tune.tuneUrl.trim()
         if (playbackUrl.isBlank()) {
             showPlaybackError("Empty tune URL for ${tune.name}")
             viewModel.onPlayToggle(tune.id)
-            currentPlayingTune = null
             return
         }
 
@@ -219,59 +234,7 @@ class Home : AppCompatActivity() {
             source = SOURCE_HOME,
         )
 
-        player = ExoPlayer.Builder(this).build().apply {
-            addListener(object : Player.Listener {
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (playbackState == Player.STATE_ENDED) {
-                        viewModel.onPlayToggle(tune.id)
-                        stopPlayback()
-                    }
-                }
-
-                override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    if (isPlaying) {
-                        startProgressUpdates()
-                    } else {
-                        stopProgressUpdates(resetRing = false)
-                    }
-                }
-
-                override fun onPlayerError(error: PlaybackException) {
-                    Log.e(TAG, "Playback failed for $playbackUrl", error)
-                    showPlaybackError(error.message ?: getString(R.string.playback_error))
-                    viewModel.onPlayToggle(tune.id)
-                    stopPlayback()
-                }
-            })
-            setMediaItem(MediaItem.fromUri(Uri.parse(playbackUrl)))
-            prepare()
-            play()
-        }
-    }
-
-    private fun startProgressUpdates() {
-        progressJob?.cancel()
-        progressJob = lifecycleScope.launch {
-            while (isActive) {
-                val exoPlayer = player
-                if (exoPlayer != null && exoPlayer.isPlaying) {
-                    val duration = exoPlayer.duration
-                    if (duration > 0L) {
-                        val progress = exoPlayer.currentPosition.toFloat() / duration
-                        tuneAdapter.updatePlaybackProgress(progress)
-                    }
-                }
-                delay(50)
-            }
-        }
-    }
-
-    private fun stopProgressUpdates(resetRing: Boolean = true) {
-        progressJob?.cancel()
-        progressJob = null
-        if (resetRing) {
-            tuneAdapter.updatePlaybackProgress(0f)
-        }
+        previewPlayer.play(tune.id, playbackUrl)
     }
 
     private fun showPlaybackError(detail: String) {
@@ -280,10 +243,10 @@ class Home : AppCompatActivity() {
     }
 
     private fun stopPlayback() {
-        stopProgressUpdates()
-        player?.release()
-        player = null
-        currentPlayingTune = null
+        previewPlayer.release()
+        if (::tuneAdapter.isInitialized) {
+            tuneAdapter.updatePlaybackProgress(0f)
+        }
     }
 
     companion object {

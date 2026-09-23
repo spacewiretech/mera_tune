@@ -1,0 +1,24 @@
+{
+  "name": "ringtone-mixer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MeraTune Cloud Run service that mixes a Gemini TTS name clip into a song bed with ffmpeg and returns MP3 bytes",
+  "license": "UNLICENSED",
+  "main": "dist/src/index.js",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/src/index.js",
+    "test:golden": "node dist/test/golden.js"
+  },
+  "dependencies": {
+    "express": "4.22.3"
+  },
+  "devDependencies": {
+    "@types/express": "4.17.25",
+    "@types/node": "22.20.4",
+    "typescript": "5.9.3"
+  }
+}

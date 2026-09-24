@@ -1,0 +1,39 @@
+{
+  "data": {
+    "payment_id": "433563_33_1754492527395",
+    "cf_payment_id": "2011332",
+    "cf_txn_id": null,
+    "cf_order_id": "",
+    "subscription_id": "subTestIdOndemand_2025080615020470",
+    "cf_subscription_id": "1220385",
+    "payment_type": "CHARGE",
+    "authorization_details": {
+      "authorization_amount": 1.00,
+      "authorization_amount_refund": false,
+      "approve_by_time": "",
+      "authorization_reference": null,
+      "authorization_time": "",
+      "authorization_status": null,
+      "payment_id": "433563_33_1754492527395",
+      "payment_method": null,
+      "payment_group": null
+    },
+    "payment_amount": 1.00,
+    "payment_currency": "INR",
+    "payment_schedule_date": "2025-08-08T12:00:00+05:30",
+    "payment_initiated_date": "2025-08-06T20:32:07+05:30",
+    "payment_remarks": null,
+    "retry_attempts": 0,
+    "failure_details": {
+      "failure_reason": null
+    },
+    "payment_status": "CANCELLED",
+    "payment_gateway_details": {
+      "gateway_name": "CASHFREE",
+      "gateway_subscription_id": "1220385",
+      "gateway_payment_id": "2011332"
+    }
+  },
+  "event_time": "2025-08-06T20:32:07+05:30",
+  "type": "SUBSCRIPTION_PAYMENT_CANCELLED"
+}

@@ -10,6 +10,7 @@ import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -29,10 +30,15 @@ import com.cashfree.pg.core.api.subscription.upi.CFSubsUpi
 import com.cashfree.pg.core.api.subscription.upi.CFSubsUpiPayment
 import com.cashfree.pg.core.api.utils.CFErrorResponse
 import com.cashfree.pg.core.api.utils.CFSubscriptionResponse
+import com.spacewire.meratune.analytics.AnalyticsSource
+import com.spacewire.meratune.analytics.PaywallDismissMethod
+import com.spacewire.meratune.analytics.PaywallEntryPoint
+import com.spacewire.meratune.analytics.PlayEndReason
 import com.spacewire.meratune.analytics.firebaseAnalytics
 import com.spacewire.meratune.analytics.metaAnalytics
 import com.spacewire.meratune.analytics.mixpanelAnalytics
-import com.spacewire.meratune.data.AuthException
+import com.spacewire.meratune.data.SubscriptionApiException
+import com.spacewire.meratune.data.SubscriptionFailureReason
 import com.spacewire.meratune.data.SubscriptionRepository
 import com.spacewire.meratune.data.SubscriptionVideoRepository
 import com.spacewire.meratune.model.PaymentApp
@@ -50,7 +56,26 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
     private var playingVideoUrl: String? = null
     private var pendingAuthAmount: Double? = null
     private var isProcessingPayment = false
+    private var verifyInFlight = false
+
+    /** A verify request is running; redone after a recreation, which cancels it. */
+    private var verifyPending = false
     private var selectedPaymentApp: PaymentApp = PaymentApp.DEFAULT
+    private var attempt = 0
+    private var previousStatus: String? = null
+    private var videoCompleted = false
+    private var videoErrorTracked = false
+    private var entryPoint: String? = null
+
+    /** Set before every programmatic finish, so only a system-back finish is a `paywall_dismissed`. */
+    private var finishingWithoutDismiss = false
+    private var dismissTracked = false
+    private var logoutHandled = false
+
+    /** Enabled only while a verify runs: back would finish the paywall and cancel the conversion. */
+    private val verifyBackBlocker = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() = Unit
+    }
     private var videoPlayer: ExoPlayer? = null
     private lateinit var videoPlayerView: PlayerView
     private lateinit var playButton: ImageView
@@ -59,11 +84,22 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_subscription)
+        onBackPressedDispatcher.addCallback(this, verifyBackBlocker)
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.subscriptionRoot)) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             view.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
+        }
+
+        val installedApps = PaymentApp.installed(packageManager)
+        selectedPaymentApp = installedApps.firstOrNull() ?: PaymentApp.DEFAULT
+        // Restored before the callback is set: Cashfree replays a stored checkout result into it.
+        if (savedInstanceState != null) {
+            restoreCheckoutState(savedInstanceState)
+        } else {
+            previousStatus = AuthStore(this).getStatus()
+            entryPoint = PaywallEntryPoint.derive(mixpanelAnalytics().currentScreen, previousStatus)
         }
 
         try {
@@ -72,14 +108,50 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
             e.printStackTrace()
         }
 
-        selectedPaymentApp = PaymentApp.installed(packageManager).firstOrNull()
-            ?: PaymentApp.DEFAULT
         setupActions()
         setupSubscriptionVideo()
         bindFeatureRows()
         bindSelectedPaymentApp()
-        mixpanelAnalytics().trackSubscriptionScreenViewed()
-        metaAnalytics().trackSubscriptionScreenViewed()
+        // Cashfree delivers the verify callback only once, to the instance that was destroyed.
+        if (savedInstanceState?.getBoolean(STATE_VERIFY_PENDING) == true) {
+            verifySubscription(pendingSubscriptionId)
+        }
+        if (savedInstanceState == null) {
+            mixpanelAnalytics().trackSubscriptionScreenViewed(
+                userStatus = previousStatus,
+                installedAppCount = installedApps.size,
+                entryPoint = entryPoint,
+            )
+            metaAnalytics().trackSubscriptionScreenViewed()
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(STATE_PENDING_SUBSCRIPTION_ID, pendingSubscriptionId)
+        pendingAuthAmount?.let { outState.putDouble(STATE_PENDING_AUTH_AMOUNT, it) }
+        outState.putString(STATE_PAYMENT_APP, selectedPaymentApp.name)
+        outState.putInt(STATE_ATTEMPT, attempt)
+        outState.putString(STATE_PREVIOUS_STATUS, previousStatus)
+        outState.putBoolean(STATE_VIDEO_COMPLETED, videoCompleted)
+        outState.putBoolean(STATE_VIDEO_ERROR_TRACKED, videoErrorTracked)
+        outState.putBoolean(STATE_VERIFY_PENDING, verifyPending)
+        outState.putString(STATE_ENTRY_POINT, entryPoint)
+    }
+
+    private fun restoreCheckoutState(state: Bundle) {
+        pendingSubscriptionId = state.getString(STATE_PENDING_SUBSCRIPTION_ID)
+        if (state.containsKey(STATE_PENDING_AUTH_AMOUNT)) {
+            pendingAuthAmount = state.getDouble(STATE_PENDING_AUTH_AMOUNT)
+        }
+        state.getString(STATE_PAYMENT_APP)
+            ?.let { name -> PaymentApp.entries.firstOrNull { it.name == name } }
+            ?.let { selectedPaymentApp = it }
+        attempt = state.getInt(STATE_ATTEMPT)
+        previousStatus = state.getString(STATE_PREVIOUS_STATUS)
+        videoCompleted = state.getBoolean(STATE_VIDEO_COMPLETED)
+        videoErrorTracked = state.getBoolean(STATE_VIDEO_ERROR_TRACKED)
+        entryPoint = state.getString(STATE_ENTRY_POINT)
     }
 
     private fun bindFeatureRows() {
@@ -100,7 +172,9 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         }
 
         findViewById<TextView>(R.id.logoutButton).setOnClickListener {
-            mixpanelAnalytics().logout(this)
+            if (logoutHandled) return@setOnClickListener
+            logoutHandled = true
+            mixpanelAnalytics().logout(this, source = AnalyticsSource.SUBSCRIPTION)
             metaAnalytics().clearUserId()
             firebaseAnalytics().clearUserId()
             startActivity(
@@ -108,12 +182,28 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                 },
             )
-            finish()
+            finishWithoutDismiss()
         }
 
         findViewById<TextView>(R.id.tryNowButton).setOnClickListener {
             if (isProcessingPayment) return@setOnClickListener
-            if (!selectedPaymentApp.isInstalled(packageManager)) {
+            attempt += 1
+            val appInstalled = selectedPaymentApp.isInstalled(packageManager)
+            mixpanelAnalytics().trackSubscriptionCtaTapped(
+                paymentApp = selectedPaymentApp,
+                paymentAppInstalled = appInstalled,
+                attempt = attempt,
+                videoCompleted = videoCompleted,
+            )
+            if (!appInstalled) {
+                trackFailure(
+                    stage = SubscriptionFailureReason.STAGE_PRECHECK,
+                    reason = if (PaymentApp.installed(packageManager).isEmpty()) {
+                        SubscriptionFailureReason.NO_PAYMENT_APP_INSTALLED
+                    } else {
+                        SubscriptionFailureReason.PAYMENT_APP_NOT_INSTALLED
+                    },
+                )
                 Toast.makeText(
                     this,
                     getString(R.string.subscription_payment_app_not_installed, selectedPaymentApp.displayName),
@@ -128,10 +218,18 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
             if (isProcessingPayment) return@setOnClickListener
             val installedApps = PaymentApp.installed(packageManager)
             if (installedApps.isEmpty()) {
+                trackFailure(
+                    stage = SubscriptionFailureReason.STAGE_PRECHECK,
+                    reason = SubscriptionFailureReason.NO_PAYMENT_APP_INSTALLED,
+                )
                 Toast.makeText(this, R.string.subscription_no_payment_app_installed, Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
             PaymentAppBottomSheet(this, selectedPaymentApp, installedApps) { app ->
+                mixpanelAnalytics().trackPaymentAppSelected(
+                    paymentApp = app,
+                    previousPaymentApp = selectedPaymentApp,
+                )
                 selectedPaymentApp = app
                 bindSelectedPaymentApp()
             }.show()
@@ -164,6 +262,13 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_ENDED) {
+                        if (!videoCompleted) {
+                            videoCompleted = true
+                            mixpanelAnalytics().trackSubscriptionVideoEnded(
+                                endReason = PlayEndReason.COMPLETED,
+                                durationMs = player.knownDurationMs(),
+                            )
+                        }
                         player.seekTo(0)
                         player.pause()
                         playButton.visibility = View.VISIBLE
@@ -172,6 +277,14 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
 
                 override fun onPlayerError(error: PlaybackException) {
                     playButton.visibility = View.VISIBLE
+                    if (!videoErrorTracked) {
+                        videoErrorTracked = true
+                        mixpanelAnalytics().trackSubscriptionVideoEnded(
+                            endReason = PlayEndReason.ERROR,
+                            errorCode = error.errorCodeName.removePrefix("ERROR_CODE_"),
+                            durationMs = player.knownDurationMs(),
+                        )
+                    }
                     Toast.makeText(
                         this@SubscriptionActivity,
                         R.string.subscription_video_error,
@@ -217,6 +330,8 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         }
     }
 
+    private fun Player.knownDurationMs(): Long? = duration.takeIf { it > 0L }
+
     private fun playSubscriptionVideo(url: String) {
         val player = videoPlayer ?: return
         if (playingVideoUrl == url && player.mediaItemCount > 0) return
@@ -237,8 +352,12 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
     private fun startSubscriptionCheckout() {
         val userId = AuthStore(this).getUserId()
         if (userId <= 0L) {
+            trackFailure(
+                stage = SubscriptionFailureReason.STAGE_PRECHECK,
+                reason = SubscriptionFailureReason.NOT_LOGGED_IN,
+            )
             Toast.makeText(this, R.string.auth_generic_error, Toast.LENGTH_SHORT).show()
-            finish()
+            finishWithoutDismiss()
             return
         }
 
@@ -254,6 +373,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
                         paymentApp = selectedPaymentApp,
                         authAmount = response.authAmount,
                         recurringAmount = response.recurringAmount,
+                        attempt = attempt,
                     )
                     metaAnalytics().trackSubscriptionStarted(
                         authAmount = response.authAmount,
@@ -267,12 +387,13 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
                     )
                 }
                 .onFailure { error ->
-                    val message = (error as? AuthException)?.message ?: getString(R.string.subscription_error)
-                    mixpanelAnalytics().trackSubscriptionFailed(
-                        stage = "create",
-                        failureReason = message,
-                        paymentApp = selectedPaymentApp,
+                    trackFailure(
+                        stage = SubscriptionFailureReason.STAGE_CREATE,
+                        reason = SubscriptionFailureReason.forCreate(error),
+                        httpStatus = SubscriptionFailureReason.httpStatus(error),
                     )
+                    val message = (error as? SubscriptionApiException)?.message
+                        ?: getString(R.string.subscription_error)
                     Toast.makeText(this@SubscriptionActivity, message, Toast.LENGTH_LONG).show()
                     setLoading(false)
                 }
@@ -330,9 +451,9 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         } catch (e: CFException) {
             isProcessingPayment = false
             setLoading(false)
-            mixpanelAnalytics().trackSubscriptionFailed(
-                stage = "checkout",
-                failureReason = e.message,
+            trackFailure(
+                stage = SubscriptionFailureReason.STAGE_CHECKOUT,
+                reason = SubscriptionFailureReason.SDK_EXCEPTION,
                 paymentApp = paymentApp,
             )
             Toast.makeText(this, R.string.subscription_error, Toast.LENGTH_LONG).show()
@@ -341,47 +462,81 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
     }
 
     override fun onSubscriptionVerify(cfSubscriptionResponse: CFSubscriptionResponse) {
+        // After a recreation mid-checkout the replayed callback still carries the id.
+        verifySubscription(
+            pendingSubscriptionId ?: cfSubscriptionResponse.subscriptionId?.takeIf { it.isNotBlank() },
+        )
+    }
+
+    private fun verifySubscription(subscriptionId: String?) {
+        if (verifyInFlight) return
         val userId = AuthStore(this).getUserId()
-        val subscriptionId = pendingSubscriptionId
         if (userId <= 0L || subscriptionId.isNullOrBlank()) {
+            trackFailure(
+                stage = SubscriptionFailureReason.STAGE_VERIFY,
+                reason = if (userId <= 0L) {
+                    SubscriptionFailureReason.NOT_LOGGED_IN
+                } else {
+                    SubscriptionFailureReason.MISSING_SUBSCRIPTION_ID
+                },
+            )
             setLoading(false)
             isProcessingPayment = false
             return
         }
 
+        verifyInFlight = true
+        verifyPending = true
+        verifyBackBlocker.isEnabled = true
+        pendingSubscriptionId = subscriptionId
+        isProcessingPayment = true
+        setLoading(true)
         lifecycleScope.launch {
             subscriptionRepository.verifySubscription(userId, subscriptionId)
                 .onSuccess { response ->
                     val user = response.user
                     if (response.active == true && user != null) {
+                        // verifyInFlight stays set: the three conversions below fire once per paywall.
                         AuthStore(this@SubscriptionActivity).saveUser(user)
                         ProfileStore(this@SubscriptionActivity).saveUser(user.name.orEmpty(), user.phone)
+                        val amount = pendingAuthAmount ?: 3.0
                         val analytics = mixpanelAnalytics()
                         analytics.identifyUser(user)
                         analytics.trackTrialPaymentCompleted(
                             paymentApp = selectedPaymentApp,
                             subscriptionId = subscriptionId,
-                            amount = pendingAuthAmount ?: 3.0,
+                            amount = amount,
+                            attempt = attempt.takeIf { it > 0 },
+                            previousStatus = previousStatus,
                         )
                         metaAnalytics().identifyUser(user)
                         metaAnalytics().trackTrialPaymentCompleted(
-                            amount = pendingAuthAmount ?: 3.0,
+                            amount = amount,
                             subscriptionId = subscriptionId,
                         )
                         metaAnalytics().flush()
                         firebaseAnalytics().identifyUser(user)
                         firebaseAnalytics().trackTrialPaymentCompleted(
-                            amount = pendingAuthAmount ?: 3.0,
+                            amount = amount,
                             subscriptionId = subscriptionId,
                         )
                         AuthNavigator.navigateAfterAuth(this@SubscriptionActivity, user)
-                        finish()
+                        finishWithoutDismiss()
                     } else {
-                        mixpanelAnalytics().trackSubscriptionFailed(
-                            stage = "verify",
-                            failureReason = "pending",
-                            paymentApp = selectedPaymentApp,
-                        )
+                        verifyInFlight = false
+                        verifyBackBlocker.isEnabled = false
+                        if (response.active == true) {
+                            trackFailure(
+                                stage = SubscriptionFailureReason.STAGE_VERIFY,
+                                reason = SubscriptionFailureReason.MISSING_USER,
+                            )
+                        } else {
+                            trackFailure(
+                                stage = SubscriptionFailureReason.STAGE_VERIFY,
+                                reason = SubscriptionFailureReason.PENDING,
+                                cashfreeStatus = response.status,
+                            )
+                        }
                         Toast.makeText(
                             this@SubscriptionActivity,
                             R.string.subscription_pending,
@@ -391,10 +546,12 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
                     }
                 }
                 .onFailure { error ->
-                    mixpanelAnalytics().trackSubscriptionFailed(
-                        stage = "verify",
-                        failureReason = error.message,
-                        paymentApp = selectedPaymentApp,
+                    verifyInFlight = false
+                    verifyBackBlocker.isEnabled = false
+                    trackFailure(
+                        stage = SubscriptionFailureReason.STAGE_VERIFY,
+                        reason = SubscriptionFailureReason.forVerify(error),
+                        httpStatus = SubscriptionFailureReason.httpStatus(error),
                     )
                     Toast.makeText(
                         this@SubscriptionActivity,
@@ -404,6 +561,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
                     setLoading(false)
                 }
             isProcessingPayment = false
+            verifyPending = false
         }
     }
 
@@ -412,12 +570,32 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         setLoading(false)
         val message = paymentFailureMessage(cfErrorResponse)
         Log.e(TAG, "Cashfree checkout failed: ${cfErrorResponse.message} code=${cfErrorResponse.code}")
-        mixpanelAnalytics().trackSubscriptionFailed(
-            stage = "checkout",
-            failureReason = message,
-            paymentApp = selectedPaymentApp,
+        trackFailure(
+            stage = SubscriptionFailureReason.STAGE_CHECKOUT,
+            reason = SubscriptionFailureReason.forCheckout(cfErrorResponse.code),
+            cfErrorCode = cfErrorResponse.code,
         )
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    }
+
+    /** [reason] is a bounded [SubscriptionFailureReason] value, never message text. */
+    private fun trackFailure(
+        stage: String,
+        reason: String,
+        paymentApp: PaymentApp = selectedPaymentApp,
+        cfErrorCode: String? = null,
+        httpStatus: Int? = null,
+        cashfreeStatus: String? = null,
+    ) {
+        mixpanelAnalytics().trackSubscriptionFailed(
+            stage = stage,
+            failureReason = reason,
+            paymentApp = paymentApp,
+            cfErrorCode = cfErrorCode,
+            httpStatus = httpStatus,
+            cashfreeStatus = cashfreeStatus,
+            attempt = attempt.takeIf { it > 0 },
+        )
     }
 
     private fun paymentFailureMessage(cfErrorResponse: CFErrorResponse): String {
@@ -444,6 +622,27 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         findViewById<View>(R.id.paymentAppSelector).alpha = if (loading) 0.7f else 1f
     }
 
+    /**
+     * System back is the only remaining way this screen finishes; [verifyBackBlocker] only swallows
+     * back while a verify runs, and a paid user is never counted as a dismissal.
+     */
+    override fun onPause() {
+        super.onPause()
+        if (!isFinishing || finishingWithoutDismiss || dismissTracked || verifyInFlight) return
+        dismissTracked = true
+        mixpanelAnalytics().trackPaywallDismissed(
+            entryPoint = entryPoint,
+            dismissMethod = PaywallDismissMethod.SYSTEM_BACK,
+            attempt = attempt,
+            videoCompleted = videoCompleted,
+        )
+    }
+
+    private fun finishWithoutDismiss() {
+        finishingWithoutDismiss = true
+        finish()
+    }
+
     override fun onStop() {
         videoPlayer?.pause()
         super.onStop()
@@ -458,6 +657,15 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
 
     companion object {
         private const val TAG = "SubscriptionActivity"
+        private const val STATE_PENDING_SUBSCRIPTION_ID = "pending_subscription_id"
+        private const val STATE_PENDING_AUTH_AMOUNT = "pending_auth_amount"
+        private const val STATE_PAYMENT_APP = "selected_payment_app"
+        private const val STATE_ATTEMPT = "checkout_attempt"
+        private const val STATE_PREVIOUS_STATUS = "previous_status"
+        private const val STATE_VIDEO_COMPLETED = "video_completed"
+        private const val STATE_VIDEO_ERROR_TRACKED = "video_error_tracked"
+        private const val STATE_VERIFY_PENDING = "verify_pending"
+        private const val STATE_ENTRY_POINT = "entry_point"
 
         fun intent(context: Context): Intent = Intent(context, SubscriptionActivity::class.java)
     }

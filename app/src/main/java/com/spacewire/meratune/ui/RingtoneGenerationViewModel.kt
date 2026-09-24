@@ -10,9 +10,13 @@ import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.spacewire.meratune.analytics.AnalyticsTrigger
+import com.spacewire.meratune.analytics.CreationLimitType
+import com.spacewire.meratune.analytics.FailureReason
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.data.GeneratedRingtone
 import com.spacewire.meratune.data.GenerationErrorCode
+import com.spacewire.meratune.data.GenerationQuota
 import com.spacewire.meratune.data.RingtoneGenerationException
 import com.spacewire.meratune.data.RingtoneGenerationRepository
 import com.spacewire.meratune.data.Tune
@@ -53,8 +57,12 @@ sealed class GenerationState {
  *   death all reuse it (the server dedupes per `(user_id, client_request_id)`).
  * - `GENERATION_IN_PROGRESS` / `TTS_RATE_LIMITED` are re-posted automatically with backoff
  *   (min 2 s, x1.5, cap 8 s) until [TOTAL_BUDGET_MS] is used up, then the attempt fails with `TIMEOUT`.
- * - Analytics: `ringtone_generation_started` once per attempt, `ringtone_created` exactly once,
- *   `ringtone_generation_failed` per failed attempt or on [cancel]. The name is never logged or tracked.
+ * - Analytics: `ringtone_generation_started` once per attempt. `generate-ringtone` owns the outcomes
+ *   (`ringtone_created` and every `error_code` it returns); the app sends `ringtone_generation_failed`
+ *   only per [GenerationErrorCode.appReportsFailure] or on [cancel], and `creation_limit_reached` on
+ *   `QUOTA_EXCEEDED`. The name is never logged or tracked.
+ *   `trigger` is `initial`, `retry` (user tap) or `restored` ([start] re-posting after process death);
+ *   `total_client_ms` runs from the first attempt and survives process death via [SavedStateHandle].
  */
 class RingtoneGenerationViewModel(
     application: Application,
@@ -62,7 +70,7 @@ class RingtoneGenerationViewModel(
     private val repository: RingtoneGenerationRepository = RingtoneGenerationRepository(),
 ) : AndroidViewModel(application) {
 
-    private data class Request(val tune: Tune, val name: String, val language: String)
+    private data class Request(val tune: Tune, val name: String, val language: String, val previewedCount: Int?)
 
     private val _state = MutableStateFlow<GenerationState>(GenerationState.Idle)
     val state: StateFlow<GenerationState> = _state.asStateFlow()
@@ -82,10 +90,11 @@ class RingtoneGenerationViewModel(
             savedStateHandle[KEY_ATTEMPTS] = value
         }
 
-    private var createdTracked: Boolean
-        get() = savedStateHandle.get<Boolean>(KEY_CREATED_TRACKED) ?: false
+    /** `SystemClock.elapsedRealtime()` of the first attempt; kept across process death. */
+    private var firstAttemptStartedAtMs: Long
+        get() = savedStateHandle.get<Long>(KEY_FIRST_ATTEMPT_STARTED_AT_MS) ?: 0L
         set(value) {
-            savedStateHandle[KEY_CREATED_TRACKED] = value
+            savedStateHandle[KEY_FIRST_ATTEMPT_STARTED_AT_MS] = value
         }
 
     /** Whether [retry] would post another attempt. */
@@ -102,18 +111,24 @@ class RingtoneGenerationViewModel(
     /**
      * Starts the first attempt. Idempotent: a no-op while an attempt is running or once a result or
      * failure exists (rotation re-calls this from `onCreate`).
+     *
+     * @param previewedCount distinct songs previewed in the picker, for analytics only
      */
-    fun start(tune: Tune, name: String, language: String) {
-        request = Request(tune, name, language)
+    fun start(tune: Tune, name: String, language: String, previewedCount: Int? = null) {
+        request = Request(tune, name, language, previewedCount)
         if (isRunning || _state.value !is GenerationState.Idle) return
         // After process death `attempts` survives; the same client_request_id makes this a safe re-post.
-        launchAttempt(isRetry = attempts > 0)
+        val restored = attempts > 0
+        launchAttempt(
+            isRetry = restored,
+            trigger = if (restored) AnalyticsTrigger.RESTORED else AnalyticsTrigger.INITIAL,
+        )
     }
 
     /** Re-posts after a failure with the same [clientRequestId]. Capped at [MAX_ATTEMPTS]. */
     fun retry() {
         if (isRunning || _state.value !is GenerationState.Failed || !canRetry) return
-        launchAttempt(isRetry = true)
+        launchAttempt(isRetry = true, trigger = AnalyticsTrigger.RETRY)
     }
 
     /** User backed out mid-generation. */
@@ -125,32 +140,42 @@ class RingtoneGenerationViewModel(
         val req = request ?: return
         getApplication<Application>().mixpanelAnalytics().trackRingtoneGenerationFailed(
             tuneId = req.tune.id,
+            sampleId = req.tune.id,
             category = req.tune.category?.name.orEmpty(),
             language = req.language,
             voice = req.tune.voiceKey,
-            failureReason = FAILURE_USER_CANCELLED,
+            failureReason = FailureReason.USER_CANCELLED,
             httpStatus = null,
             retryable = false,
             clientMs = elapsedSinceAttemptStart(),
+            attempt = attempts,
+            totalClientMs = elapsedSinceFirstAttempt(),
+            clientRequestId = clientRequestId,
         )
         _state.value = GenerationState.Idle
     }
 
-    private fun launchAttempt(isRetry: Boolean) {
+    private fun launchAttempt(isRetry: Boolean, trigger: String) {
         val req = request ?: return
         val attempt = attempts + 1
         attempts = attempt
         attemptStartedAtMs = SystemClock.elapsedRealtime()
+        if (firstAttemptStartedAtMs == 0L) firstAttemptStartedAtMs = attemptStartedAtMs
         _state.value = GenerationState.Generating(attempt)
 
         val analytics = getApplication<Application>().mixpanelAnalytics()
         analytics.trackRingtoneGenerationStarted(
             tuneId = req.tune.id,
+            sampleId = req.tune.id,
             category = req.tune.category?.name.orEmpty(),
             language = req.language,
             voice = req.tune.voiceKey,
             nameLength = req.name.length,
             isRetry = isRetry,
+            attempt = attempt,
+            trigger = trigger,
+            clientRequestId = clientRequestId,
+            previewedCount = req.previewedCount,
         )
 
         job = viewModelScope.launch {
@@ -177,7 +202,7 @@ class RingtoneGenerationViewModel(
                     language = req.language,
                     clientRequestId = clientRequestId,
                 )
-                onReady(req, result)
+                onReady(result)
                 return
             } catch (error: CancellationException) {
                 throw error
@@ -188,7 +213,14 @@ class RingtoneGenerationViewModel(
                     val serverWaitMs = (error.retryAfterSeconds ?: 0).coerceAtLeast(0) * 1_000L
                     val waitMs = maxOf(serverWaitMs, backoffMs).coerceIn(MIN_WAIT_MS, MAX_WAIT_MS)
                     if (elapsedSinceAttemptStart() + waitMs > TOTAL_BUDGET_MS) {
-                        fail(req, GenerationErrorCode.TIMEOUT, "Generation took too long", error.httpStatus)
+                        // The server skips busy responses, so this app-side timeout is ours to report.
+                        fail(
+                            req,
+                            GenerationErrorCode.TIMEOUT,
+                            "Generation took too long",
+                            error.httpStatus,
+                            error.quota,
+                        )
                         return
                     }
                     Log.d(TAG, "busy code=${error.code.name}, re-posting in ${waitMs}ms")
@@ -198,7 +230,7 @@ class RingtoneGenerationViewModel(
                     _state.value = GenerationState.Generating(attempt)
                     continue
                 }
-                fail(req, error.code, error.message.orEmpty(), error.httpStatus)
+                fail(req, error.code, error.message.orEmpty(), error.httpStatus, error.quota, error.fromServer)
                 return
             } catch (error: Exception) {
                 Log.e(TAG, "Unexpected generation error: ${error.javaClass.simpleName}")
@@ -208,37 +240,50 @@ class RingtoneGenerationViewModel(
         }
     }
 
-    private fun onReady(req: Request, result: GeneratedRingtone) {
-        val clientMs = elapsedSinceAttemptStart()
-        if (!createdTracked) {
-            createdTracked = true
-            getApplication<Application>().mixpanelAnalytics().trackRingtoneCreated(
-                tuneId = req.tune.id,
-                category = result.category?.name?.takeIf { it.isNotBlank() } ?: req.tune.category?.name.orEmpty(),
-                language = req.language,
-                voice = req.tune.voiceKey,
-                cached = result.cached,
-                durationMs = result.durationMs,
-                clientMs = clientMs,
-                generationId = result.generationId,
-            )
-        }
-        _state.value = GenerationState.Ready(result, clientMs)
+    private fun onReady(result: GeneratedRingtone) {
+        _state.value = GenerationState.Ready(result, elapsedSinceAttemptStart())
     }
 
-    private fun fail(req: Request, code: GenerationErrorCode, message: String, httpStatus: Int?) {
+    /** [fromServer]: the failure is a server `error_code` (see [GenerationErrorCode.appReportsFailure]). */
+    private fun fail(
+        req: Request,
+        code: GenerationErrorCode,
+        message: String,
+        httpStatus: Int?,
+        quota: GenerationQuota? = null,
+        fromServer: Boolean = false,
+    ) {
         val clientMs = elapsedSinceAttemptStart()
         Log.w(TAG, "generation failed code=${code.name} status=$httpStatus attempt=$attempts in ${clientMs}ms")
-        getApplication<Application>().mixpanelAnalytics().trackRingtoneGenerationFailed(
-            tuneId = req.tune.id,
-            category = req.tune.category?.name.orEmpty(),
-            language = req.language,
-            voice = req.tune.voiceKey,
-            failureReason = code.analyticsValue,
-            httpStatus = httpStatus,
-            retryable = code.retryable,
-            clientMs = clientMs,
-        )
+        val analytics = getApplication<Application>().mixpanelAnalytics()
+        if (GenerationErrorCode.appReportsFailure(code, fromServer)) {
+            analytics.trackRingtoneGenerationFailed(
+                tuneId = req.tune.id,
+                sampleId = req.tune.id,
+                category = req.tune.category?.name.orEmpty(),
+                language = req.language,
+                voice = req.tune.voiceKey,
+                failureReason = code.analyticsValue,
+                httpStatus = httpStatus,
+                retryable = code.retryable,
+                clientMs = clientMs,
+                attempt = attempts,
+                // Whether the error screen offers Retry (same rule as RingtoneProcessingActivity).
+                canRetry = code.retryable && canRetry,
+                totalClientMs = elapsedSinceFirstAttempt(),
+                quotaUsedToday = quota?.usedToday,
+                quotaDailyLimit = quota?.dailyLimit,
+                clientRequestId = clientRequestId,
+            )
+        }
+        // Once per failed attempt: the processing screen renders this Failed state as the limit screen.
+        if (code == GenerationErrorCode.QUOTA_EXCEEDED) {
+            analytics.trackCreationLimitReached(
+                limitType = CreationLimitType.DAILY,
+                quotaUsedToday = quota?.usedToday,
+                quotaDailyLimit = quota?.dailyLimit,
+            )
+        }
         _state.value = GenerationState.Failed(
             code = code,
             message = message,
@@ -251,12 +296,16 @@ class RingtoneGenerationViewModel(
     private fun elapsedSinceAttemptStart(): Long =
         if (attemptStartedAtMs == 0L) 0L else SystemClock.elapsedRealtime() - attemptStartedAtMs
 
+    private fun elapsedSinceFirstAttempt(): Long? {
+        val startedAt = firstAttemptStartedAtMs.takeIf { it > 0L } ?: return null
+        return (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(0L)
+    }
+
     companion object {
         private const val TAG = "RingtoneGen"
         private const val KEY_CLIENT_REQUEST_ID = "client_request_id"
         private const val KEY_ATTEMPTS = "attempts"
-        private const val KEY_CREATED_TRACKED = "created_tracked"
-        private const val FAILURE_USER_CANCELLED = "user_cancelled"
+        private const val KEY_FIRST_ATTEMPT_STARTED_AT_MS = "first_attempt_started_at_ms"
 
         const val MAX_ATTEMPTS = 3
         private const val MIN_WAIT_MS = 2_000L

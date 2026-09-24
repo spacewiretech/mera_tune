@@ -2,10 +2,19 @@
 <!--
    Auto Backup rules for Android 11 and below (Android 12+ uses data_extraction_rules.xml).
    auth_session.xml holds the long-lived api_token issued at login; it must never leave the device.
+   analytics_state.xml (install referrer / permission dedupe, call-event cap) and active_ringtone.xml
+   (the default-ringtone URI on this device) are device-local: restored, they suppress
+   install_attributed and report a false ringtone_replaced_externally.
    See https://developer.android.com/guide/topics/data/autobackup
 -->
 <full-backup-content>
     <exclude
         domain="sharedpref"
         path="auth_session.xml" />
+    <exclude
+        domain="sharedpref"
+        path="analytics_state.xml" />
+    <exclude
+        domain="sharedpref"
+        path="active_ringtone.xml" />
 </full-backup-content>

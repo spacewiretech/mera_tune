@@ -23,6 +23,8 @@ class PaymentAppBottomSheet(
         val dialog = BottomSheetDialog(context)
         val sheetView = LayoutInflater.from(context).inflate(R.layout.bottom_sheet_payment_apps, null)
         val container = sheetView.findViewById<LinearLayout>(R.id.paymentAppOptionsContainer)
+        // Two quick taps on different rows can both land before dismiss() takes effect.
+        var handled = false
 
         availableApps.forEach { app ->
             val optionView = LayoutInflater.from(context)
@@ -36,6 +38,8 @@ class PaymentAppBottomSheet(
             bindSelection(optionView, app == selectedApp)
 
             optionView.setOnClickListener {
+                if (handled) return@setOnClickListener
+                handled = true
                 onAppSelected(app)
                 dialog.dismiss()
             }

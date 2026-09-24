@@ -11,6 +11,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.spacewire.meratune.R
+import com.spacewire.meratune.analytics.AnalyticsPermissionKey
+import com.spacewire.meratune.analytics.AnalyticsPermissions
+import com.spacewire.meratune.analytics.AnalyticsStateStore
+import com.spacewire.meratune.analytics.PromptContext
+import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.calltheme.IncomingCallMonitor
 import com.spacewire.meratune.calltheme.IncomingCallNotifier
 
@@ -20,15 +25,25 @@ import com.spacewire.meratune.calltheme.IncomingCallNotifier
  */
 class StartupPermissionRequester(private val activity: ComponentActivity) {
 
+    // Lazy: constructed during Activity init, before Context is attached.
+    private val analyticsState by lazy { AnalyticsStateStore(activity) }
+
     private val runtimeLauncher = activity.registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
-    ) {
+    ) { result ->
+        // An interrupted request returns an empty map, so nothing is reported.
+        result.forEach { (permission, granted) -> reportRuntimeResult(permission, granted) }
         requestWriteSettingsIfNeeded()
     }
 
     private val writeSettingsLauncher = activity.registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) {
+        reportAnswer(
+            permissionKey = AnalyticsPermissionKey.WRITE_SETTINGS,
+            granted = !RingtoneHelper.needsWriteSettingsPermission(activity),
+            permanentlyDenied = null,
+        )
         finishPermissionSetup()
     }
 
@@ -57,6 +72,30 @@ class StartupPermissionRequester(private val activity: ComponentActivity) {
     private fun finishPermissionSetup() {
         IncomingCallNotifier.ensureChannel(activity)
         IncomingCallMonitor.start(activity)
+    }
+
+    private fun reportRuntimeResult(manifestPermission: String, granted: Boolean) {
+        val permissionKey = AnalyticsPermissionKey.fromManifest(manifestPermission) ?: return
+        reportAnswer(
+            permissionKey = permissionKey,
+            granted = granted,
+            permanentlyDenied = if (granted) {
+                null
+            } else {
+                AnalyticsPermissions.isPermanentlyDenied(activity, manifestPermission)
+            },
+        )
+    }
+
+    /** Deduped across launches: only the first answer per permission and later changes are sent. */
+    private fun reportAnswer(permissionKey: String, granted: Boolean, permanentlyDenied: Boolean?) {
+        if (!analyticsState.shouldReportStartupPermission(permissionKey, granted)) return
+        activity.mixpanelAnalytics().trackPermissionPromptAnswered(
+            permission = permissionKey,
+            granted = granted,
+            promptContext = PromptContext.STARTUP,
+            permanentlyDenied = permanentlyDenied,
+        )
     }
 
     private fun missingRuntimePermissions(): Array<String> {

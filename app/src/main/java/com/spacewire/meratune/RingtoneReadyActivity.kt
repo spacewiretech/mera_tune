@@ -19,10 +19,15 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.PlaybackException
+import com.spacewire.meratune.analytics.AnalyticsSource
+import com.spacewire.meratune.analytics.CreationEntryPoint
+import com.spacewire.meratune.analytics.ReadyAction
+import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.calltheme.RingtoneSetController
 import com.spacewire.meratune.data.Languages
 import com.spacewire.meratune.data.Tune
 import com.spacewire.meratune.ui.PlaybackRingView
+import com.spacewire.meratune.ui.PlaybackSessionStats
 import com.spacewire.meratune.ui.PreviewPlayerController
 import com.spacewire.meratune.util.ActiveRingtoneStore
 import com.spacewire.meratune.util.Haptics
@@ -33,6 +38,7 @@ class RingtoneReadyActivity : AppCompatActivity() {
     private lateinit var generatedTune: Tune
     private lateinit var previewId: String
     private var isSet = false
+    private var actionTapped = false
 
     private lateinit var playbackRing: PlaybackRingView
     private lateinit var playPauseButton: ImageButton
@@ -62,16 +68,25 @@ class RingtoneReadyActivity : AppCompatActivity() {
                     playbackRing.progress = 0f
                     Toast.makeText(this@RingtoneReadyActivity, R.string.playback_error, Toast.LENGTH_SHORT).show()
                 }
+
+                override fun onSessionEnded(stats: PlaybackSessionStats) {
+                    // The player id is the generation id; report the base tune id like the other create events.
+                    mixpanelAnalytics().trackTunePlayEnded(
+                        source = AnalyticsSource.CREATION_FLOW,
+                        stats = stats,
+                        tuneId = generatedTune.id,
+                    )
+                }
             },
         )
     }
 
     private val ringtoneSetController = RingtoneSetController(
         activity = this,
-        analyticsSource = SOURCE_CREATION_FLOW,
+        analyticsSource = AnalyticsSource.CREATION_FLOW,
         categoryForTune = { tune -> tune.category?.name.orEmpty() },
         onSuccess = { tune, uri ->
-            ActiveRingtoneStore(this).save(tune.id, uri)
+            ActiveRingtoneStore(this).save(tune.id, uri, personalized = true)
             markSet()
         },
     )
@@ -150,7 +165,9 @@ class RingtoneReadyActivity : AppCompatActivity() {
     }
 
     private fun setupActions() {
-        findViewById<ImageView>(R.id.backButton).setOnClickListener { finish() }
+        findViewById<ImageView>(R.id.backButton).setOnClickListener {
+            onActionTapped(ReadyAction.BACK_BUTTON) { finish() }
+        }
 
         playPauseButton.setOnClickListener {
             previewPlayer.toggle(previewId, generatedTune.tuneUrl)
@@ -160,24 +177,43 @@ class RingtoneReadyActivity : AppCompatActivity() {
 
         setRingtoneButton.setOnClickListener {
             if (isSet) {
-                startActivity(
-                    Intent(this, Home::class.java)
-                        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
-                )
-                finish()
+                onActionTapped(ReadyAction.GO_HOME) {
+                    startActivity(
+                        Intent(this, Home::class.java)
+                            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                    )
+                    finish()
+                }
             } else {
                 ringtoneSetController.start(generatedTune)
             }
         }
 
-        findViewById<View>(R.id.changeSongButton).setOnClickListener { finish() }
-        findViewById<View>(R.id.makeAnotherButton).setOnClickListener {
-            startActivity(
-                CreateRingtoneActivity.intent(this, "")
-                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
-            )
-            finish()
+        findViewById<View>(R.id.changeSongButton).setOnClickListener {
+            onActionTapped(ReadyAction.CHANGE_SONG) { finish() }
         }
+        findViewById<View>(R.id.makeAnotherButton).setOnClickListener {
+            onActionTapped(ReadyAction.MAKE_ANOTHER) {
+                startActivity(
+                    CreateRingtoneActivity.intent(this, "", CreationEntryPoint.READY_SCREEN)
+                        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                )
+                finish()
+            }
+        }
+    }
+
+    /** Every Ready action leaves the screen, so only the first tap is tracked and performed. */
+    private fun onActionTapped(action: String, perform: () -> Unit) {
+        if (actionTapped) return
+        actionTapped = true
+        mixpanelAnalytics().trackRingtoneReadyActionTapped(
+            action = action,
+            tuneId = generatedTune.id,
+            generationId = generatedTune.generationId,
+            isSet = isSet,
+        )
+        perform()
     }
 
     private fun markSet() {
@@ -240,7 +276,6 @@ class RingtoneReadyActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "RingtoneReady"
-        private const val SOURCE_CREATION_FLOW = "creation_flow"
         private const val EXTRA_NAME = "extra_name"
         private const val EXTRA_LANGUAGE = "extra_language"
         private const val EXTRA_TUNE_JSON = "extra_tune_json"

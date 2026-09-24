@@ -24,6 +24,10 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.spacewire.meratune.analytics.AnalyticsSource
+import com.spacewire.meratune.analytics.CreationEntryPoint
+import com.spacewire.meratune.analytics.GenerationErrorAction
+import com.spacewire.meratune.analytics.LogoutReason
 import com.spacewire.meratune.analytics.firebaseAnalytics
 import com.spacewire.meratune.analytics.metaAnalytics
 import com.spacewire.meratune.analytics.mixpanelAnalytics
@@ -68,6 +72,7 @@ class RingtoneProcessingActivity : AppCompatActivity() {
     private var takingLongerJob: Job? = null
     private var isTakingLonger = false
     private var isWaiting = false
+    private var errorActionTaken = false
 
     private val backCallback = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() {
@@ -108,7 +113,8 @@ class RingtoneProcessingActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.processingSongLine).text =
             getString(R.string.processing_song_line, tune.name, voiceOrLanguageLabel())
 
-        viewModel.start(tune, name, language)
+        val previewedCount = intent.getIntExtra(EXTRA_PREVIEWED_COUNT, -1).takeIf { it >= 0 }
+        viewModel.start(tune, name, language, previewedCount)
         observeState()
         rotateTips()
     }
@@ -136,8 +142,6 @@ class RingtoneProcessingActivity : AppCompatActivity() {
         errorMessageView = findViewById(R.id.errorMessage)
         primaryActionButton = findViewById(R.id.primaryActionButton)
         chooseAnotherButton = findViewById(R.id.chooseAnotherButton)
-
-        chooseAnotherButton.setOnClickListener { finish() }
     }
 
     private fun observeState() {
@@ -288,6 +292,7 @@ class RingtoneProcessingActivity : AppCompatActivity() {
         generatingUiActive = false
         isWaiting = false
         isTakingLonger = false
+        errorActionTaken = false
 
         listOf(titleView, subtitleView, stepperView, waveformView, footerView, tipView)
             .forEach { it.visibility = View.GONE }
@@ -296,16 +301,31 @@ class RingtoneProcessingActivity : AppCompatActivity() {
 
         val action = primaryActionFor(state)
         primaryActionButton.setText(action.labelRes)
-        primaryActionButton.setOnClickListener { action.perform() }
+        primaryActionButton.setOnClickListener { onErrorActionTapped(state, action) }
+        chooseAnotherButton.setOnClickListener { onErrorActionTapped(state, PrimaryAction.CHOOSE_ANOTHER) }
         chooseAnotherButton.visibility = if (action == PrimaryAction.CHOOSE_ANOTHER) View.GONE else View.VISIBLE
     }
 
-    private enum class PrimaryAction(val labelRes: Int) {
-        RETRY(R.string.processing_retry),
-        LOGIN_AGAIN(R.string.processing_login_again),
-        SUBSCRIBE(R.string.subscription_try_now),
-        CHANGE_LANGUAGE(R.string.processing_change_language),
-        CHOOSE_ANOTHER(R.string.processing_choose_another),
+    /** One `generation_error_action_taken` per error screen; a second tap before it changes is ignored. */
+    private fun onErrorActionTapped(state: GenerationState.Failed, action: PrimaryAction) {
+        if (errorActionTaken) return
+        errorActionTaken = true
+        mixpanelAnalytics().trackGenerationErrorActionTaken(
+            action = action.analyticsValue,
+            failureReason = state.code.analyticsValue,
+            tuneId = tune.id,
+            language = language,
+            attempt = viewModel.attempts,
+        )
+        action.perform()
+    }
+
+    private enum class PrimaryAction(val labelRes: Int, val analyticsValue: String) {
+        RETRY(R.string.processing_retry, GenerationErrorAction.RETRY),
+        LOGIN_AGAIN(R.string.processing_login_again, GenerationErrorAction.LOGIN_AGAIN),
+        SUBSCRIBE(R.string.subscription_try_now, GenerationErrorAction.SUBSCRIBE),
+        CHANGE_LANGUAGE(R.string.processing_change_language, GenerationErrorAction.CHANGE_LANGUAGE),
+        CHOOSE_ANOTHER(R.string.processing_choose_another, GenerationErrorAction.CHOOSE_ANOTHER),
     }
 
     private fun primaryActionFor(state: GenerationState.Failed): PrimaryAction = when {
@@ -332,9 +352,11 @@ class RingtoneProcessingActivity : AppCompatActivity() {
                     Toast.LENGTH_LONG,
                 ).show()
                 startActivity(
-                    CreateRingtoneActivity.intent(this@RingtoneProcessingActivity, name).addFlags(
-                        Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP,
-                    ),
+                    CreateRingtoneActivity.intent(
+                        this@RingtoneProcessingActivity,
+                        name,
+                        CreationEntryPoint.PROCESSING,
+                    ).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
                 )
                 finish()
             }
@@ -345,7 +367,11 @@ class RingtoneProcessingActivity : AppCompatActivity() {
 
     /** Same session teardown as `ProfileActivity`'s logout. */
     private fun loginAgain() {
-        mixpanelAnalytics().logout(this)
+        mixpanelAnalytics().logout(
+            context = this,
+            source = AnalyticsSource.RINGTONE_PROCESSING,
+            reason = LogoutReason.SESSION_EXPIRED,
+        )
         metaAnalytics().clearUserId()
         firebaseAnalytics().clearUserId()
         startActivity(
@@ -428,6 +454,7 @@ class RingtoneProcessingActivity : AppCompatActivity() {
         private const val EXTRA_NAME = "extra_name"
         private const val EXTRA_LANGUAGE = "extra_language"
         private const val EXTRA_TUNE_JSON = "extra_tune_json"
+        private const val EXTRA_PREVIEWED_COUNT = "extra_previewed_count"
 
         private const val INDETERMINATE_TARGET = 0.9f
         private const val INDETERMINATE_DURATION_MS = 12_000L
@@ -442,12 +469,20 @@ class RingtoneProcessingActivity : AppCompatActivity() {
          * @param name validated display name (never logged or tracked)
          * @param language `Languages.storageValue` the name is spoken in
          * @param tune the picked base song
+         * @param previewedCount distinct songs previewed in the picker (analytics only)
          */
-        fun intent(context: Context, name: String, language: String, tune: Tune): Intent {
+        fun intent(
+            context: Context,
+            name: String,
+            language: String,
+            tune: Tune,
+            previewedCount: Int? = null,
+        ): Intent {
             return Intent(context, RingtoneProcessingActivity::class.java)
                 .putExtra(EXTRA_NAME, name)
                 .putExtra(EXTRA_LANGUAGE, language)
                 .putExtra(EXTRA_TUNE_JSON, tune.toIntentJson())
+                .apply { previewedCount?.let { putExtra(EXTRA_PREVIEWED_COUNT, it) } }
         }
     }
 }

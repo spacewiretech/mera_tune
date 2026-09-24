@@ -1,5 +1,6 @@
 package com.spacewire.meratune
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.text.Editable
@@ -19,11 +20,16 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.spacewire.meratune.analytics.AnalyticsScreen
+import com.spacewire.meratune.analytics.AnalyticsSource
+import com.spacewire.meratune.analytics.CreationEntryPoint
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.calltheme.RingtoneSetController
+import com.spacewire.meratune.calltheme.SetEntryContext
 import com.spacewire.meratune.data.Tune
 import com.spacewire.meratune.ui.CategoryAdapter
 import com.spacewire.meratune.ui.HomeViewModel
+import com.spacewire.meratune.ui.PlaybackSessionStats
 import com.spacewire.meratune.ui.PreviewPlayerController
 import com.spacewire.meratune.ui.TuneAdapter
 import com.spacewire.meratune.util.GradientTextHelper
@@ -39,7 +45,13 @@ class Home : AppCompatActivity() {
     private lateinit var categoryAdapter: CategoryAdapter
     private lateinit var searchInput: EditText
     private var suppressSearchUpdates = false
-    private var hasTrackedHomeView = false
+    private var isNavigating = false
+
+    /** Tunes with a `tune_played` in this visit (cleared on pause); feeds `ringtone_set_started.was_previewed`. */
+    private val previewedTuneIds = mutableSetOf<String>()
+
+    /** `source` of the current preview's `tune_played`, repeated on its `tune_play_ended`. */
+    private var playSource = AnalyticsSource.HOME
 
     private val previewPlayer: PreviewPlayerController by lazy {
         PreviewPlayerController(
@@ -63,13 +75,17 @@ class Home : AppCompatActivity() {
                     viewModel.onPlayToggle(id)
                     stopPlayback()
                 }
+
+                override fun onSessionEnded(stats: PlaybackSessionStats) {
+                    mixpanelAnalytics().trackTunePlayEnded(playSource, stats)
+                }
             },
         )
     }
 
     private val ringtoneSetController = RingtoneSetController(
         activity = this,
-        analyticsSource = SOURCE_HOME,
+        analyticsSource = AnalyticsSource.HOME,
         categoryForTune = { tune -> tune.category?.name.orEmpty() },
         onSuccess = { tune, uri -> viewModel.onRingtoneSet(tune.id, uri) },
     )
@@ -91,9 +107,18 @@ class Home : AppCompatActivity() {
         setupEmptyState()
         setupErrorRetry()
         observeUiState()
-        startupPermissionRequester.requestIfNeeded()
+        // A recreated Home must not re-prompt; a pending result is re-delivered to the new launchers.
+        if (savedInstanceState == null) {
+            startupPermissionRequester.requestIfNeeded()
+        }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // CLEAR_TOP re-entry (Ready screen "Go home") skips onCreate, so the lifecycle tracker does not see it.
+        mixpanelAnalytics().trackScreenViewed(AnalyticsScreen.HOME)
+    }
 
     private fun setupAdapters() {
         categoryAdapter = CategoryAdapter { categoryId ->
@@ -107,7 +132,15 @@ class Home : AppCompatActivity() {
 
         tuneAdapter = TuneAdapter(
             onPlayClick = { tune -> togglePlayback(tune) },
-            onSetClick = { tune -> ringtoneSetController.start(tune) },
+            onSetClick = { tune ->
+                ringtoneSetController.start(
+                    tune,
+                    SetEntryContext(
+                        rank = viewModel.uiState.value.rankOf(tune.id),
+                        wasPreviewed = tune.id in previewedTuneIds,
+                    ),
+                )
+            },
         )
 
         findViewById<RecyclerView>(R.id.tunesRecycler).apply {
@@ -140,18 +173,21 @@ class Home : AppCompatActivity() {
         )
 
         findViewById<TextView>(R.id.createRingtoneButton).setOnClickListener {
+            if (isNavigating) return@setOnClickListener
+            isNavigating = true
             val query = searchInput.text.toString().trim()
+            viewModel.flushPendingSearchTracking()
             mixpanelAnalytics().trackCreateRingtoneCtaTapped(
-                source = "empty_search",
+                source = AnalyticsSource.SEARCH_BAR,
                 prefillNameLength = query.length,
             )
-            startActivity(CreateRingtoneActivity.intent(this, query))
+            startActivity(CreateRingtoneActivity.intent(this, query, CreationEntryPoint.SEARCH_BAR))
         }
     }
 
     private fun setupErrorRetry() {
         findViewById<TextView>(R.id.errorText).setOnClickListener {
-            viewModel.loadHomeData()
+            viewModel.retryLoad()
         }
     }
 
@@ -192,25 +228,15 @@ class Home : AppCompatActivity() {
                     if (state.playingTuneId == null && previewPlayer.isPlaying) {
                         stopPlayback()
                     }
-
-                    if (!hasTrackedHomeView &&
-                        !state.isLoading &&
-                        state.errorMessage == null &&
-                        state.categories.isNotEmpty()
-                    ) {
-                        hasTrackedHomeView = true
-                        mixpanelAnalytics().trackHomeViewed(
-                            tuneCount = state.tunes.size,
-                            categoryCount = state.categories.size,
-                        )
-                    }
                 }
             }
         }
     }
 
     private fun togglePlayback(tune: Tune) {
-        if (previewPlayer.currentId == tune.id && previewPlayer.isPlaying) {
+        val state = viewModel.uiState.value
+        // Keyed on the UI state, not isPlaying: a buffering or system-paused tune still shows pause.
+        if (state.playingTuneId == tune.id) {
             viewModel.onPlayToggle(tune.id)
             stopPlayback()
             return
@@ -228,11 +254,18 @@ class Home : AppCompatActivity() {
 
         Log.d(TAG, "Starting playback for ${tune.name}: $playbackUrl")
 
+        val fromSearch = state.searchQuery.isNotBlank()
+        playSource = if (fromSearch) AnalyticsSource.SEARCH_RESULTS else AnalyticsSource.HOME
         mixpanelAnalytics().trackTunePlayed(
             tuneId = tune.id,
             category = tune.category?.name.orEmpty(),
-            source = SOURCE_HOME,
+            source = playSource,
+            rank = state.rankOf(tune.id),
+            categoryFilter = state.selectedCategoryName,
+            fromSearch = fromSearch,
+            isActiveRingtone = tune.id == state.activeRingtoneId,
         )
+        previewedTuneIds += tune.id
 
         previewPlayer.play(tune.id, playbackUrl)
     }
@@ -251,7 +284,6 @@ class Home : AppCompatActivity() {
 
     companion object {
         private const val TAG = "HomePlayback"
-        private const val SOURCE_HOME = "home"
     }
 
     override fun onPause() {
@@ -261,10 +293,13 @@ class Home : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        isNavigating = false
         viewModel.refreshActiveRingtone()
     }
 
     private fun resetHomeForReturn() {
+        viewModel.flushPendingSearchTracking()
+        previewedTuneIds.clear()
         stopPlayback()
         suppressSearchUpdates = true
         searchInput.setText("")

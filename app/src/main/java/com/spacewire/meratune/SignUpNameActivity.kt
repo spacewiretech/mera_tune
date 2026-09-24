@@ -14,7 +14,9 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.spacewire.meratune.data.AuthException
+import com.spacewire.meratune.data.AuthFailureReason
 import com.spacewire.meratune.data.AuthRepository
+import com.spacewire.meratune.data.AuthStage
 import com.spacewire.meratune.analytics.firebaseAnalytics
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.analytics.metaAnalytics
@@ -45,6 +47,7 @@ class SignUpNameActivity : AppCompatActivity() {
 
         val sessionToken = intent.getStringExtra(EXTRA_SESSION_TOKEN).orEmpty()
         val phone = intent.getStringExtra(EXTRA_PHONE).orEmpty()
+        val otpEntryMethod = intent.getStringExtra(EXTRA_OTP_ENTRY_METHOD)
         if (sessionToken.isBlank()) {
             finish()
             return
@@ -61,6 +64,7 @@ class SignUpNameActivity : AppCompatActivity() {
         continueButton.setOnClickListener {
             val name = nameInput.text.toString().trim()
             if (name.length < 2) {
+                mixpanelAnalytics().trackAuthFailed(AuthStage.NAME_VALIDATION, AuthFailureReason.NAME_TOO_SHORT)
                 Toast.makeText(this, R.string.auth_name_required, Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
@@ -78,7 +82,11 @@ class SignUpNameActivity : AppCompatActivity() {
 
                         val analytics = mixpanelAnalytics()
                         analytics.identifyUser(user)
-                        analytics.trackSignUpCompleted(SIGN_UP_METHOD_PHONE)
+                        analytics.trackSignUpCompleted(
+                            signUpMethod = SIGN_UP_METHOD_PHONE,
+                            postAuthDestination = AuthNavigator.postAuthDestination(user),
+                            otpEntryMethod = otpEntryMethod,
+                        )
                         metaAnalytics().identifyUser(user)
                         metaAnalytics().trackCompleteRegistration(SIGN_UP_METHOD_PHONE)
                         firebaseAnalytics().identifyUser(user)
@@ -87,6 +95,7 @@ class SignUpNameActivity : AppCompatActivity() {
                         finish()
                     }
                     .onFailure { error ->
+                        mixpanelAnalytics().trackAuthFailed(AuthStage.COMPLETE_SIGNUP, AuthFailureReason.from(error))
                         val message = (error as? AuthException)?.message ?: getString(R.string.auth_generic_error)
                         Toast.makeText(this@SignUpNameActivity, message, Toast.LENGTH_LONG).show()
                         setLoading(false, continueButton, loadingIndicator, nameInput)
@@ -111,10 +120,13 @@ class SignUpNameActivity : AppCompatActivity() {
         private const val SIGN_UP_METHOD_PHONE = "phone"
         private const val EXTRA_SESSION_TOKEN = "extra_session_token"
         private const val EXTRA_PHONE = "extra_phone"
+        private const val EXTRA_OTP_ENTRY_METHOD = "extra_otp_entry_method"
 
-        fun intent(context: Context, sessionToken: String, phone: String): Intent =
+        /** [otpEntryMethod] is an `OtpEntryMethod` value, carried for `sign_up_completed`. */
+        fun intent(context: Context, sessionToken: String, phone: String, otpEntryMethod: String? = null): Intent =
             Intent(context, SignUpNameActivity::class.java)
                 .putExtra(EXTRA_SESSION_TOKEN, sessionToken)
                 .putExtra(EXTRA_PHONE, phone)
+                .putExtra(EXTRA_OTP_ENTRY_METHOD, otpEntryMethod)
     }
 }

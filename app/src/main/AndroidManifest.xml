@@ -76,6 +76,10 @@
         <meta-data
             android:name="google_analytics_automatic_screen_reporting_enabled"
             android:value="false" />
+        <!-- Disables Mixpanel $ae_session: the incoming-call overlay would create uncapped sessions. -->
+        <meta-data
+            android:name="com.mixpanel.android.MPConfig.MinimumSessionDuration"
+            android:value="2147483647" />
 
         <activity
             android:name=".AuthActivity"

@@ -36,6 +36,7 @@ class UploadPhotoBottomSheet(
         sheetView.findViewById<View>(R.id.uploadPhotoGalleryRow).setOnClickListener { onGalleryClick() }
         continueButton?.setOnClickListener {
             val uri = selectedUri ?: return@setOnClickListener
+            if (completed) return@setOnClickListener
             completed = true
             onContinue(uri)
             sheetDialog.dismiss()

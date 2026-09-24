@@ -21,6 +21,9 @@ class LanguageSelectionActivity : AppCompatActivity() {
 
     private lateinit var languageGroup: LanguageOptionGroup
 
+    /** applyLocale recreates asynchronously, so a second tap could otherwise run the flow twice. */
+    private var continueHandled = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -76,10 +79,19 @@ class LanguageSelectionActivity : AppCompatActivity() {
 
     private fun setupContinueAction() {
         findViewById<TextView>(R.id.continueButton).setOnClickListener {
+            if (continueHandled) return@setOnClickListener
+            continueHandled = true
             val selectedLanguage = Languages.all[languageGroup.selectedIndex()]
             val profileStore = ProfileStore(this)
+            // Before the first choice getLocaleCode() is the "English" default, not a user choice.
+            val hadChoice = profileStore.hasSelectedLanguage()
             val previousLocale = profileStore.getLocaleCode()
             val localeChanged = previousLocale != selectedLanguage.localeCode
+            val previousLanguage = if (hadChoice) {
+                Languages.all.firstOrNull { it.localeCode == previousLocale }?.storageValue
+            } else {
+                null
+            }
             val isOnboarding = intent.getBooleanExtra(EXTRA_ONBOARDING, false)
 
             profileStore.saveSelectedLanguage(
@@ -92,6 +104,8 @@ class LanguageSelectionActivity : AppCompatActivity() {
                 language = selectedLanguage.storageValue,
                 locale = selectedLanguage.localeCode,
                 context = if (isOnboarding) "onboarding" else "settings",
+                previousLanguage = previousLanguage,
+                languageChanged = if (hadChoice) localeChanged else null,
             )
 
             setResult(RESULT_OK)

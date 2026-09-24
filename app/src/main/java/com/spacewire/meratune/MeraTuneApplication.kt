@@ -1,6 +1,8 @@
 package com.spacewire.meratune
 
 import android.app.Application
+import com.spacewire.meratune.analytics.AnalyticsLifecycleCallbacks
+import com.spacewire.meratune.analytics.AnalyticsStateStore
 import com.spacewire.meratune.analytics.MixpanelAnalytics
 import com.spacewire.meratune.analytics.MetaAnalytics
 import com.spacewire.meratune.analytics.FirebasePurchaseAnalytics
@@ -20,6 +22,7 @@ class MeraTuneApplication : Application() {
         super.onCreate()
         LocaleHelper.applyStoredLocale(this)
         mixpanelAnalytics = MixpanelAnalytics.init(this)
+        registerActivityLifecycleCallbacks(AnalyticsLifecycleCallbacks(mixpanelAnalytics, AnalyticsStateStore(this)))
         metaAnalytics = MetaAnalytics.init(this)
         firebaseAnalytics = FirebasePurchaseAnalytics.init(this)
         IncomingCallNotifier.ensureChannel(this)

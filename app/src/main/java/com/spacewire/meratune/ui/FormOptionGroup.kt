@@ -1,8 +1,12 @@
 package com.spacewire.meratune.ui
 
 import android.view.View
+import android.view.accessibility.AccessibilityEvent
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.view.AccessibilityDelegateCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import com.spacewire.meratune.R
 
 /**
@@ -10,11 +14,13 @@ import com.spacewire.meratune.R
  *
  * @param keys stable, locale-independent key per option (e.g. `LanguageDefinition.storageValue`).
  *   Defaults to each row's label text when omitted. [onSelectionChanged] receives the key.
+ * @param onDisabledOptionClick receives the key of a disabled option the user tapped.
  */
 class FormOptionGroup(
     private val optionViews: List<View>,
     keys: List<String>? = null,
     private val onSelectionChanged: ((String) -> Unit)? = null,
+    private val onDisabledOptionClick: ((String) -> Unit)? = null,
 ) {
     private val keys: List<String> = keys ?: optionViews.map { view ->
         view.findViewById<TextView>(R.id.optionLabel).text.toString()
@@ -29,9 +35,16 @@ class FormOptionGroup(
             "keys (${this.keys.size}) must match optionViews (${optionViews.size})"
         }
         optionViews.forEachIndexed { index, view ->
-            view.setOnClickListener {
-                if (enabledStates[index]) select(index)
-            }
+            view.setOnClickListener { onOptionClicked(index) }
+            ViewCompat.setAccessibilityDelegate(
+                view,
+                object : AccessibilityDelegateCompat() {
+                    override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfoCompat) {
+                        super.onInitializeAccessibilityNodeInfo(host, info)
+                        info.isEnabled = enabledStates[index]
+                    }
+                },
+            )
         }
         if (optionViews.isNotEmpty()) {
             select(0, notify = false)
@@ -65,21 +78,28 @@ class FormOptionGroup(
     }
 
     /**
-     * Enables or disables one option. A disabled option ignores taps and is dimmed; the current
-     * selection is left unchanged so the caller decides where to move it.
+     * Enables or disables one option. A disabled option is dimmed and cannot be selected; the current
+     * selection is left unchanged so the caller decides where to move it. The view itself stays
+     * enabled so taps still reach [onDisabledOptionClick]; accessibility reports it as disabled.
      */
     fun setEnabled(key: String, enabled: Boolean) {
         val index = keys.indexOf(key)
         if (index < 0) return
-        enabledStates[index] = enabled
         val view = optionViews[index]
-        view.isEnabled = enabled
         view.alpha = if (enabled) 1f else DISABLED_ALPHA
+        if (enabledStates[index] == enabled) return
+        enabledStates[index] = enabled
+        // View.isEnabled never flips, so nothing else tells accessibility services to re-read the node.
+        view.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
     }
 
     fun isEnabled(key: String): Boolean {
         val index = keys.indexOf(key)
         return index >= 0 && enabledStates[index]
+    }
+
+    private fun onOptionClicked(index: Int) {
+        if (enabledStates[index]) select(index) else onDisabledOptionClick?.invoke(keys[index])
     }
 
     private companion object {

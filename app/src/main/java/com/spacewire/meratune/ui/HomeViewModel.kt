@@ -1,14 +1,19 @@
 package com.spacewire.meratune.ui
 
 import android.app.Application
+import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.spacewire.meratune.analytics.AnalyticsSource
+import com.spacewire.meratune.analytics.AnalyticsTrigger
+import com.spacewire.meratune.analytics.FilterSelection
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.data.Category
 import com.spacewire.meratune.data.HomeRepository
 import com.spacewire.meratune.data.Tune
 import com.spacewire.meratune.util.ActiveRingtoneStore
 import com.spacewire.meratune.util.LoadErrorMapper
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,6 +42,16 @@ data class HomeUiState(
             filteredTunes.isEmpty() &&
             !isLoading &&
             errorMessage == null
+
+    /** Selected chip's category name; `null` for All. */
+    val selectedCategoryName: String?
+        get() = selectedCategoryId
+            ?.takeIf { it != Category.ALL_CATEGORY_ID }
+            ?.let { id -> categories.firstOrNull { it.id == id }?.name }
+
+    /** 1-based position of [tuneId] in [filteredTunes]; `null` when it is not listed. */
+    fun rankOf(tuneId: String): Int? =
+        filteredTunes.indexOfFirst { it.id == tuneId }.takeIf { it >= 0 }?.plus(1)
 }
 
 class HomeViewModel(
@@ -49,12 +64,21 @@ class HomeViewModel(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
     private var searchTrackingJob: Job? = null
+    private var pendingSearchQuery: String? = null
+    private val createdAtMs = SystemClock.elapsedRealtime()
+    private var homeViewTracked = false
 
     init {
-        loadHomeData()
+        loadHomeData(AnalyticsTrigger.INITIAL)
     }
 
-    fun loadHomeData() {
+    /** Error-text retry; ignored while a load is already running (double tap). */
+    fun retryLoad() {
+        if (_uiState.value.isLoading) return
+        loadHomeData(AnalyticsTrigger.RETRY)
+    }
+
+    private fun loadHomeData(trigger: String) {
         viewModelScope.launch {
             _uiState.update {
                 it.copy(
@@ -72,9 +96,10 @@ class HomeViewModel(
                             isLoadingCategories = false,
                         )
                     }
-                    loadTunes(categoryIdForFetch(_uiState.value.selectedCategoryId))
+                    loadTunes(categoryIdForFetch(_uiState.value.selectedCategoryId), trigger)
                 }
                 .onFailure { error ->
+                    if (error is CancellationException) throw error
                     _uiState.update {
                         it.copy(
                             isLoadingCategories = false,
@@ -82,11 +107,16 @@ class HomeViewModel(
                             errorMessage = mapLoadError(error),
                         )
                     }
+                    trackLoadFailed(STAGE_CATEGORIES, error, trigger)
                 }
         }
     }
 
     fun refreshActiveRingtone() {
+        // Before the empty-list return: the check does not depend on the loaded tunes.
+        activeRingtoneStore.consumeReplacedRingtone(getApplication())?.let {
+            analytics.trackRingtoneReplacedExternally(it)
+        }
         val tunes = _uiState.value.tunes
         if (tunes.isEmpty()) return
 
@@ -100,22 +130,18 @@ class HomeViewModel(
     }
 
     fun onCategorySelected(categoryId: String) {
+        val state = _uiState.value
+        val currentCategoryId = state.selectedCategoryId ?: Category.ALL_CATEGORY_ID
         val nextCategoryId = when {
             categoryId == Category.ALL_CATEGORY_ID -> Category.ALL_CATEGORY_ID
-            _uiState.value.selectedCategoryId == categoryId -> Category.ALL_CATEGORY_ID
+            currentCategoryId == categoryId -> Category.ALL_CATEGORY_ID
             else -> categoryId
         }
-        if (nextCategoryId != Category.ALL_CATEGORY_ID) {
-            val categoryName = _uiState.value.categories
-                .firstOrNull { it.id == nextCategoryId }
-                ?.name
-                .orEmpty()
-            if (categoryName.isNotBlank()) {
-                analytics.trackCategoryFiltered(nextCategoryId, categoryName)
-            }
+        if (nextCategoryId != currentCategoryId) {
+            trackCategoryFiltered(state.categories, categoryId, currentCategoryId, nextCategoryId)
         }
         _uiState.update { it.copy(selectedCategoryId = nextCategoryId) }
-        loadTunes(categoryIdForFetch(nextCategoryId))
+        loadTunes(categoryIdForFetch(nextCategoryId), AnalyticsTrigger.CATEGORY_CHANGE)
     }
 
     fun onSearchQueryChanged(query: String) {
@@ -132,15 +158,21 @@ class HomeViewModel(
         }
 
         searchTrackingJob?.cancel()
+        pendingSearchQuery = null
         if (query.isBlank()) return
 
+        pendingSearchQuery = query
         searchTrackingJob = viewModelScope.launch {
             delay(SEARCH_TRACK_DEBOUNCE_MS)
-            analytics.trackSearchPerformed(
-                queryLength = query.length,
-                resultCount = filteredTunes.size,
-            )
+            trackPendingSearch()
         }
+    }
+
+    /** Sends a still-debouncing `search_performed` now, so it precedes whatever the user does next. */
+    fun flushPendingSearchTracking() {
+        searchTrackingJob?.cancel()
+        searchTrackingJob = null
+        trackPendingSearch()
     }
 
     fun resetToAllTunes() {
@@ -160,7 +192,7 @@ class HomeViewModel(
                 playingTuneId = null,
             )
         }
-        loadTunes(categoryIdForFetch(Category.ALL_CATEGORY_ID))
+        loadTunes(categoryIdForFetch(Category.ALL_CATEGORY_ID), AnalyticsTrigger.RESET)
     }
 
     fun onPlayToggle(tuneId: String) {
@@ -171,7 +203,7 @@ class HomeViewModel(
         }
     }
 
-    private fun loadTunes(categoryId: String?) {
+    private fun loadTunes(categoryId: String?, trigger: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingTunes = true, errorMessage = null) }
 
@@ -186,16 +218,70 @@ class HomeViewModel(
                             isLoadingTunes = false,
                         )
                     }
+                    trackHomeViewedOnce()
                 }
                 .onFailure { error ->
+                    if (error is CancellationException) throw error
                     _uiState.update {
                         it.copy(
                             isLoadingTunes = false,
                             errorMessage = mapLoadError(error),
                         )
                     }
+                    trackLoadFailed(STAGE_TUNES, error, trigger)
                 }
         }
+    }
+
+    /** Once per ViewModel (survives rotation); `load_ms` is time from Home creation to first content. */
+    private fun trackHomeViewedOnce() {
+        val state = _uiState.value
+        if (homeViewTracked || state.categories.isEmpty()) return
+        homeViewTracked = true
+        analytics.trackHomeViewed(
+            tuneCount = state.tunes.size,
+            categoryCount = state.categories.size,
+            loadMs = SystemClock.elapsedRealtime() - createdAtMs,
+            hasActiveRingtone = state.activeRingtoneId != null,
+        )
+    }
+
+    private fun trackLoadFailed(stage: String, error: Throwable, trigger: String) {
+        analytics.trackHomeLoadFailed(
+            stage = stage,
+            failureReason = LoadErrorMapper.reason(error),
+            trigger = trigger,
+        )
+    }
+
+    private fun trackPendingSearch() {
+        val query = pendingSearchQuery ?: return
+        pendingSearchQuery = null
+        val state = _uiState.value
+        analytics.trackSearchPerformed(
+            queryLength = query.trim().length,
+            resultCount = state.filteredTunes.size,
+            categoryFilter = state.selectedCategoryName,
+        )
+    }
+
+    private fun trackCategoryFiltered(
+        categories: List<Category>,
+        tappedCategoryId: String,
+        currentCategoryId: String,
+        nextCategoryId: String,
+    ) {
+        val (selection, categoryId) = when {
+            nextCategoryId != Category.ALL_CATEGORY_ID -> FilterSelection.SELECTED to nextCategoryId
+            tappedCategoryId == Category.ALL_CATEGORY_ID -> FilterSelection.ALL to null
+            else -> FilterSelection.DESELECTED to currentCategoryId
+        }
+        analytics.trackCategoryFiltered(
+            categoryId = categoryId,
+            categoryName = categoryId?.let { id -> categories.firstOrNull { it.id == id }?.name },
+            source = AnalyticsSource.HOME,
+            selection = selection,
+        )
     }
 
     private fun updateFilteredTunes(activeRingtoneId: String?) {
@@ -238,5 +324,7 @@ class HomeViewModel(
 
     private companion object {
         const val SEARCH_TRACK_DEBOUNCE_MS = 500L
+        const val STAGE_CATEGORIES = "categories"
+        const val STAGE_TUNES = "tunes"
     }
 }

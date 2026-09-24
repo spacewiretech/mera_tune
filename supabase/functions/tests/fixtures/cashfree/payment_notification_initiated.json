@@ -1,0 +1,39 @@
+{
+  "data": {
+    "payment_id": "ab-SUBV2ODR683gV1CXF85ev-1",
+    "cf_payment_id": "49970855",
+    "cf_txn_id": null,
+    "cf_order_id": "",
+    "subscription_id": "moziva9hyjiLtCuGN74",
+    "cf_subscription_id": "22390006",
+    "payment_type": "CHARGE",
+    "authorization_details": {
+      "authorization_amount": 399.00,
+      "authorization_amount_refund": false,
+      "approve_by_time": "",
+      "authorization_reference": null,
+      "authorization_time": "",
+      "authorization_status": null,
+      "payment_id": "ab-SUBV2ODR683gV1CXF85ev-1",
+      "payment_method": null,
+      "payment_group": null
+    },
+    "payment_amount": 399.00,
+    "payment_currency": "INR",
+    "payment_schedule_date": "2025-08-08T12:00:00+05:30",
+    "payment_initiated_date": "2025-08-07T09:08:09+05:30",
+    "payment_remarks": null,
+    "retry_attempts": 0,
+    "failure_details": {
+      "failure_reason": null
+    },
+    "payment_status": "INITIALIZED",
+    "payment_gateway_details": {
+      "gateway_name": "CASHFREE",
+      "gateway_subscription_id": "22390006",
+      "gateway_payment_id": "49970855"
+    }
+  },
+  "event_time": "2025-08-07T09:51:07+05:30",
+  "type": "SUBSCRIPTION_PAYMENT_NOTIFICATION_INITIATED"
+}

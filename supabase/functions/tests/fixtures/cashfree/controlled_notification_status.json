@@ -1,0 +1,26 @@
+{
+  "data": {
+    "cf_notification_id": "3333",
+    "cf_order_id": "123456",
+    "cf_payment_id": "123456",
+    "cf_subscription_id": "7891011",
+    "cf_txn_id": "123456",
+    "notification_attempted_time": "2025-06-01T22:14:59+05:30",
+    "notification_completed_time": "2025-06-01T22:15:59+05:30",
+    "notification_failure_details": {
+      "failure_reason": "",
+      "failure_error_code": "",
+      "failure_sub_error_code": ""
+    },
+    "notification_id": "notification-001",
+    "notification_initiated_time": "2025-06-01T22:14:58+05:30",
+    "notification_status": "SUCCESS",
+    "payment_amount": 1,
+    "payment_id": "test-payment-id",
+    "payment_remarks": "monthly charge",
+    "payment_status": "INITIALIZED",
+    "subscription_id": "test-subscription-id"
+  },
+  "event_time": "2025-06-01T22:15:59+05:30",
+  "type": "SUBSCRIPTION_CONTROLLED_NOTIFICATION_STATUS"
+}

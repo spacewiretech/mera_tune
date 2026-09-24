@@ -14,8 +14,11 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.spacewire.meratune.data.AuthException
+import com.spacewire.meratune.data.AuthFailureReason
 import com.spacewire.meratune.data.AuthRepository
+import com.spacewire.meratune.data.AuthStage
 import com.spacewire.meratune.ui.OtpInputView
+import com.spacewire.meratune.analytics.OtpEntryMethod
 import com.spacewire.meratune.analytics.firebaseAnalytics
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.analytics.metaAnalytics
@@ -34,6 +37,11 @@ class OtpVerificationActivity : AppCompatActivity() {
     private var smsOtpFetcher: SmsOtpFetcher? = null
     private var resendCooldownTimer: CountDownTimer? = null
     private var canResend = false
+
+    /** Set by the SMS fetcher right before it fills the boxes; anything else is a manual entry. */
+    private var pendingOtpEntryMethod: String? = null
+    private var verifyAttempt = 0
+    private var resendCount = 0
 
     private lateinit var otpInputView: OtpInputView
     private lateinit var loadingIndicator: ProgressBar
@@ -62,6 +70,8 @@ class OtpVerificationActivity : AppCompatActivity() {
             finish()
             return
         }
+        verifyAttempt = savedInstanceState?.getInt(STATE_VERIFY_ATTEMPT) ?: 0
+        resendCount = savedInstanceState?.getInt(STATE_RESEND_COUNT) ?: 0
 
         findViewById<View>(R.id.authHeader).findViewById<View>(R.id.languageButton).setOnClickListener {
             startActivity(LanguageSelectionActivity.intent(this))
@@ -76,7 +86,9 @@ class OtpVerificationActivity : AppCompatActivity() {
 
         otpInputView.onCompleteListener = { otp ->
             if (!isVerifying) {
-                verifyOtp(phone, otp)
+                val entryMethod = pendingOtpEntryMethod ?: OtpEntryMethod.MANUAL
+                pendingOtpEntryMethod = null
+                verifyOtp(phone, otp, entryMethod)
             }
         }
 
@@ -93,8 +105,9 @@ class OtpVerificationActivity : AppCompatActivity() {
 
         otpInputView.requestInitialFocus()
 
-        smsOtpFetcher = SmsOtpFetcher(this, otpLength = 4) { otp ->
+        smsOtpFetcher = SmsOtpFetcher(this, otpLength = 4) { otp, source ->
             if (!isVerifying) {
+                pendingOtpEntryMethod = source
                 otpInputView.setOtp(otp)
             }
         }
@@ -112,6 +125,12 @@ class OtpVerificationActivity : AppCompatActivity() {
         super.onPause()
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt(STATE_VERIFY_ATTEMPT, verifyAttempt)
+        outState.putInt(STATE_RESEND_COUNT, resendCount)
+    }
+
     override fun onDestroy() {
         resendCooldownTimer?.cancel()
         super.onDestroy()
@@ -125,7 +144,8 @@ class OtpVerificationActivity : AppCompatActivity() {
         lifecycleScope.launch {
             authRepository.sendOtp(phone)
                 .onSuccess {
-                    mixpanelAnalytics().trackOtpSent(isResend = true)
+                    resendCount++
+                    mixpanelAnalytics().trackOtpSent(isResend = true, resendCount = resendCount)
                     Toast.makeText(
                         this@OtpVerificationActivity,
                         getString(R.string.auth_otp_resent, PhoneUtils.formatDisplayPhone(phone)),
@@ -136,6 +156,11 @@ class OtpVerificationActivity : AppCompatActivity() {
                     startResendCooldown(RESEND_COOLDOWN_SECONDS)
                 }
                 .onFailure { error ->
+                    mixpanelAnalytics().trackAuthFailed(
+                        stage = AuthStage.SEND_OTP,
+                        failureReason = AuthFailureReason.from(error),
+                        isResend = true,
+                    )
                     val message = (error as? AuthException)?.message ?: getString(R.string.auth_generic_error)
                     Toast.makeText(this@OtpVerificationActivity, message, Toast.LENGTH_LONG).show()
                     updateResendButtonEnabled(true)
@@ -174,8 +199,10 @@ class OtpVerificationActivity : AppCompatActivity() {
     private fun verifyOtp(
         phone: String,
         otp: String,
+        otpEntryMethod: String,
     ) {
         isVerifying = true
+        verifyAttempt++
         loadingIndicator.visibility = View.VISIBLE
         otpInputView.setEnabledState(false)
         updateResendButtonEnabled(false)
@@ -187,11 +214,16 @@ class OtpVerificationActivity : AppCompatActivity() {
                     val sessionToken = response.sessionToken.orEmpty()
 
                     if (response.needsName == false && user != null) {
-                        completeLogin(user, response.apiToken)
+                        completeLogin(user, response.apiToken, otpEntryMethod)
                         return@launch
                     }
 
                     if (sessionToken.isBlank()) {
+                        mixpanelAnalytics().trackOtpVerificationFailed(
+                            failureReason = AuthFailureReason.BAD_RESPONSE,
+                            otpEntryMethod = otpEntryMethod,
+                            attempt = verifyAttempt,
+                        )
                         Toast.makeText(
                             this@OtpVerificationActivity,
                             R.string.auth_generic_error,
@@ -201,10 +233,17 @@ class OtpVerificationActivity : AppCompatActivity() {
                         return@launch
                     }
 
-                    startActivity(SignUpNameActivity.intent(this@OtpVerificationActivity, sessionToken, phone))
+                    startActivity(
+                        SignUpNameActivity.intent(this@OtpVerificationActivity, sessionToken, phone, otpEntryMethod),
+                    )
                     finish()
                 }
                 .onFailure { error ->
+                    mixpanelAnalytics().trackOtpVerificationFailed(
+                        failureReason = AuthFailureReason.from(error),
+                        otpEntryMethod = otpEntryMethod,
+                        attempt = verifyAttempt,
+                    )
                     val message = (error as? AuthException)?.message ?: getString(R.string.auth_generic_error)
                     Toast.makeText(this@OtpVerificationActivity, message, Toast.LENGTH_LONG).show()
                     resetOtp()
@@ -214,6 +253,7 @@ class OtpVerificationActivity : AppCompatActivity() {
 
     private fun resetOtp() {
         isVerifying = false
+        pendingOtpEntryMethod = null
         loadingIndicator.visibility = View.GONE
         otpInputView.setEnabledState(true)
         otpInputView.clear()
@@ -221,14 +261,20 @@ class OtpVerificationActivity : AppCompatActivity() {
         updateResendButtonEnabled(canResend && !isResending)
     }
 
-    private fun completeLogin(user: com.spacewire.meratune.data.User, apiToken: String?) {
+    private fun completeLogin(user: com.spacewire.meratune.data.User, apiToken: String?, otpEntryMethod: String) {
         val authStore = AuthStore(this)
         authStore.saveUser(user)
         authStore.replaceApiToken(apiToken)
         ProfileStore(this).saveUser(user.name.orEmpty(), user.phone)
         val analytics = mixpanelAnalytics()
         analytics.identifyUser(user)
-        analytics.trackLoginCompleted(SIGN_IN_METHOD_PHONE)
+        analytics.trackLoginCompleted(
+            signInMethod = SIGN_IN_METHOD_PHONE,
+            otpEntryMethod = otpEntryMethod,
+            attempt = verifyAttempt,
+            resendCount = resendCount,
+            postAuthDestination = AuthNavigator.postAuthDestination(user),
+        )
         metaAnalytics().identifyUser(user)
         firebaseAnalytics().identifyUser(user)
         AuthNavigator.navigateAfterAuth(this, user)
@@ -239,6 +285,8 @@ class OtpVerificationActivity : AppCompatActivity() {
         private const val SIGN_IN_METHOD_PHONE = "phone"
         private const val EXTRA_PHONE = "extra_phone"
         private const val RESEND_COOLDOWN_SECONDS = 30
+        private const val STATE_VERIFY_ATTEMPT = "state_verify_attempt"
+        private const val STATE_RESEND_COUNT = "state_resend_count"
 
         fun intent(context: Context, phone: String): Intent =
             Intent(context, OtpVerificationActivity::class.java).putExtra(EXTRA_PHONE, phone)

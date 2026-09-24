@@ -1,7 +1,28 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import {
+  mixpanelInsertId,
+  resolveMixpanelToken,
+  trackMixpanelEvent,
+  updateMixpanelPeople,
+} from "../_shared/mixpanel.ts";
 import { createServiceClient, type ServiceClient } from "../_shared/supabase-client.ts";
 import { resolveUserIdFromToken } from "../_shared/user-sessions.ts";
 import { normalizeVoiceGender, ttsVoiceGender } from "../_shared/tts-voices.ts";
+import {
+  generationFailedProps,
+  insertIdParts,
+  MATCH_COUNT_CAP,
+  NAME_LOOKUP_COMPLETED,
+  nameLengthOf,
+  nameLookupProps,
+  reportsFailure,
+  reportsLookup,
+  RINGTONE_CREATED,
+  RINGTONE_GENERATION_FAILED,
+  ringtoneCreatedProps,
+  runInBackground,
+  type TuneFacts,
+} from "./analytics.ts";
 import { normalizeAuthoredName, sanitizeName, spokenName } from "./names.ts";
 import {
   ApiError,
@@ -144,6 +165,37 @@ type LogRowFields = {
   auth_mode: AuthMode;
   latency_ms: number | null;
   completed_at: string | null;
+};
+
+/** Set once the exact-match check ran; `matchCount` resolves in the background and never rejects. */
+type NameLookup = {
+  sampleId: string;
+  language: string;
+  nameLength: number;
+  exactMatch: boolean;
+  matchCount: Promise<number | null>;
+  completedAtMs: number;
+};
+
+/** What the Mixpanel events know about one request, filled in as it advances. */
+type AnalyticsState = {
+  startedAtMs: number;
+  supabase: SupabaseClient | null;
+  config: Record<string, string> | null;
+  body: GenerateRequest | null;
+  userId: number | null;
+  tune: TuneRow | null;
+  language: string | null;
+  lookup: NameLookup | null;
+};
+
+type CreatedOutcome = {
+  generationId: string;
+  cached: boolean;
+  durationMs: number | null;
+  latencyMs: number;
+  completedAt: string;
+  quota: QuotaSnapshot;
 };
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -436,8 +488,8 @@ async function markFailed(
   code: string,
   detail: string | null,
   latencyMs: number,
+  now: string,
 ): Promise<void> {
-  const now = new Date().toISOString();
   if (renderId) {
     const { error } = await supabase
       .from("ringtone_renders")
@@ -558,6 +610,172 @@ function successBody(params: {
   };
 }
 
+/** Ready renders of this name in this language, any sample, capped. Resolves null on any error. */
+async function countNameMatches(
+  supabase: SupabaseClient,
+  nameNormalized: string,
+  language: string,
+): Promise<number | null> {
+  try {
+    const { data, error } = await supabase
+      .from("ringtone_renders")
+      .select("id")
+      .eq("name_normalized", nameNormalized)
+      .eq("language", language)
+      .eq("status", "ready")
+      .limit(MATCH_COUNT_CAP);
+    if (error) {
+      console.warn("generate-ringtone: name lookup failed", { code: error.code });
+      return null;
+    }
+    return (data ?? []).length;
+  } catch (err) {
+    console.warn("generate-ringtone: name lookup failed", { error: err instanceof Error ? err.name : "unknown" });
+    return null;
+  }
+}
+
+function tuneFacts(tune: TuneRow): TuneFacts {
+  return { tuneId: tune.id, categoryName: tune.category?.name, gender: tune.gender };
+}
+
+/** The loaded tune, else the requested id (e.g. TUNE_NOT_FOUND). */
+function analyticsTune(state: AnalyticsState): TuneFacts | null {
+  if (state.tune) return tuneFacts(state.tune);
+  return state.body ? { tuneId: state.body.tuneId } : null;
+}
+
+async function mixpanelToken(state: AnalyticsState): Promise<string> {
+  const token = resolveMixpanelToken(state.config ?? {});
+  if (token || state.config) return token;
+  state.config = await getConfig(state.supabase ??= createServiceClient());
+  return resolveMixpanelToken(state.config);
+}
+
+/** User of a request that failed before auth (e.g. INVALID_NAME), resolved the way auth would. */
+async function attributeUser(state: AnalyticsState): Promise<number | null> {
+  const body = state.body;
+  if (!body) return null;
+  const supabase = state.supabase ??= createServiceClient();
+  if (body.userToken) {
+    const session = await resolveUserIdFromToken(supabase, body.userToken);
+    if (!session || (body.userId !== null && body.userId !== session.userId)) return null;
+    return session.userId;
+  }
+  state.config ??= await getConfig(supabase);
+  return isFlagEnabled(state.config, "generate_allow_legacy_user_id", false) ? body.userId : null;
+}
+
+async function trackLookup(
+  state: AnalyticsState,
+  token: string,
+  distinctId: string,
+  generationId: string | null,
+): Promise<void> {
+  const lookup = state.lookup;
+  if (!lookup) return;
+  const clientRequestId = state.body?.clientRequestId ?? null;
+  const props = nameLookupProps({
+    sampleId: lookup.sampleId,
+    language: lookup.language,
+    nameLength: lookup.nameLength,
+    exactMatch: lookup.exactMatch,
+    matchCount: await lookup.matchCount,
+    generationId,
+    clientRequestId,
+    appVersion: state.body?.appVersion ?? null,
+  });
+  const insertId = await mixpanelInsertId(...insertIdParts(NAME_LOOKUP_COMPLETED, {
+    generationId,
+    clientRequestId,
+    distinctId,
+    requestStartedAtMs: state.startedAtMs,
+  }));
+  await trackMixpanelEvent(token, distinctId, NAME_LOOKUP_COMPLETED, props, { insertId, timeMs: lookup.completedAtMs });
+}
+
+/** name_lookup_completed + ringtone_created + last_ringtone_category, after the response. */
+function reportCreated(state: AnalyticsState, created: CreatedOutcome): void {
+  runInBackground(async () => {
+    const tune = state.tune;
+    if (state.userId === null || !tune) return;
+    const distinctId = String(state.userId);
+    const token = await mixpanelToken(state);
+    const clientRequestId = state.body?.clientRequestId ?? null;
+    const props = ringtoneCreatedProps({
+      tune: tuneFacts(tune),
+      language: state.language,
+      generationId: created.generationId,
+      clientRequestId,
+      appVersion: state.body?.appVersion ?? null,
+      cached: created.cached,
+      audioDurationMs: created.durationMs,
+      latencyMs: created.latencyMs,
+      quota: created.quota,
+    });
+    const insertId = await mixpanelInsertId(...insertIdParts(RINGTONE_CREATED, {
+      generationId: created.generationId,
+      clientRequestId,
+      distinctId,
+      requestStartedAtMs: state.startedAtMs,
+    }));
+    await Promise.all([
+      trackLookup(state, token, distinctId, created.generationId),
+      trackMixpanelEvent(token, distinctId, RINGTONE_CREATED, props, {
+        insertId,
+        timeMs: Date.parse(created.completedAt),
+      }),
+      updateMixpanelPeople(token, distinctId, { set: { last_ringtone_category: tune.category?.name } }),
+    ]);
+  });
+}
+
+/**
+ * name_lookup_completed (when the lookup ran) + ringtone_generation_failed, after the response.
+ * Nothing for UNAUTHORIZED (the app reports it) or the busy codes the app re-posts.
+ */
+function reportFailure(
+  state: AnalyticsState,
+  error: ApiError,
+  generationId: string | null,
+  latencyMs: number,
+  failedAtMs: number,
+): void {
+  const sendFailure = reportsFailure(error.code);
+  const sendLookup = state.lookup !== null && reportsLookup(error.code);
+  if (!sendFailure && !sendLookup) return;
+  runInBackground(async () => {
+    const userId = state.userId ?? await attributeUser(state);
+    if (userId === null) return;
+    const distinctId = String(userId);
+    const token = await mixpanelToken(state);
+    const tasks: Promise<unknown>[] = [];
+    if (sendLookup) tasks.push(trackLookup(state, token, distinctId, generationId));
+    if (sendFailure) {
+      const clientRequestId = state.body?.clientRequestId ?? null;
+      const props = generationFailedProps({
+        tune: analyticsTune(state),
+        language: state.language ?? state.body?.language ?? null,
+        generationId,
+        clientRequestId,
+        appVersion: state.body?.appVersion ?? null,
+        code: error.code,
+        httpStatus: error.status,
+        latencyMs,
+        quota: error.quota,
+      });
+      const insertId = await mixpanelInsertId(...insertIdParts(RINGTONE_GENERATION_FAILED, {
+        generationId,
+        clientRequestId,
+        distinctId,
+        requestStartedAtMs: state.startedAtMs,
+      }));
+      tasks.push(trackMixpanelEvent(token, distinctId, RINGTONE_GENERATION_FAILED, props, { insertId, timeMs: failedAtMs }));
+    }
+    await Promise.all(tasks);
+  });
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") {
@@ -571,6 +789,16 @@ Deno.serve(async (req: Request) => {
   let generationId: string | null = null;
   /** Forms of the user's name that must never reach a log line or an error column. */
   let redactions: string[] = [];
+  const analytics: AnalyticsState = {
+    startedAtMs: startedAt,
+    supabase: null,
+    config: null,
+    body: null,
+    userId: null,
+    tune: null,
+    language: null,
+    lookup: null,
+  };
 
   try {
     // 1. Body + name.
@@ -578,6 +806,7 @@ Deno.serve(async (req: Request) => {
       throw new ApiError(400, "INVALID_REQUEST", "Body must be valid JSON");
     });
     const body = parseBody(rawBody);
+    analytics.body = body;
 
     const name = sanitizeName(body.name);
     if (!name.ok) throw new ApiError(400, name.code, name.message);
@@ -588,7 +817,9 @@ Deno.serve(async (req: Request) => {
     // Config + kill switch + secrets.
     stage = "config";
     supabase = createServiceClient();
+    analytics.supabase = supabase;
     const config = await getConfig(supabase);
+    analytics.config = config;
 
     if (!isFlagEnabled(config, "generate_enabled", true)) {
       throw new ApiError(503, "SERVICE_UNAVAILABLE", "Ringtone generation is paused right now. Please try again later.");
@@ -635,6 +866,7 @@ Deno.serve(async (req: Request) => {
       userId = body.userId;
       authMode = "legacy_user_id";
     }
+    analytics.userId = userId;
 
     const { data: user, error: userError } = await supabase
       .from("users")
@@ -663,6 +895,7 @@ Deno.serve(async (req: Request) => {
       throw new ApiError(422, "UNSUPPORTED_LANGUAGE", `${body.language} is not supported for name ringtones yet`);
     }
     const language = String(languageRow.language);
+    analytics.language = language;
 
     const now = new Date();
     const window = quotaWindow(now);
@@ -721,7 +954,21 @@ Deno.serve(async (req: Request) => {
     // 5. Tune.
     stage = "tune";
     const tune = await loadTune(supabase, body.tuneId);
+    analytics.tune = tune;
     assertPersonalizable(tune);
+    // name_lookup_completed: the cross-sample count runs alongside the cache check and is only
+    // awaited by the background event.
+    const matchCount = countNameMatches(supabase, name.normalized, language);
+    const completeLookup = (exactMatch: boolean) => {
+      analytics.lookup = {
+        sampleId: tune.id,
+        language,
+        nameLength: nameLengthOf(name.display),
+        exactMatch,
+        matchCount,
+        completedAtMs: Date.now(),
+      };
+    };
     const ttsVoice = tune.tts_voice_name!;
     const voice = tune.gender ?? "";
     const title = buildTitle(tune.title_template, name.display);
@@ -743,16 +990,22 @@ Deno.serve(async (req: Request) => {
 
     // Sample name: the stock recording already sings this name.
     if (normalizeAuthoredName(tune.sample_name) === name.normalized) {
+      completeLookup(true);
+      // Counted before the ready row exists (cached rows never count): a failed count must not
+      // turn a delivered ringtone into ringtone_generation_failed.
+      const usedToday = await countUserFreshRenders(supabase, userId, window);
+      const quota = { used_today: usedToday, daily_limit: dailyLimit };
       const completedAt = new Date().toISOString();
+      const latencyMs = Date.now() - startedAt;
       generationId = await writeLogRow(supabase, {
         ...baseLogFields,
         render_id: null,
         cached: true,
         status: "ready",
-        latency_ms: Date.now() - startedAt,
+        latency_ms: latencyMs,
         completed_at: completedAt,
       });
-      const usedToday = await countUserFreshRenders(supabase, userId, window);
+      reportCreated(analytics, { generationId, cached: true, durationMs: null, latencyMs, completedAt, quota });
       return jsonResponse(successBody({
         generationId,
         renderId: null,
@@ -762,7 +1015,7 @@ Deno.serve(async (req: Request) => {
         language,
         durationMs: null,
         cached: true,
-        quota: { used_today: usedToday, daily_limit: dailyLimit },
+        quota,
       }));
     }
 
@@ -778,18 +1031,23 @@ Deno.serve(async (req: Request) => {
       .eq("status", "ready")
       .maybeSingle();
     if (cacheError) throw new Error(`render cache lookup failed: ${cacheError.message}`);
+    completeLookup(Boolean(cachedRender?.public_url));
 
     if (cachedRender?.public_url) {
+      const usedToday = await countUserFreshRenders(supabase, userId, window);
+      const quota = { used_today: usedToday, daily_limit: dailyLimit };
       const completedAt = new Date().toISOString();
+      const latencyMs = Date.now() - startedAt;
       generationId = await writeLogRow(supabase, {
         ...baseLogFields,
         render_id: String(cachedRender.id),
         cached: true,
         status: "ready",
-        latency_ms: Date.now() - startedAt,
+        latency_ms: latencyMs,
         completed_at: completedAt,
       });
-      const usedToday = await countUserFreshRenders(supabase, userId, window);
+      const durationMs = cachedRender.duration_ms ?? null;
+      reportCreated(analytics, { generationId, cached: true, durationMs, latencyMs, completedAt, quota });
       return jsonResponse(successBody({
         generationId,
         renderId: String(cachedRender.id),
@@ -797,9 +1055,9 @@ Deno.serve(async (req: Request) => {
         title,
         tune,
         language,
-        durationMs: cachedRender.duration_ms ?? null,
+        durationMs,
         cached: true,
-        quota: { used_today: usedToday, daily_limit: dailyLimit },
+        quota,
       }));
     }
 
@@ -1043,6 +1301,8 @@ Deno.serve(async (req: Request) => {
       latency_ms: latencyMs,
     });
 
+    const quota = { used_today: usedToday + 1, daily_limit: dailyLimit };
+    reportCreated(analytics, { generationId, cached: false, durationMs: finalDurationMs, latencyMs, completedAt, quota });
     return jsonResponse(successBody({
       generationId,
       renderId: finalRenderId,
@@ -1052,7 +1312,7 @@ Deno.serve(async (req: Request) => {
       language,
       durationMs: finalDurationMs,
       cached: false,
-      quota: { used_today: usedToday + 1, daily_limit: dailyLimit },
+      quota,
     }));
   } catch (err) {
     const latencyMs = Date.now() - startedAt;
@@ -1085,14 +1345,16 @@ Deno.serve(async (req: Request) => {
       console.error("generate-ringtone: failed", { stage, code: rowCode, generation_id: generationId, render_id: renderId, detail });
     }
 
+    const failedAt = new Date();
     if (supabase && (renderId || generationId)) {
       try {
-        await markFailed(supabase, renderId, generationId, rowCode, detail, latencyMs);
+        await markFailed(supabase, renderId, generationId, rowCode, detail, latencyMs, failedAt.toISOString());
       } catch (markError) {
         console.error("generate-ringtone: failure bookkeeping threw", { message: safeDetail(markError, redactions) });
       }
     }
 
+    reportFailure(analytics, apiError, generationId, latencyMs, failedAt.getTime());
     return errorResponse(apiError);
   }
 });

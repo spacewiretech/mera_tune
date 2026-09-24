@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createServiceClient, type ServiceClient } from "../_shared/supabase-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,7 +13,7 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-async function getConfig(supabase: ReturnType<typeof createClient>) {
+async function getConfig(supabase: ServiceClient) {
   const { data, error } = await supabase.from("app_config").select("key, value");
   if (error) throw new Error(`Failed to load app_config: ${error.message}`);
   const config: Record<string, string> = {};
@@ -116,10 +116,7 @@ Deno.serve(async (req: Request) => {
     const { user_id: userId } = await req.json();
     if (!userId) return jsonResponse({ error: "user_id is required" }, 400);
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    const supabase = createServiceClient();
 
     const config = await getConfig(supabase);
     const clientId = config.cashfree_client_id?.trim();
@@ -227,6 +224,9 @@ Deno.serve(async (req: Request) => {
           amount: authAmount,
           cashfree_subscription_id: cfSubId,
           autopay_enabled: true,
+          // The abandoned mandate's status must not become the new one's previous_status.
+          cashfree_status: null,
+          cashfree_status_at: null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existingSub.id);

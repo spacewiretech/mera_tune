@@ -11,11 +11,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import com.google.android.gms.auth.api.phone.SmsRetriever
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.common.api.Status
+import com.spacewire.meratune.analytics.OtpEntryMethod
 
+/** [onOtpReceived] gets the code plus how it arrived: an [OtpEntryMethod] value. */
 class SmsOtpFetcher(
     private val activity: ComponentActivity,
     private val otpLength: Int = 4,
-    private val onOtpReceived: (String) -> Unit,
+    private val onOtpReceived: (otp: String, source: String) -> Unit,
 ) {
     private val smsClient = SmsRetriever.getClient(activity)
     private var receiverRegistered = false
@@ -25,7 +27,7 @@ class SmsOtpFetcher(
     ) { result ->
         if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
         val message = result.data?.getStringExtra(SmsRetriever.EXTRA_SMS_MESSAGE).orEmpty()
-        extractOtp(message)?.let(onOtpReceived)
+        extractOtp(message)?.let { onOtpReceived(it, OtpEntryMethod.SMS_CONSENT) }
     }
 
     private val smsReceiver = object : BroadcastReceiver() {
@@ -39,7 +41,7 @@ class SmsOtpFetcher(
                 CommonStatusCodes.SUCCESS -> {
                     val message = extras.getString(SmsRetriever.EXTRA_SMS_MESSAGE)
                     if (!message.isNullOrBlank()) {
-                        extractOtp(message)?.let(onOtpReceived)
+                        extractOtp(message)?.let { onOtpReceived(it, OtpEntryMethod.SMS_RETRIEVER) }
                         return
                     }
 

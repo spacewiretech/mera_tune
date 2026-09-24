@@ -20,10 +20,17 @@ import androidx.core.view.WindowInsetsCompat
 import coil.load
 import coil.size.Scale
 import com.spacewire.meratune.R
+import com.spacewire.meratune.analytics.CallSurface
+import com.spacewire.meratune.analytics.IncomingCallAction
+import com.spacewire.meratune.analytics.LaunchTrigger
+import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.util.PhoneUtils
 import java.io.File
 
 class IncomingCallThemeActivity : AppCompatActivity() {
+
+    /** A second tap can land before finishAndRemoveTask completes. */
+    private var actionHandled = false
 
     private val dismissReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -44,23 +51,16 @@ class IncomingCallThemeActivity : AppCompatActivity() {
         setContentView(R.layout.activity_incoming_call_theme)
         applyStatusBarInset()
         bindIncomingCall(intent)
+        if (savedInstanceState == null) {
+            mixpanelAnalytics().trackIncomingCallOverlayDisplayed(launchTrigger(intent))
+        }
 
         findViewById<View>(R.id.declineCallButton).setOnClickListener {
-            val declined = CallActions.decline(this)
-            if (!declined) {
-                Toast.makeText(this, R.string.call_theme_control_failed, Toast.LENGTH_SHORT).show()
-            }
-            IncomingCallNotifier.dismiss(this)
-            finishAndRemoveTask()
+            onCallAction(IncomingCallAction.DECLINE)
         }
 
         findViewById<View>(R.id.acceptCallButton).setOnClickListener {
-            val accepted = CallActions.accept(this)
-            if (!accepted) {
-                Toast.makeText(this, R.string.call_theme_control_failed, Toast.LENGTH_SHORT).show()
-            }
-            IncomingCallNotifier.dismiss(this)
-            finishAndRemoveTask()
+            onCallAction(IncomingCallAction.ANSWER)
         }
 
         ContextCompat.registerReceiver(
@@ -75,7 +75,29 @@ class IncomingCallThemeActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         bindIncomingCall(intent)
+        // A repeat auto start for the same ringing call is not a new display.
+        if (launchTrigger(intent) == LaunchTrigger.NOTIFICATION_TAP) {
+            mixpanelAnalytics().trackIncomingCallOverlayDisplayed(LaunchTrigger.NOTIFICATION_TAP)
+        }
     }
+
+    private fun onCallAction(action: String) {
+        if (actionHandled) return
+        actionHandled = true
+        val succeeded = when (action) {
+            IncomingCallAction.ANSWER -> CallActions.accept(this)
+            else -> CallActions.decline(this)
+        }
+        if (!succeeded) {
+            Toast.makeText(this, R.string.call_theme_control_failed, Toast.LENGTH_SHORT).show()
+        }
+        mixpanelAnalytics().trackIncomingCallActionTapped(action, CallSurface.OVERLAY, succeeded)
+        IncomingCallNotifier.dismiss(this)
+        finishAndRemoveTask()
+    }
+
+    private fun launchTrigger(intent: Intent): String =
+        intent.getStringExtra(IncomingCallNotifier.EXTRA_LAUNCH_TRIGGER) ?: LaunchTrigger.AUTO
 
     private fun bindIncomingCall(intent: Intent) {
         val imagePath = intent.getStringExtra(IncomingCallNotifier.EXTRA_IMAGE_PATH)

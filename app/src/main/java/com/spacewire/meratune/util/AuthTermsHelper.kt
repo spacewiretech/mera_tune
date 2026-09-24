@@ -1,5 +1,6 @@
 package com.spacewire.meratune.util
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.text.SpannableString
@@ -11,13 +12,16 @@ import android.view.View
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.spacewire.meratune.R
+import com.spacewire.meratune.analytics.ExternalLink
+import com.spacewire.meratune.analytics.mixpanelAnalytics
 
 object AuthTermsHelper {
 
     private const val TERMS_URL = "http://meratune.app/terms/"
     private const val PRIVACY_URL = "http://meratune.app/privacy/"
 
-    fun bind(textView: TextView) {
+    /** [source] is the screen slug the footer is on (`external_link_opened.source`). */
+    fun bind(textView: TextView, source: String) {
         val context = textView.context
         val termsLabel = context.getString(R.string.auth_terms_link)
         val privacyLabel = context.getString(R.string.auth_privacy_link)
@@ -25,8 +29,8 @@ object AuthTermsHelper {
         val linkColor = ContextCompat.getColor(context, R.color.gradient_pink)
 
         val spannable = SpannableString(fullText)
-        addLink(spannable, fullText, termsLabel, TERMS_URL, linkColor, textView)
-        addLink(spannable, fullText, privacyLabel, PRIVACY_URL, linkColor, textView)
+        addLink(spannable, fullText, termsLabel, TERMS_URL, ExternalLink.TERMS, source, linkColor, textView)
+        addLink(spannable, fullText, privacyLabel, PRIVACY_URL, ExternalLink.PRIVACY_POLICY, source, linkColor, textView)
 
         textView.text = spannable
         textView.movementMethod = LinkMovementMethod.getInstance()
@@ -37,6 +41,8 @@ object AuthTermsHelper {
         fullText: String,
         label: String,
         url: String,
+        link: String,
+        source: String,
         linkColor: Int,
         textView: TextView,
     ) {
@@ -46,8 +52,13 @@ object AuthTermsHelper {
         spannable.setSpan(
             object : ClickableSpan() {
                 override fun onClick(widget: View) {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                    textView.context.startActivity(intent)
+                    val context = textView.context
+                    try {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                    } catch (_: ActivityNotFoundException) {
+                        return
+                    }
+                    context.mixpanelAnalytics().trackExternalLinkOpened(link, source)
                 }
 
                 override fun updateDrawState(textPaint: TextPaint) {

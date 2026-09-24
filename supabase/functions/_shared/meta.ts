@@ -1,3 +1,5 @@
+const META_TIMEOUT_MS = 4000;
+
 export async function sha256(value: string): Promise<string> {
   const normalized = value.trim().toLowerCase();
   const hashBuffer = await crypto.subtle.digest(
@@ -15,11 +17,11 @@ export function metaCredentials(config: Record<string, string>): {
 } {
   return {
     datasetId: Deno.env.get("META_DATASET_ID")?.trim()
-      ?? config.meta_dataset_id?.trim()
-      ?? "",
+      || config.meta_dataset_id?.trim()
+      || "",
     accessToken: Deno.env.get("META_CONVERSIONS_API_ACCESS_TOKEN")?.trim()
-      ?? config.meta_conversions_api_access_token?.trim()
-      ?? "",
+      || config.meta_conversions_api_access_token?.trim()
+      || "",
   };
 }
 
@@ -36,6 +38,7 @@ export type MetaConversionEvent = {
   customData?: Record<string, string | number>;
 };
 
+/** Never throws: a Meta outage must not turn a webhook into a 500 that Cashfree retries. */
 export async function trackMetaConversion(
   datasetId: string,
   accessToken: string,
@@ -46,29 +49,35 @@ export async function trackMetaConversion(
     return;
   }
 
-  const hashedExternalId = await sha256(event.externalId);
+  try {
+    const hashedExternalId = await sha256(event.externalId);
 
-  const response = await fetch(
-    `https://graph.facebook.com/v21.0/${datasetId}/events?access_token=${accessToken}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        data: [{
-          event_name: event.eventName,
-          event_time: event.eventTime,
-          event_id: event.eventId,
-          action_source: "system_generated",
-          user_data: {
-            external_id: [hashedExternalId],
-          },
-          custom_data: event.customData,
-        }],
-      }),
-    },
-  );
+    const response = await fetch(
+      `https://graph.facebook.com/v21.0/${datasetId}/events?access_token=${accessToken}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data: [{
+            event_name: event.eventName,
+            event_time: event.eventTime,
+            event_id: event.eventId,
+            action_source: "system_generated",
+            user_data: {
+              external_id: [hashedExternalId],
+            },
+            custom_data: event.customData,
+          }],
+        }),
+        signal: AbortSignal.timeout(META_TIMEOUT_MS),
+      },
+    );
 
-  if (!response.ok) {
-    console.error("Meta Conversions API failed:", event.eventName, await response.text());
+    if (!response.ok) {
+      console.error("Meta Conversions API failed:", event.eventName, await response.text());
+    }
+  } catch (err) {
+    const timedOut = err instanceof DOMException && err.name === "TimeoutError";
+    console.error("Meta Conversions API failed:", event.eventName, timedOut ? "timeout" : "network");
   }
 }

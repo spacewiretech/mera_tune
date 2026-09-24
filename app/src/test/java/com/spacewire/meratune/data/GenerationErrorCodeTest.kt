@@ -100,6 +100,16 @@ class GenerationErrorCodeTest {
 
         val transient = RingtoneGenerationException(GenerationErrorCode.TTS_RATE_LIMITED, "busy", retryAfterSeconds = 4)
         assertTrue(transient.retryable)
+        assertFalse(transient.fromServer)
+    }
+
+    @Test
+    fun appReportsOnlyFailuresWithoutServerCodeOrUnattributed() {
+        for (code in GenerationErrorCode.entries) {
+            assertTrue("client-side ${code.name}", GenerationErrorCode.appReportsFailure(code, fromServer = false))
+            val expected = code == GenerationErrorCode.UNAUTHORIZED
+            assertEquals("server ${code.name}", expected, GenerationErrorCode.appReportsFailure(code, fromServer = true))
+        }
     }
 
     @Test

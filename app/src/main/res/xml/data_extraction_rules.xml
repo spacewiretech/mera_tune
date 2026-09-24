@@ -2,6 +2,7 @@
 <!--
    Backup and device-transfer rules for Android 12+.
    auth_session.xml holds the long-lived api_token issued at login; it must never leave the device.
+   analytics_state.xml and active_ringtone.xml are device-local (see backup_rules.xml).
    See https://developer.android.com/about/versions/12/backup-restore#xml-changes
 -->
 <data-extraction-rules>
@@ -9,10 +10,22 @@
         <exclude
             domain="sharedpref"
             path="auth_session.xml" />
+        <exclude
+            domain="sharedpref"
+            path="analytics_state.xml" />
+        <exclude
+            domain="sharedpref"
+            path="active_ringtone.xml" />
     </cloud-backup>
     <device-transfer>
         <exclude
             domain="sharedpref"
             path="auth_session.xml" />
+        <exclude
+            domain="sharedpref"
+            path="analytics_state.xml" />
+        <exclude
+            domain="sharedpref"
+            path="active_ringtone.xml" />
     </device-transfer>
 </data-extraction-rules>

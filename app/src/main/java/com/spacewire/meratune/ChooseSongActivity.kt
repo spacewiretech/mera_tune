@@ -18,6 +18,9 @@ import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.PlaybackException
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.spacewire.meratune.analytics.AnalyticsSource
+import com.spacewire.meratune.analytics.AnalyticsTrigger
+import com.spacewire.meratune.analytics.FilterSelection
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.data.Category
 import com.spacewire.meratune.data.FallbackLevel
@@ -30,6 +33,7 @@ import com.spacewire.meratune.data.Tune
 import com.spacewire.meratune.data.VoiceFilter
 import com.spacewire.meratune.ui.FilterChip
 import com.spacewire.meratune.ui.FilterChipAdapter
+import com.spacewire.meratune.ui.PlaybackSessionStats
 import com.spacewire.meratune.ui.PreviewPlayerController
 import com.spacewire.meratune.ui.SongChoiceAdapter
 import com.spacewire.meratune.util.Haptics
@@ -37,6 +41,7 @@ import com.spacewire.meratune.util.LoadErrorMapper
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 /**
  * Step 2 of the personalized-ringtone flow: preview and pick one of the curated songs.
@@ -45,6 +50,12 @@ import kotlinx.coroutines.launch
 class ChooseSongActivity : AppCompatActivity() {
 
     private enum class ScreenState { LOADING, CONTENT, EMPTY, ERROR }
+
+    private enum class LoadState(val analyticsValue: String) {
+        CONTENT("content"),
+        EMPTY("empty"),
+        ERROR("error"),
+    }
 
     private val repository = HomeRepository()
 
@@ -60,6 +71,18 @@ class ChooseSongActivity : AppCompatActivity() {
     private var ranked: RankedSongs? = null
     private var visibleSongs: List<RankedSong> = emptyList()
     private val trackedSelections = mutableSetOf<String>()
+    private val previewedTuneIds = mutableSetOf<String>()
+
+    /** Card whose preview played to the end; tapping it again replays it as a new preview. */
+    private var endedPreviewId: String? = null
+
+    /**
+     * `trigger` of the load whose `sample_list_viewed` is still owed; `null` when the reload only
+     * repeats an already reported state after recreation.
+     */
+    private var pendingLoadTrigger: String? = AnalyticsTrigger.INITIAL
+    private var reportedLoadState: String? = null
+    private var isNavigating = false
 
     private var loadJob: Job? = null
     private var skeletonAnimator: ObjectAnimator? = null
@@ -91,6 +114,7 @@ class ChooseSongActivity : AppCompatActivity() {
                 }
 
                 override fun onEnded(id: String) {
+                    endedPreviewId = id
                     songAdapter.setPreview(id, isPlaying = false)
                     songAdapter.updateProgress(id, 0f)
                 }
@@ -99,6 +123,10 @@ class ChooseSongActivity : AppCompatActivity() {
                     Log.w(TAG, "Preview failed for $id: ${error.errorCodeName}")
                     songAdapter.setPreview(null, isPlaying = false)
                     Toast.makeText(this@ChooseSongActivity, R.string.playback_error, Toast.LENGTH_SHORT).show()
+                }
+
+                override fun onSessionEnded(stats: PlaybackSessionStats) {
+                    mixpanelAnalytics().trackTunePlayEnded(source = AnalyticsSource.SONG_PICKER, stats = stats)
                 }
             },
         )
@@ -123,6 +151,9 @@ class ChooseSongActivity : AppCompatActivity() {
                 ?: VoiceFilter.ALL
             categoryFilterId = state.getString(STATE_CATEGORY_FILTER) ?: Category.ALL_CATEGORY_ID
             state.getStringArrayList(STATE_TRACKED_SELECTIONS)?.let(trackedSelections::addAll)
+            state.getStringArrayList(STATE_PREVIEWED_TUNE_IDS)?.let(previewedTuneIds::addAll)
+            pendingLoadTrigger = state.getString(STATE_PENDING_LOAD_TRIGGER)
+            reportedLoadState = state.getString(STATE_REPORTED_LOAD_STATE)
         }
 
         enableEdgeToEdge()
@@ -137,7 +168,12 @@ class ChooseSongActivity : AppCompatActivity() {
         bindViews()
         setupLists()
         setupActions()
-        loadSongs()
+        loadSongs(pendingLoadTrigger)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        isNavigating = false
     }
 
     override fun onPause() {
@@ -165,6 +201,9 @@ class ChooseSongActivity : AppCompatActivity() {
         outState.putString(STATE_CATEGORY_FILTER, categoryFilterId)
         outState.putString(STATE_EFFECTIVE_LANGUAGE, effectiveLanguage)
         outState.putStringArrayList(STATE_TRACKED_SELECTIONS, ArrayList(trackedSelections))
+        outState.putStringArrayList(STATE_PREVIEWED_TUNE_IDS, ArrayList(previewedTuneIds))
+        outState.putString(STATE_PENDING_LOAD_TRIGGER, pendingLoadTrigger)
+        outState.putString(STATE_REPORTED_LOAD_STATE, reportedLoadState)
     }
 
     private fun bindViews() {
@@ -196,13 +235,13 @@ class ChooseSongActivity : AppCompatActivity() {
 
     private fun setupActions() {
         findViewById<ImageView>(R.id.backButton).setOnClickListener { finish() }
-        errorText.setOnClickListener { loadSongs() }
+        errorText.setOnClickListener { loadSongs(AnalyticsTrigger.RETRY) }
         findViewById<View>(R.id.emptyChangeLanguageButton).setOnClickListener { finish() }
         findViewById<View>(R.id.emptyHindiButton).setOnClickListener {
             effectiveLanguage = SongRanker.HINDI
             voiceFilter = VoiceFilter.ALL
             categoryFilterId = Category.ALL_CATEGORY_ID
-            loadSongs()
+            loadSongs(AnalyticsTrigger.HINDI_FALLBACK)
         }
         continueButton.setOnClickListener { onContinue() }
     }
@@ -211,7 +250,9 @@ class ChooseSongActivity : AppCompatActivity() {
     // Loading
     // ---------------------------------------------------------------------------------------------
 
-    private fun loadSongs() {
+    /** [trigger] is the `sample_list_viewed` trigger; `null` for the silent reload after recreation. */
+    private fun loadSongs(trigger: String?) {
+        pendingLoadTrigger = trigger
         loadJob?.cancel()
         releasePreview()
         render(ScreenState.LOADING)
@@ -229,7 +270,13 @@ class ChooseSongActivity : AppCompatActivity() {
                 visibleSongs = emptyList()
                 errorText.text = getString(R.string.load_error_with_retry, loadErrorMessage(error))
                 render(ScreenState.ERROR)
-                trackPickerViewed(songCount = 0, categoryCount = 0, fallbackLevel = null)
+                trackPickerViewed(
+                    loadState = LoadState.ERROR,
+                    sampleCount = 0,
+                    categoryCount = 0,
+                    fallbackLevel = null,
+                    failureReason = LoadErrorMapper.reason(error),
+                )
             }
         }
     }
@@ -252,7 +299,8 @@ class ChooseSongActivity : AppCompatActivity() {
             render(ScreenState.EMPTY)
             if (isTerminalLoad) {
                 trackPickerViewed(
-                    songCount = 0,
+                    loadState = LoadState.EMPTY,
+                    sampleCount = 0,
                     categoryCount = 0,
                     fallbackLevel = analyticsFallbackLevel(unfiltered.fallbackLevel),
                 )
@@ -303,7 +351,8 @@ class ChooseSongActivity : AppCompatActivity() {
 
         if (isTerminalLoad) {
             trackPickerViewed(
-                songCount = result.songs.size,
+                loadState = LoadState.CONTENT,
+                sampleCount = result.songs.size,
                 categoryCount = result.categories.size,
                 fallbackLevel = analyticsFallbackLevel(result.fallbackLevel),
             )
@@ -407,45 +456,54 @@ class ChooseSongActivity : AppCompatActivity() {
     // Interaction
     // ---------------------------------------------------------------------------------------------
 
+    /** On the first tap of a card, `sample_previewed` is tracked before `sample_selected`. */
     private fun onSongTapped(song: RankedSong) {
         val tune = song.tune
-        if (selectedTuneId != tune.id) {
+        val selectionChanged = selectedTuneId != tune.id
+        if (selectionChanged) {
             selectedTuneId = tune.id
             songAdapter.setSelected(tune.id)
             Haptics.select(songsRecycler)
             renderContinueButton()
-            if (trackedSelections.add(tune.id)) {
-                mixpanelAnalytics().trackSampleSongSelected(
-                    tuneId = tune.id,
-                    category = tune.category?.name.orEmpty(),
-                    language = effectiveLanguage,
-                    voice = tune.voiceKey,
-                    rank = song.rank,
-                    voiceFilter = voiceFilter.analyticsValue,
-                    categoryFilter = activeCategoryName(),
-                )
-            }
         }
 
         val url = tune.tuneUrl.trim()
         if (url.isEmpty()) {
             Toast.makeText(this, R.string.playback_error, Toast.LENGTH_SHORT).show()
+            if (selectionChanged) trackSelectedOnce(song)
             return
         }
-        val startsNewPreview = previewPlayer.currentId != tune.id
+        val startsNewPreview = previewPlayer.currentId != tune.id || endedPreviewId == tune.id
         if (startsNewPreview) {
             songAdapter.setPreview(tune.id, isPlaying = false)
         }
         previewPlayer.toggle(tune.id, url)
         if (startsNewPreview) {
-            mixpanelAnalytics().trackSampleSongPlayed(
-                tuneId = tune.id,
+            endedPreviewId = null
+            previewedTuneIds.add(tune.id)
+            mixpanelAnalytics().trackSamplePreviewed(
+                sampleId = tune.id,
                 category = tune.category?.name.orEmpty(),
                 language = effectiveLanguage,
                 voice = tune.voiceKey,
                 rank = song.rank,
             )
         }
+        if (selectionChanged) trackSelectedOnce(song)
+    }
+
+    private fun trackSelectedOnce(song: RankedSong) {
+        val tune = song.tune
+        if (!trackedSelections.add(tune.id)) return
+        mixpanelAnalytics().trackSampleSelected(
+            sampleId = tune.id,
+            category = tune.category?.name.orEmpty(),
+            language = effectiveLanguage,
+            voice = tune.voiceKey,
+            rank = song.rank,
+            voiceFilter = voiceFilter.analyticsValue,
+            categoryFilter = activeCategoryName(),
+        )
     }
 
     private fun onVoiceChipTapped(chip: FilterChip) {
@@ -454,27 +512,41 @@ class ChooseSongActivity : AppCompatActivity() {
         voiceFilter = next
         Haptics.select(voiceChipsRecycler)
         applyFilters(isTerminalLoad = false)
+        mixpanelAnalytics().trackVoiceFiltered(
+            voiceFilter = next.name.lowercase(Locale.ROOT),
+            resultCount = visibleSongs.size,
+        )
     }
 
     private fun onCategoryChipTapped(chip: FilterChip) {
         if (chip.key == categoryFilterId) return
         categoryFilterId = chip.key
         Haptics.select(categoryChipsRecycler)
-        if (chip.key != Category.ALL_CATEGORY_ID) {
-            mixpanelAnalytics().trackCategoryFiltered(
-                categoryId = chip.key,
-                categoryName = chip.label,
-                source = SOURCE_SONG_PICKER,
-            )
-        }
+        val isAll = chip.key == Category.ALL_CATEGORY_ID
+        mixpanelAnalytics().trackCategoryFiltered(
+            categoryId = chip.key.takeUnless { isAll },
+            categoryName = chip.label.takeUnless { isAll },
+            source = AnalyticsSource.SONG_PICKER,
+            selection = if (isAll) FilterSelection.ALL else FilterSelection.SELECTED,
+        )
         applyFilters(isTerminalLoad = false)
     }
 
     private fun onContinue() {
+        if (isNavigating) return
         val tuneId = selectedTuneId ?: return
         val tune = songAdapter.songAt(tuneId)?.tune ?: return
+        isNavigating = true
         releasePreview()
-        startActivity(RingtoneProcessingActivity.intent(this, userName, effectiveLanguage, tune))
+        startActivity(
+            RingtoneProcessingActivity.intent(
+                context = this,
+                name = userName,
+                language = effectiveLanguage,
+                tune = tune,
+                previewedCount = previewedTuneIds.size,
+            ),
+        )
     }
 
     private fun releasePreview() {
@@ -517,13 +589,31 @@ class ChooseSongActivity : AppCompatActivity() {
         return definition?.let { getString(it.nativeLabelRes) } ?: storageValue
     }
 
-    private fun trackPickerViewed(songCount: Int, categoryCount: Int, fallbackLevel: String?) {
-        mixpanelAnalytics().trackSongPickerViewed(
+    /**
+     * Once per load that reaches a terminal state. After recreation the reload stays silent when it
+     * lands on the state already reported, and is tagged `restored` when it lands on a different one.
+     */
+    private fun trackPickerViewed(
+        loadState: LoadState,
+        sampleCount: Int,
+        categoryCount: Int,
+        fallbackLevel: String?,
+        failureReason: String? = null,
+    ) {
+        val trigger = pendingLoadTrigger
+        pendingLoadTrigger = null
+        if (trigger == null && loadState.analyticsValue == reportedLoadState) return
+        reportedLoadState = loadState.analyticsValue
+        mixpanelAnalytics().trackSampleListViewed(
             language = effectiveLanguage,
-            songCount = songCount,
+            sampleCount = sampleCount,
             categoryCount = categoryCount,
             fallbackLevel = fallbackLevel.orEmpty(),
             voiceFilter = voiceFilter.analyticsValue,
+            loadState = loadState.analyticsValue,
+            trigger = trigger ?: AnalyticsTrigger.RESTORED,
+            failureReason = failureReason,
+            requestedLanguage = requestedLanguage,
         )
     }
 
@@ -536,7 +626,9 @@ class ChooseSongActivity : AppCompatActivity() {
         private const val STATE_CATEGORY_FILTER = "state_category_filter"
         private const val STATE_EFFECTIVE_LANGUAGE = "state_effective_language"
         private const val STATE_TRACKED_SELECTIONS = "state_tracked_selections"
-        private const val SOURCE_SONG_PICKER = "song_picker"
+        private const val STATE_PREVIEWED_TUNE_IDS = "state_previewed_tune_ids"
+        private const val STATE_PENDING_LOAD_TRIGGER = "state_pending_load_trigger"
+        private const val STATE_REPORTED_LOAD_STATE = "state_reported_load_state"
         private const val MIN_CATEGORIES_FOR_CHIPS = 2
         private const val DISABLED_ALPHA = 0.45f
         private const val SKELETON_MIN_ALPHA = 0.4f

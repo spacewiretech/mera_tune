@@ -1,9 +1,24 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createServiceClient, type ServiceClient } from "../_shared/supabase-client.ts";
 import {
   extractAuthPaymentId,
   recordAuthPayment,
 } from "../_shared/subscription-payments.ts";
+import {
+  mixpanelInsertId,
+  resolveMixpanelToken,
+  trackMixpanelEvent,
+  updateMixpanelPeople,
+} from "../_shared/mixpanel.ts";
+import {
+  eventKey,
+  paymentInsertId,
+  pickEventProps,
+  type TrialActivation,
+  trialPaymentId,
+  trialPaymentSucceededProps,
+  trialPeopleOps,
+} from "../_shared/subscription-analytics.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,7 +32,7 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-async function getConfig(supabase: ReturnType<typeof createClient>) {
+async function getConfig(supabase: ServiceClient) {
   const { data, error } = await supabase.from("app_config").select("key, value");
   if (error) throw new Error(error.message);
   const config: Record<string, string> = {};
@@ -32,9 +47,8 @@ function cashfreeBaseUrl(environment: string) {
 }
 
 async function activateTrial(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ServiceClient,
   userId: number,
-  subscriptionId: string,
   cfSubId: string,
   paymentId: string,
   authAmount: number,
@@ -54,15 +68,22 @@ async function activateTrial(
     next_billing_date: nextBilling.toISOString(),
     cashfree_subscription_id: cfSubId,
     autopay_enabled: true,
+    // Same as the AUTH_STATUS webhook's activation, so later STATUS_CHANGED dedupe and
+    // previous_status do not depend on which side won the row.
+    cashfree_status: "ACTIVE",
+    cashfree_status_at: now.toISOString(),
     updated_at: now.toISOString(),
   };
   if (paymentId) subUpdate.last_payment_id = paymentId;
 
-  await supabase
+  // Pending-only, so exactly one of this and the AUTH_STATUS webhook wins the row (trial_payment_succeeded).
+  const { data: activatedRows, error: activateError } = await supabase
     .from("subscriptions")
     .update(subUpdate)
     .eq("user_id", userId)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .select("id");
+  if (activateError) console.error("verify-subscription activate failed:", activateError.message);
 
   await supabase
     .from("users")
@@ -94,7 +115,32 @@ async function activateTrial(
     });
   }
 
-  return { user, subscription, recurring_amount: recurringAmount, interval_months: intervalMonths };
+  const activatedIds = (activatedRows ?? []).map((row) => row.id);
+  return {
+    response: { user, subscription, recurring_amount: recurringAmount, interval_months: intervalMonths },
+    trialRowId: activatedIds.includes(subscription?.id) ? subscription.id : activatedIds[0],
+    startedAtMs: now.getTime(),
+  };
+}
+
+async function trackTrialPaymentSucceeded(
+  config: Record<string, string>,
+  userId: string,
+  trialRowId: number,
+  startedAtMs: number,
+  trial: TrialActivation,
+) {
+  try {
+    const token = resolveMixpanelToken(config);
+    const insertId = paymentInsertId(trialPaymentId(trial)) ?? await mixpanelInsertId(eventKey.trial(trialRowId));
+    const props = pickEventProps("trial_payment_succeeded", trialPaymentSucceededProps(trial));
+    await Promise.allSettled([
+      trackMixpanelEvent(token, userId, "trial_payment_succeeded", props, { insertId, timeMs: startedAtMs }),
+      updateMixpanelPeople(token, userId, trialPeopleOps(startedAtMs, trial.trialDays)),
+    ]);
+  } catch (err) {
+    console.error("verify-subscription analytics failed:", err instanceof Error ? err.name : "unknown");
+  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -106,10 +152,7 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "user_id and subscription_id are required" }, 400);
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    const supabase = createServiceClient();
 
     const config = await getConfig(supabase);
     const clientId = config.cashfree_client_id?.trim();
@@ -175,7 +218,6 @@ Deno.serve(async (req: Request) => {
     const result = await activateTrial(
       supabase,
       userId,
-      subscriptionId,
       cfSubId,
       paymentId,
       authAmount,
@@ -184,7 +226,23 @@ Deno.serve(async (req: Request) => {
       intervalMonths,
     );
 
-    return jsonResponse({ active: true, ...result });
+    // Tracking only: ids from create-subscription are mt_<user>_<ts>, so a forged verify call
+    // for someone else's subscription cannot create trial events.
+    if (result.trialRowId != null && String(subscriptionId).startsWith(`mt_${userId}_`)) {
+      await trackTrialPaymentSucceeded(config, String(result.response.user?.id ?? userId), result.trialRowId, result.startedAtMs, {
+        subscriptionId: String(subscriptionId),
+        auth: authDetails,
+        // The subscription entity has authorization_details.payment_id, not cf_payment_id.
+        cfPaymentId: paymentId,
+        configAuthAmount: authAmount,
+        trialDays,
+        recurringAmount,
+        intervalMonths,
+        activatedVia: "app_verify",
+      });
+    }
+
+    return jsonResponse({ active: true, ...result.response });
   } catch (err) {
     console.error("verify-subscription error:", err);
     return jsonResponse({ error: "Internal server error" }, 500);

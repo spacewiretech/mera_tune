@@ -3,6 +3,7 @@ package com.spacewire.meratune
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
@@ -16,6 +17,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
+import com.spacewire.meratune.analytics.AnalyticsScreen
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.data.HomeRepository
 import com.spacewire.meratune.data.LanguageDefinition
@@ -46,8 +48,17 @@ class CreateRingtoneActivity : AppCompatActivity() {
     private var userPickedLanguage = false
     private var availabilityJob: Job? = null
 
+    // Analytics for one form visit (onCreate, or a CLEAR_TOP re-entry through onNewIntent).
+    private var formShownAtMs = 0L
+    private var prefillSource = PREFILL_NONE
+    private var prefillDisplay = ""
+    private var entryPoint: String? = null
+    private val reportedUnavailableLanguages = mutableSetOf<String>()
+    private var isNavigating = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        restoreAnalyticsState(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_create_ringtone)
 
@@ -85,14 +96,45 @@ class CreateRingtoneActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        // CLEAR_TOP re-entry skips onCreate, so the lifecycle tracker does not see this view.
+        mixpanelAnalytics().trackScreenViewed(AnalyticsScreen.CREATE_FORM)
+        val retained = NameNormalizer.display(nameInput.text?.toString().orEmpty())
+        startFormVisit(if (retained.isEmpty()) PREFILL_NONE else PREFILL_RETAINED, retained, intent)
         // Returning from later steps (e.g. UNSUPPORTED_LANGUAGE): the server gate may have changed.
         loadLanguageAvailability()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        isNavigating = false
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putString(STATE_LANGUAGE, languageGroup.selectedKey())
         outState.putBoolean(STATE_USER_PICKED_LANGUAGE, userPickedLanguage)
+        outState.putLong(STATE_FORM_SHOWN_AT_MS, formShownAtMs)
+        outState.putString(STATE_PREFILL_SOURCE, prefillSource)
+        outState.putString(STATE_PREFILL_DISPLAY, prefillDisplay)
+        outState.putString(STATE_ENTRY_POINT, entryPoint)
+        outState.putStringArrayList(STATE_REPORTED_UNAVAILABLE, ArrayList(reportedUnavailableLanguages))
+    }
+
+    private fun restoreAnalyticsState(savedInstanceState: Bundle?) {
+        if (savedInstanceState == null) return
+        formShownAtMs = savedInstanceState.getLong(STATE_FORM_SHOWN_AT_MS, SystemClock.elapsedRealtime())
+        prefillSource = savedInstanceState.getString(STATE_PREFILL_SOURCE) ?: PREFILL_NONE
+        prefillDisplay = savedInstanceState.getString(STATE_PREFILL_DISPLAY).orEmpty()
+        entryPoint = savedInstanceState.getString(STATE_ENTRY_POINT)
+        savedInstanceState.getStringArrayList(STATE_REPORTED_UNAVAILABLE)?.let(reportedUnavailableLanguages::addAll)
+    }
+
+    private fun startFormVisit(source: String, prefill: String, launchIntent: Intent) {
+        formShownAtMs = SystemClock.elapsedRealtime()
+        prefillSource = source
+        prefillDisplay = prefill
+        entryPoint = launchIntent.getStringExtra(EXTRA_ENTRY_POINT)
+        reportedUnavailableLanguages.clear()
     }
 
     private fun applyGradientLabels() {
@@ -116,15 +158,28 @@ class CreateRingtoneActivity : AppCompatActivity() {
             optionViews = optionViews,
             keys = languageDefinitions.map { it.storageValue },
             onSelectionChanged = { userPickedLanguage = true },
+            onDisabledOptionClick = ::onUnavailableLanguageTapped,
         )
+    }
+
+    private fun onUnavailableLanguageTapped(language: String) {
+        if (reportedUnavailableLanguages.add(language)) {
+            mixpanelAnalytics().trackUnavailableLanguageTapped(language)
+        }
     }
 
     private fun setupNameInput(savedInstanceState: Bundle?) {
         if (savedInstanceState == null) {
-            val prefill = intent.getStringExtra(EXTRA_NAME).orEmpty().trim()
-                .ifBlank { ProfileStore(this).getProfile().name.trim() }
+            val extraName = intent.getStringExtra(EXTRA_NAME).orEmpty().trim()
+            val prefill = extraName.ifBlank { ProfileStore(this).getProfile().name.trim() }
             nameInput.setText(prefill)
             nameInput.setSelection(nameInput.text.length)
+            val source = when {
+                extraName.isNotEmpty() -> PREFILL_SEARCH_QUERY
+                prefill.isNotEmpty() -> PREFILL_PROFILE_NAME
+                else -> PREFILL_NONE
+            }
+            startFormVisit(source, NameNormalizer.display(prefill), intent)
         }
         nameInput.doAfterTextChanged { renderName() }
         renderName()
@@ -170,6 +225,7 @@ class CreateRingtoneActivity : AppCompatActivity() {
     }
 
     private fun onContinue() {
+        if (isNavigating) return
         val validation = NameNormalizer.validate(nameInput.text?.toString().orEmpty())
         if (validation !is NameValidation.Valid) {
             renderName()
@@ -178,11 +234,28 @@ class CreateRingtoneActivity : AppCompatActivity() {
         val languageKey = languageGroup.selectedKey()
         if (!languageGroup.isEnabled(languageKey)) return
 
+        isNavigating = true
         mixpanelAnalytics().trackRingtoneCreationStarted(
             language = languageKey,
             nameLength = validation.display.length,
+            languageSource = languageSource(languageKey),
+            prefillSource = prefillSource,
+            nameEdited = validation.display != prefillDisplay,
+            timeOnFormMs = (SystemClock.elapsedRealtime() - formShownAtMs).coerceAtLeast(0L),
+            entryPoint = entryPoint,
         )
         startActivity(ChooseSongActivity.intent(this, validation.display, languageKey))
+    }
+
+    /** Which [defaultLanguageKey] branch produced [selected], unless the user tapped a language. */
+    private fun languageSource(selected: String): String {
+        if (userPickedLanguage) return LANGUAGE_USER_PICKED
+        val profileLanguage = ProfileStore(this).getProfile().selectedLanguage.trim()
+        return when {
+            selected.equals(profileLanguage, ignoreCase = true) -> LANGUAGE_PROFILE_DEFAULT
+            selected == HINDI -> LANGUAGE_HINDI_DEFAULT
+            else -> LANGUAGE_FIRST_ENABLED
+        }
     }
 
     private fun loadLanguageAvailability() {
@@ -253,10 +326,28 @@ class CreateRingtoneActivity : AppCompatActivity() {
     companion object {
         private const val TAG = "CreateRingtone"
         private const val EXTRA_NAME = "extra_name"
+        private const val EXTRA_ENTRY_POINT = "extra_entry_point"
         private const val STATE_LANGUAGE = "state_language"
         private const val STATE_USER_PICKED_LANGUAGE = "state_user_picked_language"
+        private const val STATE_FORM_SHOWN_AT_MS = "state_form_shown_at_ms"
+        private const val STATE_PREFILL_SOURCE = "state_prefill_source"
+        private const val STATE_PREFILL_DISPLAY = "state_prefill_display"
+        private const val STATE_ENTRY_POINT = "state_entry_point"
+        private const val STATE_REPORTED_UNAVAILABLE = "state_reported_unavailable_languages"
         private const val HINDI = "Hindi"
         private const val DISABLED_ALPHA = 0.45f
+
+        // `prefill_source`: where the name field's starting text came from.
+        private const val PREFILL_SEARCH_QUERY = "search_query"
+        private const val PREFILL_PROFILE_NAME = "profile_name"
+        private const val PREFILL_RETAINED = "retained"
+        private const val PREFILL_NONE = "none"
+
+        // `language_source`
+        private const val LANGUAGE_USER_PICKED = "user_picked"
+        private const val LANGUAGE_PROFILE_DEFAULT = "profile_default"
+        private const val LANGUAGE_HINDI_DEFAULT = "hindi_default"
+        private const val LANGUAGE_FIRST_ENABLED = "first_enabled"
 
         private val LANGUAGE_OPTION_IDS = mapOf(
             "English" to R.id.languageEnglishOption,
@@ -270,9 +361,11 @@ class CreateRingtoneActivity : AppCompatActivity() {
             "Bengali" to R.id.languageBengaliOption,
         )
 
-        fun intent(context: Context, name: String): Intent {
+        /** @param entryPoint a `CreationEntryPoint` value for `ringtone_creation_started`. */
+        fun intent(context: Context, name: String, entryPoint: String? = null): Intent {
             return Intent(context, CreateRingtoneActivity::class.java)
                 .putExtra(EXTRA_NAME, name)
+                .apply { entryPoint?.let { putExtra(EXTRA_ENTRY_POINT, it) } }
         }
     }
 }

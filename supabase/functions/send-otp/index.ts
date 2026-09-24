@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import type { ServiceClient } from "../_shared/supabase-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,7 +42,7 @@ function generateOtp(length: number): string {
 const PLAYSTORE_TEST_PHONE = "9931133385";
 const PLAYSTORE_TEST_OTP = "1234";
 
-async function getConfig(supabase: ReturnType<typeof createClient>): Promise<Record<string, string>> {
+async function getConfig(supabase: ServiceClient): Promise<Record<string, string>> {
   const { data, error } = await supabase.from("app_config").select("key, value");
   if (error) throw new Error(`Failed to load app_config: ${error.message}`);
   const config: Record<string, string> = {};
@@ -92,7 +93,7 @@ Deno.serve(async (req: Request) => {
   try {
     const { phone } = await req.json();
     if (!phone || typeof phone !== "string") {
-      return jsonResponse({ error: "Phone number is required" }, 400);
+      return jsonResponse({ error: "Phone number is required", error_code: "phone_missing" }, 400);
     }
 
     const supabase = createClient(
@@ -104,7 +105,7 @@ Deno.serve(async (req: Request) => {
     const countryCode = config.default_country_code || "91";
     const normalized = normalizePhone(phone, countryCode);
     if (!normalized) {
-      return jsonResponse({ error: "Enter a valid 10-digit mobile number" }, 400);
+      return jsonResponse({ error: "Enter a valid 10-digit mobile number", error_code: "invalid_phone" }, 400);
     }
 
     const otpLength = parseInt(config.otp_length || "4", 10);
@@ -113,7 +114,10 @@ Deno.serve(async (req: Request) => {
     const isPlaystoreTestAccount = normalized === PLAYSTORE_TEST_PHONE;
 
     if (!apiKey && !isPlaystoreTestAccount) {
-      return jsonResponse({ error: "SMS service is not configured. Please contact support." }, 503);
+      return jsonResponse(
+        { error: "SMS service is not configured. Please contact support.", error_code: "sms_not_configured" },
+        503,
+      );
     }
 
     const otp = isPlaystoreTestAccount ? PLAYSTORE_TEST_OTP : generateOtp(otpLength);
@@ -129,7 +133,7 @@ Deno.serve(async (req: Request) => {
     });
 
     if (insertError) {
-      return jsonResponse({ error: "Could not create OTP session" }, 500);
+      return jsonResponse({ error: "Could not create OTP session", error_code: "otp_session_create_failed" }, 500);
     }
 
     if (!isPlaystoreTestAccount) {
@@ -138,7 +142,7 @@ Deno.serve(async (req: Request) => {
 
       const payload = buildSmsPayload(route, config, otp, normalized);
       if ("error" in payload) {
-        return jsonResponse({ error: payload.error }, 503);
+        return jsonResponse({ error: payload.error, error_code: "sms_not_configured" }, 503);
       }
 
       const smsResponse = await fetch(smsUrl, {
@@ -154,7 +158,10 @@ Deno.serve(async (req: Request) => {
       if (!smsResponse.ok || smsResult?.return === false) {
         console.error("Fast2SMS error:", smsResult);
         return jsonResponse(
-          { error: smsResult?.message || "Failed to send OTP. Please try again." },
+          {
+            error: smsResult?.message || "Failed to send OTP. Please try again.",
+            error_code: "sms_provider_error",
+          },
           502,
         );
       }
@@ -163,6 +170,6 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ success: true, phone: normalized, expires_in_minutes: expiryMinutes });
   } catch (err) {
     console.error("send-otp error:", err);
-    return jsonResponse({ error: "Internal server error" }, 500);
+    return jsonResponse({ error: "Internal server error", error_code: "internal_error" }, 500);
   }
 });

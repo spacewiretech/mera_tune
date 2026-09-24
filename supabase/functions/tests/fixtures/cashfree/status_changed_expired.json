@@ -1,0 +1,62 @@
+{
+  "data": {
+    "subscription_details": {
+      "cf_subscription_id": "23639356",
+      "subscription_id": "mozuyYwUCbWEfJVVRLi",
+      "subscription_status": "EXPIRED",
+      "subscription_expiry_time": "2055-08-07T10:30:46",
+      "subscription_first_charge_time": null,
+      "subscription_tags": {
+        "user_id": "42",
+        "phone": "9876500000"
+      },
+      "next_schedule_date": null
+    },
+    "customer_details": {
+      "customer_name": null,
+      "customer_email": "john@dummy.com",
+      "customer_phone": "9900000000"
+    },
+    "plan_details": {
+      "plan_id": "mozuyYwUCbWEfJVVRLi",
+      "plan_name": "6Msuj2mttuf2F5P1FYVSet",
+      "plan_type": "ON_DEMAND",
+      "plan_max_cycles": 0,
+      "plan_recurring_amount": null,
+      "plan_max_amount": 399.0,
+      "plan_interval_type": null,
+      "plan_intervals": null,
+      "plan_currency": "INR",
+      "plan_note": null,
+      "plan_status": null
+    },
+    "authorization_details": {
+      "authorization_amount": 2.0,
+      "authorization_amount_refund": false,
+      "approve_by_time": "2025-09-06T10:30:47",
+      "authorization_reference": "6ba74ac2b047424da95591xxxxx[at]xxxx",
+      "authorization_time": "2025-08-07T10:31:36",
+      "authorization_status": "ACTIVE",
+      "payment_id": "49988270",
+      "payment_method": {
+        "upi": {
+          "channel": "link",
+          "upi_id": "9910000000@ybl",
+          "upi_instrument": "",
+          "upi_instrument_number": "",
+          "upi_payer_account_number": "",
+          "upi_payer_ifsc": ""
+        }
+      },
+      "payment_group": "upi"
+    },
+    "payment_gateway_details": {
+      "gateway_name": "CASHFREE",
+      "gateway_subscription_id": "23639356",
+      "gateway_plan_id": "mozuyYwUCbWEfJVVRLi",
+      "gateway_auth_id": "6ba74ac2b047424da95591xxxxx[at]xxxx"
+    }
+  },
+  "event_time": "2025-09-06T10:30:47+05:30",
+  "type": "SUBSCRIPTION_STATUS_CHANGED"
+}

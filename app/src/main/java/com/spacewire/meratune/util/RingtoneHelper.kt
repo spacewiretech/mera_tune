@@ -16,12 +16,25 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
+/** The [RingtoneHelper.setRingtone] step that failed. */
+enum class RingtoneSetStep {
+    DOWNLOAD,
+    SAVE,
+    SET_DEFAULT,
+}
+
+class RingtoneSetException(val step: RingtoneSetStep, cause: Throwable) : Exception(cause)
+
 object RingtoneHelper {
 
+    /** Failures are [RingtoneSetException]s carrying the step that failed and the original cause. */
     suspend fun setRingtone(context: Context, tune: Tune): Result<Uri> = withContext(Dispatchers.IO) {
         runCatching {
             val sourceUrl = tune.tuneUrl.trim()
-            require(sourceUrl.isNotBlank()) { "Empty tune URL" }
+            val bytes = step(RingtoneSetStep.DOWNLOAD) {
+                require(sourceUrl.isNotBlank()) { "Empty tune URL" }
+                downloadAudio(sourceUrl)
+            }
 
             val extension = extensionFromUrl(sourceUrl)
             val mimeType = mimeTypeForExtension(extension)
@@ -30,14 +43,17 @@ object RingtoneHelper {
                 suffix = tune.generationId ?: tune.id,
                 extension = extension,
             )
-            val bytes = downloadAudio(sourceUrl)
-            val uri = saveRingtone(context, tune.name, fileName, bytes, mimeType)
+            val uri = step(RingtoneSetStep.SAVE) {
+                saveRingtone(context, tune.name, fileName, bytes, mimeType)
+            }
 
-            RingtoneManager.setActualDefaultRingtoneUri(
-                context,
-                RingtoneManager.TYPE_RINGTONE,
-                uri,
-            )
+            step(RingtoneSetStep.SET_DEFAULT) {
+                RingtoneManager.setActualDefaultRingtoneUri(
+                    context,
+                    RingtoneManager.TYPE_RINGTONE,
+                    uri,
+                )
+            }
             uri
         }
     }
@@ -46,10 +62,10 @@ object RingtoneHelper {
         return !Settings.System.canWrite(context)
     }
 
+    /** Launched for result: a new-task flag would make it return RESULT_CANCELED at once. */
     fun writeSettingsIntent(context: Context) =
         android.content.Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
             data = Uri.parse("package:${context.packageName}")
-            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
         }
 
     /**
@@ -65,6 +81,13 @@ object RingtoneHelper {
         val ext = extension.trim().trimStart('.').lowercase().ifBlank { "mp3" }
         return if (safeSuffix.isEmpty()) "$base.$ext" else "${base}_$safeSuffix.$ext"
     }
+
+    private inline fun <T> step(current: RingtoneSetStep, block: () -> T): T =
+        try {
+            block()
+        } catch (error: Throwable) {
+            throw RingtoneSetException(current, error)
+        }
 
     private fun downloadAudio(sourceUrl: String): ByteArray {
         val connection = (URL(sourceUrl).openConnection() as HttpURLConnection).apply {

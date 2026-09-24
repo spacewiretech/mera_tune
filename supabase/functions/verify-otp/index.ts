@@ -52,12 +52,12 @@ Deno.serve(async (req: Request) => {
   try {
     const { phone, otp, app_version } = await req.json();
     if (!phone || !otp) {
-      return jsonResponse({ error: "Phone and OTP are required" }, 400);
+      return jsonResponse({ error: "Phone and OTP are required", error_code: "missing_params" }, 400);
     }
 
     const normalized = normalizePhone(String(phone));
     if (!normalized) {
-      return jsonResponse({ error: "Invalid phone number" }, 400);
+      return jsonResponse({ error: "Invalid phone number", error_code: "invalid_phone" }, 400);
     }
 
     const supabase = createClient(
@@ -75,16 +75,22 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (sessionError || !session) {
-      return jsonResponse({ error: "OTP expired or not found. Please request a new code." }, 400);
+      return jsonResponse(
+        { error: "OTP expired or not found. Please request a new code.", error_code: "otp_not_found" },
+        400,
+      );
     }
 
     if (new Date(session.expires_at) < new Date()) {
-      return jsonResponse({ error: "OTP has expired. Please request a new code." }, 400);
+      return jsonResponse(
+        { error: "OTP has expired. Please request a new code.", error_code: "otp_expired" },
+        400,
+      );
     }
 
     const otpHash = await sha256(String(otp).trim());
     if (otpHash !== session.otp_hash) {
-      return jsonResponse({ error: "Invalid verification code" }, 400);
+      return jsonResponse({ error: "Invalid verification code", error_code: "otp_invalid" }, 400);
     }
 
     const sessionToken = crypto.randomUUID();
@@ -95,7 +101,7 @@ Deno.serve(async (req: Request) => {
       .eq("id", session.id);
 
     if (updateError) {
-      return jsonResponse({ error: "Could not verify OTP" }, 500);
+      return jsonResponse({ error: "Could not verify OTP", error_code: "verify_update_failed" }, 500);
     }
 
     const { data: existingUser } = await supabase
@@ -125,6 +131,6 @@ Deno.serve(async (req: Request) => {
     });
   } catch (err) {
     console.error("verify-otp error:", err);
-    return jsonResponse({ error: "Internal server error" }, 500);
+    return jsonResponse({ error: "Internal server error", error_code: "internal_error" }, 500);
   }
 });

@@ -3,6 +3,7 @@ package com.spacewire.meratune.calltheme
 import android.content.Context
 import android.telephony.TelephonyManager
 import android.util.Log
+import com.spacewire.meratune.analytics.mixpanelAnalytics
 import java.io.File
 
 /**
@@ -41,6 +42,8 @@ object IncomingCallEvents {
     private fun showIncoming(context: Context, incomingNumber: String?) {
         val number = incomingNumber?.trim()?.takeIf { it.isNotEmpty() }
         if (isShowing && (number == null || number == lastNumber)) return
+        // Monitor and receiver both deliver RINGING; a later delivery may only add the number.
+        val firstShow = !isShowing
         isShowing = true
         lastNumber = number
 
@@ -54,13 +57,28 @@ object IncomingCallEvents {
             ?: ContactLookupHelper.findNameByNumber(context, number)
 
         Log.d(TAG, "Showing incoming UI number=${PhoneMatch.normalizeKey(number)} hasPhoto=${imagePath != null}")
-        IncomingCallNotifier.show(
+        // Read before show(), which wakes the screen.
+        val screenLocked = IncomingCallNotifier.isLockedOrScreenOff(context)
+        val overlayRequested = IncomingCallNotifier.show(
             context = context,
             phoneNumber = number,
             contactName = contactName,
             imagePath = imagePath,
             tuneName = theme?.tuneName,
         )
+
+        if (firstShow && theme != null) {
+            context.mixpanelAnalytics().trackCallThemeDisplayed(
+                themeScope = when (theme.scope) {
+                    CallThemeScope.EVERYONE -> THEME_SCOPE_EVERYONE
+                    CallThemeScope.CONTACT -> THEME_SCOPE_CONTACT
+                },
+                displayMode = if (overlayRequested) DISPLAY_MODE_OVERLAY else DISPLAY_MODE_NOTIFICATION,
+                hasImage = imagePath != null,
+                screenLocked = screenLocked,
+                numberAvailable = number != null,
+            )
+        }
     }
 
     private fun dismissIncoming(context: Context) {
@@ -70,4 +88,10 @@ object IncomingCallEvents {
     }
 
     private const val TAG = "IncomingCallEvents"
+    private const val THEME_SCOPE_EVERYONE = "everyone"
+    private const val THEME_SCOPE_CONTACT = "contact"
+
+    /** The overlay start was attempted; whether it appeared is `incoming_call_overlay_displayed`. */
+    private const val DISPLAY_MODE_OVERLAY = "overlay_requested"
+    private const val DISPLAY_MODE_NOTIFICATION = "heads_up_notification"
 }

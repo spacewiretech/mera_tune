@@ -60,6 +60,15 @@ enum class GenerationErrorCode(val retryable: Boolean) {
     val analyticsValue: String = name.lowercase(Locale.ROOT)
 
     companion object {
+        /**
+         * Whether the app sends `ringtone_generation_failed` for a terminal failure. `generate-ringtone`
+         * tracks every `error_code` it returns (except the busy codes the app re-posts), so the app
+         * reports only failures without one ([fromServer] false: transport, timeout, unreadable
+         * response, cancel) and [UNAUTHORIZED], where the server could not attribute the user.
+         */
+        fun appReportsFailure(code: GenerationErrorCode, fromServer: Boolean): Boolean =
+            !fromServer || code == UNAUTHORIZED
+
         /** Maps a server `error_code` (any case, surrounding whitespace allowed) to a code; unknown or null -> [UNKNOWN]. */
         fun from(raw: String?): GenerationErrorCode {
             val key = raw?.trim()?.uppercase(Locale.ROOT) ?: return UNKNOWN
@@ -75,12 +84,14 @@ data class GenerationQuota(
     @SerialName("daily_limit") val dailyLimit: Int? = null,
 )
 
+/** [fromServer]: the response body carried a server `error_code`. */
 class RingtoneGenerationException(
     val code: GenerationErrorCode,
     message: String,
     val retryAfterSeconds: Int? = null,
     val quota: GenerationQuota? = null,
     val httpStatus: Int? = null,
+    val fromServer: Boolean = false,
 ) : Exception(message) {
     val retryable: Boolean
         get() = code.retryable
@@ -235,6 +246,7 @@ class RingtoneGenerationRepository {
                 retryAfterSeconds = body.retryAfterSeconds,
                 quota = body.quota,
                 httpStatus = status,
+                fromServer = !body.errorCode.isNullOrBlank(),
             )
         }
 
@@ -318,7 +330,10 @@ class RingtoneGenerationRepository {
 
     private companion object {
         const val TAG = "RingtoneGen"
-        const val REQUEST_TIMEOUT_MS = 90_000L
+        // Past generate-ringtone's worst case (TTS 55 s + mix 60 s + upload 20 s) and the 150 s Edge
+        // request limit: by then the server has answered and reported its own outcome, so an app-side
+        // TIMEOUT does not double a server ringtone_created / ringtone_generation_failed.
+        const val REQUEST_TIMEOUT_MS = 155_000L
         const val CONNECT_TIMEOUT_MS = 15_000L
     }
 }

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -14,11 +15,22 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import com.spacewire.meratune.R
+import com.spacewire.meratune.analytics.AnalyticsPermissionKey
+import com.spacewire.meratune.analytics.AnalyticsPermissions
+import com.spacewire.meratune.analytics.AnalyticsSource
+import com.spacewire.meratune.analytics.FailureReason
+import com.spacewire.meratune.analytics.PromptContext
+import com.spacewire.meratune.analytics.SetFailureReason
+import com.spacewire.meratune.analytics.SetFailureStage
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.data.Tune
 import com.spacewire.meratune.ui.SetRingtoneBottomSheet
 import com.spacewire.meratune.ui.UploadPhotoBottomSheet
+import com.spacewire.meratune.util.LoadErrorMapper
 import com.spacewire.meratune.util.RingtoneHelper
+import com.spacewire.meratune.util.RingtoneSetException
+import com.spacewire.meratune.util.RingtoneSetStep
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -27,6 +39,9 @@ import java.io.File
 /**
  * Shared Set flow for Home and RingtoneReady:
  * mode sheet → photo sheet (if needed) → permissions → contact picker → set ringtone + save call theme.
+ *
+ * One flow at a time: it runs from [start] until success or [failFlow], and `pendingTune` is
+ * non-null for exactly that span.
  */
 class RingtoneSetController(
     private val activity: ComponentActivity,
@@ -42,6 +57,8 @@ class RingtoneSetController(
     private var pendingContact: ContactDetails? = null
     private var pendingImageUri: Uri? = null
     private var pendingImagePath: String? = null
+    private var pendingPhotoSource: String? = null
+    private var flowStartedAtMs = 0L
     private var awaitingWriteSettings = false
     private var awaitingImagePick = false
     private var permissionStep: PermissionStep = PermissionStep.NONE
@@ -51,12 +68,15 @@ class RingtoneSetController(
     private val storagePermissionLauncher = activity.registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
+        trackPermissionAnswered(Manifest.permission.WRITE_EXTERNAL_STORAGE, granted)
         val tune = pendingTune
-        if (granted && tune != null) {
+        if (tune == null) {
+            reportStateLost(SetFailureStage.STORAGE_PERMISSION)
+        } else if (granted) {
             beginMode(tune, pendingMode)
-        } else if (tune != null) {
+        } else {
             Toast.makeText(activity, R.string.ringtone_set_error, Toast.LENGTH_SHORT).show()
-            clearPending()
+            failFlow(SetFailureStage.STORAGE_PERMISSION, FailureReason.PERMISSION_DENIED)
         }
     }
 
@@ -65,10 +85,18 @@ class RingtoneSetController(
     ) {
         val tune = pendingTune
         awaitingWriteSettings = false
-        if (tune != null && RingtoneHelper.needsWriteSettingsPermission(activity)) {
+        val granted = !RingtoneHelper.needsWriteSettingsPermission(activity)
+        activity.mixpanelAnalytics().trackPermissionPromptAnswered(
+            permission = AnalyticsPermissionKey.WRITE_SETTINGS,
+            granted = granted,
+            promptContext = PromptContext.SET_RINGTONE,
+        )
+        if (tune == null) {
+            reportStateLost(SetFailureStage.WRITE_SETTINGS_PERMISSION)
+        } else if (!granted) {
             Toast.makeText(activity, R.string.ringtone_permission_required, Toast.LENGTH_LONG).show()
-            clearPending()
-        } else if (tune != null) {
+            failFlow(SetFailureStage.WRITE_SETTINGS_PERMISSION, FailureReason.PERMISSION_DENIED)
+        } else {
             continueAfterWriteSettings(tune)
         }
     }
@@ -76,15 +104,23 @@ class RingtoneSetController(
     private val runtimePermissionsLauncher = activity.registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
-        val tune = pendingTune ?: return@registerForActivityResult
+        result.forEach { (permission, granted) -> trackPermissionAnswered(permission, granted) }
+        val step = permissionStep.takeUnless { it == PermissionStep.NONE }
+            ?: PermissionStep.forRequest(result.keys)
+        permissionStep = PermissionStep.NONE
+        val tune = pendingTune
+        if (tune == null) {
+            step.failureStage?.let(::reportStateLost)
+            return@registerForActivityResult
+        }
         val denied = result.filterValues { !it }.keys
-        when (permissionStep) {
+        when (step) {
             PermissionStep.CONTACTS -> {
                 val missingContacts = Manifest.permission.READ_CONTACTS in denied ||
                     Manifest.permission.WRITE_CONTACTS in denied
                 if (missingContacts) {
                     Toast.makeText(activity, R.string.call_theme_contacts_permission_required, Toast.LENGTH_LONG).show()
-                    clearPending()
+                    failFlow(SetFailureStage.CONTACTS_PERMISSION, FailureReason.PERMISSION_DENIED)
                 } else {
                     launchContactPicker()
                 }
@@ -94,29 +130,37 @@ class RingtoneSetController(
                 val criticalDenied = Manifest.permission.READ_PHONE_STATE in denied
                 if (criticalDenied) {
                     Toast.makeText(activity, R.string.call_theme_phone_permission_required, Toast.LENGTH_LONG).show()
-                    clearPending()
+                    failFlow(SetFailureStage.PHONE_PERMISSION, FailureReason.PERMISSION_DENIED)
                 } else {
                     afterCallPermissionsGranted(tune)
                 }
             }
 
-            PermissionStep.NONE -> Unit
+            // Empty result with no step on record: nothing to continue, so do not leave the flow open.
+            PermissionStep.NONE -> clearPending()
         }
-        permissionStep = PermissionStep.NONE
     }
 
     private val contactPickerLauncher = activity.registerForActivityResult(
         ActivityResultContracts.PickContact(),
     ) { uri ->
         val tune = pendingTune
-        if (uri == null || tune == null) {
-            clearPending()
+        if (tune == null) {
+            reportStateLost(SetFailureStage.CONTACT_PICKER)
+            return@registerForActivityResult
+        }
+        if (uri == null) {
+            failFlow(SetFailureStage.CONTACT_PICKER, FailureReason.USER_CANCELLED)
             return@registerForActivityResult
         }
         val details = ContactLookupHelper.loadDetails(activity, uri)
-        if (details == null || details.phoneNumbers.isEmpty()) {
+        // CallThemeStore.saveContact needs at least one 10+ digit number to match callers.
+        if (details == null || details.phoneKeys.isEmpty()) {
             Toast.makeText(activity, R.string.call_theme_contact_no_phone, Toast.LENGTH_LONG).show()
-            clearPending()
+            failFlow(
+                SetFailureStage.CONTACT_PICKER,
+                if (details == null) FailureReason.UNKNOWN else SetFailureReason.NO_VALID_PHONE_NUMBER,
+            )
             return@registerForActivityResult
         }
         pendingContact = details
@@ -127,8 +171,10 @@ class RingtoneSetController(
         ActivityResultContracts.PickVisualMedia(),
     ) { uri ->
         awaitingImagePick = false
-        if (uri != null) {
-            showPreviewOnPhotoSheet(uri)
+        if (pendingTune == null) {
+            reportStateLost(SetFailureStage.PHOTO_SHEET)
+        } else if (uri != null) {
+            showPreviewOnPhotoSheet(uri, PHOTO_SOURCE_GALLERY)
         } else {
             ensurePhotoSheetVisible()
         }
@@ -139,29 +185,54 @@ class RingtoneSetController(
     ) { success ->
         awaitingImagePick = false
         val uri = cameraOutputUri
-        if (success && uri != null) {
-            showPreviewOnPhotoSheet(uri)
+        if (pendingTune == null) {
+            reportStateLost(SetFailureStage.PHOTO_SHEET)
+        } else if (success && uri != null) {
+            showPreviewOnPhotoSheet(uri, PHOTO_SOURCE_CAMERA)
         } else {
             ensurePhotoSheetVisible()
         }
     }
 
-    fun start(tune: Tune) {
+    /** Ignored while another flow is in progress (double tap, or a second row tapped mid-download). */
+    fun start(tune: Tune, entry: SetEntryContext = SetEntryContext()) {
+        if (pendingTune != null) return
+        pendingTune = tune
+        pendingMode = RingtoneSetMode.AUDIO_ONLY
+        flowStartedAtMs = SystemClock.elapsedRealtime()
+        activity.mixpanelAnalytics().trackRingtoneSetStarted(
+            source = analyticsSource,
+            tuneId = tune.id,
+            category = categoryForTune(tune),
+            personalized = tune.isPersonalized,
+            generationId = tune.generationId,
+            rank = entry.rank,
+            wasPreviewed = entry.wasPreviewed,
+        )
+
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
             ContextCompat.checkSelfPermission(
                 activity,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE,
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            pendingTune = tune
-            pendingMode = RingtoneSetMode.AUDIO_ONLY
             storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             return
         }
 
-        SetRingtoneBottomSheet(activity) { mode ->
-            beginMode(tune, mode)
-        }.show()
+        SetRingtoneBottomSheet(
+            context = activity,
+            onContinue = { mode ->
+                activity.mixpanelAnalytics().trackSetModeSelected(
+                    setMode = mode.analyticsValue,
+                    source = analyticsSource,
+                    tuneId = tune.id,
+                    personalized = tune.isPersonalized,
+                )
+                beginMode(tune, mode)
+            },
+            onDismissed = { failFlow(SetFailureStage.MODE_SHEET, FailureReason.USER_CANCELLED) },
+        ).show()
     }
 
     private fun beginMode(tune: Tune, mode: RingtoneSetMode) {
@@ -170,6 +241,7 @@ class RingtoneSetController(
         pendingContact = null
         pendingImageUri = null
         pendingImagePath = null
+        pendingPhotoSource = null
 
         when (mode) {
             RingtoneSetMode.AUDIO_ONLY -> setRingtoneOnly(tune)
@@ -197,7 +269,7 @@ class RingtoneSetController(
             onDismissed = {
                 photoSheet = null
                 if (!awaitingImagePick) {
-                    clearPending()
+                    failFlow(SetFailureStage.PHOTO_SHEET, FailureReason.USER_CANCELLED)
                 }
             },
         )
@@ -206,8 +278,9 @@ class RingtoneSetController(
         pendingImageUri?.let(sheet::setPreview)
     }
 
-    private fun showPreviewOnPhotoSheet(uri: Uri) {
+    private fun showPreviewOnPhotoSheet(uri: Uri, photoSource: String) {
         pendingImageUri = uri
+        pendingPhotoSource = photoSource
         if (photoSheet?.isShowing() == true) {
             photoSheet?.setPreview(uri)
         } else {
@@ -327,18 +400,19 @@ class RingtoneSetController(
         activity.lifecycleScope.launch {
             val result = RingtoneHelper.setRingtone(activity, tune)
             result.onSuccess { uri ->
-                finishSuccess(tune, uri, saveTheme = false)
+                finishSuccess(tune, uri, RingtoneSetMode.AUDIO_ONLY)
             }.onFailure { error ->
-                handleSetFailure(tune, error, retryWithTheme = false)
+                handleSetFailure(tune, RingtoneSetMode.AUDIO_ONLY, error)
             }
         }
     }
 
     private fun setRingtoneWithTheme(tune: Tune) {
+        val mode = pendingMode
         val imageUri = pendingImageUri
         if (imageUri == null && pendingImagePath == null) {
             Toast.makeText(activity, R.string.call_theme_image_required, Toast.LENGTH_SHORT).show()
-            clearPending()
+            failFlow(SetFailureStage.PHOTO_SHEET, FailureReason.UNKNOWN)
             return
         }
 
@@ -347,25 +421,28 @@ class RingtoneSetController(
             val imagePath = pendingImagePath ?: runCatching {
                 CallThemeImageHelper.persistImage(activity, imageUri!!)
             }.getOrElse { error ->
+                if (error is CancellationException) throw error
                 Log.e(TAG, "Failed to persist call theme image", error)
                 Toast.makeText(activity, R.string.call_theme_image_save_error, Toast.LENGTH_SHORT).show()
-                clearPending()
+                failFlow(SetFailureClassifier.forError(SetFailureStage.PHOTO_SHEET, error))
                 return@launch
             }
             pendingImagePath = imagePath
 
-            val result = RingtoneHelper.setRingtone(activity, tune)
-            result.onSuccess { uri ->
-                val photoSaved = saveTheme(tune, imagePath, uri)
-                finishSuccess(
-                    tune = tune,
-                    uri = uri,
-                    saveTheme = true,
-                    contactPhotoSaved = photoSaved,
-                )
-            }.onFailure { error ->
-                handleSetFailure(tune, error, retryWithTheme = true)
+            val uri = RingtoneHelper.setRingtone(activity, tune).getOrElse { error ->
+                handleSetFailure(tune, mode, error)
+                return@launch
             }
+            val themeResult = runCatching { saveTheme(tune, mode, imagePath, uri) }.getOrElse { error ->
+                if (error is CancellationException) throw error
+                Log.e(TAG, "Failed to save call theme", error)
+                // The system ringtone already changed; only the photo part failed.
+                onSuccess(tune, uri)
+                Toast.makeText(activity, R.string.call_theme_image_save_error, Toast.LENGTH_LONG).show()
+                failFlow(SetFailureClassifier.forError(SetFailureStage.THEME_SAVE, error))
+                return@launch
+            }
+            finishSuccess(tune, uri, mode, themeResult)
         }
     }
 
@@ -378,12 +455,14 @@ class RingtoneSetController(
         }
     }
 
-    /**
-     * @return false only when contact-photo mode was requested but the Contacts photo write failed
-     */
-    private suspend fun saveTheme(tune: Tune, imagePath: String, ringtoneUri: Uri): Boolean {
-        return when (pendingMode) {
-            RingtoneSetMode.AUDIO_ONLY -> true
+    private suspend fun saveTheme(
+        tune: Tune,
+        mode: RingtoneSetMode,
+        imagePath: String,
+        ringtoneUri: Uri,
+    ): ThemeSaveResult {
+        return when (mode) {
+            RingtoneSetMode.AUDIO_ONLY -> ThemeSaveResult()
             RingtoneSetMode.WITH_IMAGE_EVERYONE -> {
                 themeStore.saveEveryone(
                     imagePath = imagePath,
@@ -391,11 +470,12 @@ class RingtoneSetController(
                     tuneName = tune.name,
                 )
                 IncomingCallNotifier.ensureChannel(activity)
-                true
+                ThemeSaveResult()
             }
 
             RingtoneSetMode.WITH_IMAGE_CONTACT -> {
-                val contact = pendingContact ?: return false
+                val contact = pendingContact
+                    ?: return ThemeSaveResult(contactPhotoSaved = false, contactRingtoneSaved = false)
                 themeStore.saveContact(
                     contactName = contact.displayName,
                     contactUri = contact.contactUri.toString(),
@@ -416,11 +496,11 @@ class RingtoneSetController(
                         R.string.call_theme_contacts_write_permission_required,
                         Toast.LENGTH_LONG,
                     ).show()
-                    return false
+                    return ThemeSaveResult(contactPhotoSaved = false, contactRingtoneSaved = false)
                 }
 
                 withContext(Dispatchers.IO) {
-                    ContactRingtoneHelper.setCustomRingtone(
+                    val ringtoneSaved = ContactRingtoneHelper.setCustomRingtone(
                         activity,
                         contact.contactUri,
                         ringtoneUri,
@@ -433,34 +513,40 @@ class RingtoneSetController(
                     if (!photoSaved) {
                         Log.w(TAG, "Failed to write contact photo for ${contact.displayName}")
                     }
-                    photoSaved
+                    ThemeSaveResult(contactPhotoSaved = photoSaved, contactRingtoneSaved = ringtoneSaved)
                 }
             }
         }
     }
 
+    /** [theme] is `null` for audio-only. */
     private fun finishSuccess(
         tune: Tune,
         uri: Uri,
-        saveTheme: Boolean,
-        contactPhotoSaved: Boolean = true,
+        mode: RingtoneSetMode,
+        theme: ThemeSaveResult? = null,
     ) {
         onSuccess(tune, uri)
-        val personalized = tune.generationId != null
+        val personalized = tune.isPersonalized
         activity.mixpanelAnalytics().trackRingtoneSet(
             source = analyticsSource,
             category = categoryForTune(tune),
             tuneId = tune.id,
             tuneName = analyticsTuneName(tune, personalized),
-            setMode = pendingMode.analyticsValue,
+            setMode = mode.analyticsValue,
             generationId = tune.generationId,
             personalized = personalized,
+            photoSource = pendingPhotoSource.takeIf { theme != null },
+            contactPhotoSaved = theme?.contactPhotoSaved,
+            contactRingtoneSaved = theme?.contactRingtoneSaved,
+            flowDurationMs = SystemClock.elapsedRealtime() - flowStartedAtMs,
+            hasCallTheme = themeStore.hasAnyTheme(),
         )
         val message = when {
-            !saveTheme -> activity.getString(R.string.ringtone_set_success, tune.name)
-            pendingMode == RingtoneSetMode.WITH_IMAGE_CONTACT && !contactPhotoSaved ->
+            theme == null -> activity.getString(R.string.ringtone_set_success, tune.name)
+            mode == RingtoneSetMode.WITH_IMAGE_CONTACT && theme.contactPhotoSaved == false ->
                 activity.getString(R.string.call_theme_contact_photo_error)
-            pendingMode == RingtoneSetMode.WITH_IMAGE_CONTACT -> {
+            mode == RingtoneSetMode.WITH_IMAGE_CONTACT -> {
                 val name = pendingContact?.displayName
                     ?: activity.getString(R.string.call_theme_selected_contact)
                 activity.getString(R.string.call_theme_set_contact_success, tune.name, name)
@@ -484,19 +570,68 @@ class RingtoneSetController(
         return if (sampleName.isNotEmpty()) template.replace("{name}", sampleName) else template
     }
 
-    private fun handleSetFailure(tune: Tune, error: Throwable, retryWithTheme: Boolean) {
+    private fun handleSetFailure(tune: Tune, mode: RingtoneSetMode, error: Throwable) {
         Log.e(TAG, "Failed to set ringtone for ${tune.name}", error)
-        if (error is SecurityException && RingtoneHelper.needsWriteSettingsPermission(activity)) {
+        val cause = (error as? RingtoneSetException)?.cause ?: error
+        if (cause is SecurityException && RingtoneHelper.needsWriteSettingsPermission(activity)) {
             awaitingWriteSettings = true
             pendingTune = tune
-            if (!retryWithTheme) {
-                pendingMode = RingtoneSetMode.AUDIO_ONLY
-            }
+            pendingMode = mode
             writeSettingsLauncher.launch(RingtoneHelper.writeSettingsIntent(activity))
         } else {
             Toast.makeText(activity, R.string.ringtone_set_error, Toast.LENGTH_SHORT).show()
-            clearPending()
+            failFlow(SetFailureClassifier.forRingtoneError(error))
         }
+    }
+
+    /** Terminal non-success exit: `ringtone_set_failed` (once per flow), then the flow is cleared. */
+    private fun failFlow(stage: String, failureReason: String, errorType: String? = null) {
+        val tune = pendingTune
+        if (tune != null && !awaitingWriteSettings) {
+            activity.mixpanelAnalytics().trackRingtoneSetFailed(
+                stage = stage,
+                failureReason = failureReason,
+                source = analyticsSource,
+                tuneId = tune.id,
+                personalized = tune.isPersonalized,
+                setMode = pendingMode.analyticsValue.takeUnless { stage == SetFailureStage.MODE_SHEET },
+                errorType = errorType,
+            )
+        }
+        clearPending()
+    }
+
+    private fun failFlow(failure: SetFailure) {
+        failFlow(failure.stage, failure.failureReason, failure.errorType)
+    }
+
+    /**
+     * A launcher result reached a controller with no flow: the Activity was recreated or the
+     * process died while a system screen was on top. The tune is gone; only the Ready screen
+     * sets personalized tunes.
+     */
+    private fun reportStateLost(stage: String) {
+        activity.mixpanelAnalytics().trackRingtoneSetFailed(
+            stage = stage,
+            failureReason = SetFailureReason.STATE_LOST,
+            source = analyticsSource,
+            tuneId = "",
+            personalized = analyticsSource == AnalyticsSource.CREATION_FLOW,
+        )
+    }
+
+    private fun trackPermissionAnswered(manifestPermission: String, granted: Boolean) {
+        val permission = AnalyticsPermissionKey.fromManifest(manifestPermission) ?: return
+        activity.mixpanelAnalytics().trackPermissionPromptAnswered(
+            permission = permission,
+            granted = granted,
+            promptContext = PromptContext.SET_RINGTONE,
+            permanentlyDenied = if (granted) {
+                null
+            } else {
+                AnalyticsPermissions.isPermanentlyDenied(activity, manifestPermission)
+            },
+        )
     }
 
     private fun clearPending() {
@@ -505,6 +640,7 @@ class RingtoneSetController(
         pendingContact = null
         pendingImageUri = null
         pendingImagePath = null
+        pendingPhotoSource = null
         pendingMode = RingtoneSetMode.AUDIO_ONLY
         permissionStep = PermissionStep.NONE
         awaitingImagePick = false
@@ -513,13 +649,67 @@ class RingtoneSetController(
         photoSheet = null
     }
 
-    private enum class PermissionStep {
-        NONE,
-        CONTACTS,
-        CALL_DISPLAY,
+    private val Tune.isPersonalized: Boolean
+        get() = generationId != null
+
+    /** Contact results are `null` outside contact mode. */
+    private data class ThemeSaveResult(
+        val contactPhotoSaved: Boolean? = null,
+        val contactRingtoneSaved: Boolean? = null,
+    )
+
+    private enum class PermissionStep(val failureStage: String?) {
+        NONE(null),
+        CONTACTS(SetFailureStage.CONTACTS_PERMISSION),
+        CALL_DISPLAY(SetFailureStage.PHONE_PERMISSION),
+        ;
+
+        companion object {
+            /** Recovers the step from the requested permissions when the field was lost. */
+            fun forRequest(requested: Set<String>): PermissionStep = when {
+                Manifest.permission.READ_CONTACTS in requested ||
+                    Manifest.permission.WRITE_CONTACTS in requested -> CONTACTS
+                requested.isNotEmpty() -> CALL_DISPLAY
+                else -> NONE
+            }
+        }
     }
 
     private companion object {
         const val TAG = "RingtoneSetController"
+        const val PHOTO_SOURCE_CAMERA = "camera"
+        const val PHOTO_SOURCE_GALLERY = "gallery"
+    }
+}
+
+/** Bounded `ringtone_set_failed` values. */
+internal data class SetFailure(val stage: String, val failureReason: String, val errorType: String?)
+
+/** Maps Set-flow exceptions to bounded analytics values. Exception messages are never read. */
+internal object SetFailureClassifier {
+
+    /** A [RingtoneHelper.setRingtone] failure; the stage comes from its [RingtoneSetException]. */
+    fun forRingtoneError(error: Throwable): SetFailure {
+        val stepError = error as? RingtoneSetException
+        val stage = when (stepError?.step) {
+            RingtoneSetStep.DOWNLOAD -> SetFailureStage.DOWNLOAD
+            RingtoneSetStep.SAVE -> SetFailureStage.SAVE
+            RingtoneSetStep.SET_DEFAULT, null -> SetFailureStage.SET_DEFAULT
+        }
+        return forError(stage, stepError?.cause ?: error)
+    }
+
+    fun forError(stage: String, error: Throwable): SetFailure =
+        SetFailure(stage, failureReason(stage, error), error.javaClass.simpleName.takeIf { it.isNotEmpty() })
+
+    private fun failureReason(stage: String, error: Throwable): String = when {
+        error is SecurityException -> SetFailureReason.SECURITY_EXCEPTION
+        stage == SetFailureStage.DOWNLOAD -> when (LoadErrorMapper.reason(error)) {
+            LoadErrorMapper.TIMEOUT -> FailureReason.TIMEOUT
+            LoadErrorMapper.NETWORK -> FailureReason.NETWORK
+            else -> FailureReason.UNKNOWN
+        }
+        stage == SetFailureStage.SAVE -> SetFailureReason.MEDIA_STORE_ERROR
+        else -> FailureReason.UNKNOWN
     }
 }

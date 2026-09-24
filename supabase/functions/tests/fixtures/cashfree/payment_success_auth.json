@@ -1,0 +1,48 @@
+{
+  "data": {
+    "payment_id": "ab-SUBV2ODRc5Dl2meCr7Iui-1",
+    "cf_payment_id": "49914526",
+    "cf_txn_id": "4212435861",
+    "cf_order_id": "4518936510",
+    "subscription_id": "moznV33AssPd6vXsSm2",
+    "cf_subscription_id": "23601811",
+    "payment_type": "AUTH",
+    "authorization_details": {
+      "authorization_amount": 2.00,
+      "authorization_amount_refund": false,
+      "approve_by_time": "",
+      "authorization_reference": "427b608f83ad4cbdb6d472xxxxx[at]xxxx",
+      "authorization_time": "2025-08-07T05:53:22+05:30",
+      "authorization_status": "ACTIVE",
+      "payment_id": "ab-SUBV2ODRc5Dl2meCr7Iui-1",
+      "payment_method": {
+        "upi": {
+          "channel": "link",
+          "upi_id": "8100000000@ybl",
+          "upi_instrument": "",
+          "upi_instrument_number": "",
+          "upi_payer_account_number": "",
+          "upi_payer_ifsc": ""
+        }
+      },
+      "payment_group": "upi"
+    },
+    "payment_amount": 2.00,
+    "payment_currency": "INR",
+    "payment_schedule_date": "",
+    "payment_initiated_date": "2025-08-07T05:52:21+05:30",
+    "payment_remarks": "auth payment",
+    "retry_attempts": 0,
+    "failure_details": {
+      "failure_reason": null
+    },
+    "payment_status": "SUCCESS",
+    "payment_gateway_details": {
+      "gateway_name": "CASHFREE",
+      "gateway_subscription_id": "23601811",
+      "gateway_payment_id": "49914526"
+    }
+  },
+  "event_time": "2025-08-07T05:53:21+05:30",
+  "type": "SUBSCRIPTION_PAYMENT_SUCCESS"
+}

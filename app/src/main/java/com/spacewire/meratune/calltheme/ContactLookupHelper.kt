@@ -8,7 +8,11 @@ data class ContactDetails(
     val contactUri: Uri,
     val displayName: String?,
     val phoneNumbers: List<String>,
-)
+) {
+    /** Caller-matching keys; empty when no number has 10+ digits (short codes, landlines without STD). */
+    val phoneKeys: List<String>
+        get() = phoneNumbers.mapNotNull(PhoneMatch::normalizeKey).distinct()
+}
 
 object ContactLookupHelper {
 

@@ -1,5 +1,6 @@
 package com.spacewire.meratune
 
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -13,12 +14,19 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.spacewire.meratune.data.Languages
+import com.spacewire.meratune.analytics.AnalyticsSource
+import com.spacewire.meratune.analytics.ExternalLink
+import com.spacewire.meratune.analytics.LogoutReason
 import com.spacewire.meratune.analytics.firebaseAnalytics
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.analytics.metaAnalytics
 import com.spacewire.meratune.util.ProfileStore
 
 class ProfileActivity : AppCompatActivity() {
+
+    /** Double-tap guards: one logout, and one browser launch until the screen resumes again. */
+    private var logoutHandled = false
+    private var isNavigating = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +51,7 @@ class ProfileActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        isNavigating = false
         refreshLanguageSubtitle()
     }
 
@@ -99,7 +108,9 @@ class ProfileActivity : AppCompatActivity() {
         findViewById<ImageView>(R.id.backButton).setOnClickListener { finish() }
 
         findViewById<View>(R.id.logoutButton).setOnClickListener {
-            mixpanelAnalytics().logout(this)
+            if (logoutHandled) return@setOnClickListener
+            logoutHandled = true
+            mixpanelAnalytics().logout(this, AnalyticsSource.PROFILE, LogoutReason.USER_INITIATED)
             metaAnalytics().clearUserId()
             firebaseAnalytics().clearUserId()
             Toast.makeText(this, R.string.profile_logout_toast, Toast.LENGTH_SHORT).show()
@@ -115,18 +126,26 @@ class ProfileActivity : AppCompatActivity() {
             startActivity(LanguageSelectionActivity.intent(this))
         }
         findViewById<View>(R.id.helpMenuItem).setOnClickListener {
-            openUrl(HELP_SUPPORT_URL)
+            openUrl(HELP_SUPPORT_URL, ExternalLink.HELP_SUPPORT)
         }
         findViewById<View>(R.id.privacyMenuItem).setOnClickListener {
-            openUrl(PRIVACY_POLICY_URL)
+            openUrl(PRIVACY_POLICY_URL, ExternalLink.PRIVACY_POLICY)
         }
         findViewById<View>(R.id.deleteAccountMenuItem).setOnClickListener {
-            openUrl(DELETE_ACCOUNT_URL)
+            openUrl(DELETE_ACCOUNT_URL, ExternalLink.DELETE_ACCOUNT)
         }
     }
 
-    private fun openUrl(url: String) {
-        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    /** [link] is an [ExternalLink] value, tracked only once a browser actually opened. */
+    private fun openUrl(url: String, link: String) {
+        if (isNavigating) return
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (_: ActivityNotFoundException) {
+            return
+        }
+        isNavigating = true
+        mixpanelAnalytics().trackExternalLinkOpened(link, AnalyticsSource.PROFILE)
     }
 
     private fun bindMenuItem(rootId: Int, iconRes: Int, title: String, subtitle: String) {

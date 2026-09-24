@@ -1,0 +1,48 @@
+{
+  "data": {
+    "payment_id": "ab-SUBV2ODRIeYlFEhMHfS0M-1",
+    "cf_payment_id": "49585655",
+    "cf_txn_id": "4212555720",
+    "cf_order_id": "4519061918",
+    "subscription_id": "mozh4iRHSsjre7GkDNz",
+    "cf_subscription_id": "22393526",
+    "payment_type": "CHARGE",
+    "authorization_details": {
+      "authorization_amount": 399.00,
+      "authorization_amount_refund": false,
+      "approve_by_time": "",
+      "authorization_reference": "a7d6101a7d9340269f070dxxxxx[at]xxxx",
+      "authorization_time": "2025-07-25T22:37:53+05:30",
+      "authorization_status": "ACTIVE",
+      "payment_id": "ab-SUBV2ODRIeYlFEhMHfS0M-1",
+      "payment_method": {
+        "upi": {
+          "channel": "link",
+          "upi_id": "9910000000@ybl",
+          "upi_instrument": "",
+          "upi_instrument_number": "",
+          "upi_payer_account_number": "",
+          "upi_payer_ifsc": ""
+        }
+      },
+      "payment_group": "upi"
+    },
+    "payment_amount": 399.00,
+    "payment_currency": "INR",
+    "payment_schedule_date": "2025-08-07T12:00:00+05:30",
+    "payment_initiated_date": "2025-08-06T05:02:41+05:30",
+    "payment_remarks": null,
+    "retry_attempts": 0,
+    "failure_details": {
+      "failure_reason": "DEBIT FAILED | Insufficient Funds In Customer (Remitter) Account"
+    },
+    "payment_status": "FAILED",
+    "payment_gateway_details": {
+      "gateway_name": "CASHFREE",
+      "gateway_subscription_id": "22393526",
+      "gateway_payment_id": "49585655"
+    }
+  },
+  "event_time": "2025-08-07T10:24:45+05:30",
+  "type": "SUBSCRIPTION_PAYMENT_FAILED"
+}

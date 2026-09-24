@@ -1,0 +1,54 @@
+{
+  "data": {
+    "subscription_status_webhook": {
+      "subscription_details": {
+        "cf_subscription_id": "23661347",
+        "subscription_id": "SUB_TEST_1754550382119",
+        "subscription_status": "ACTIVE",
+        "subscription_expiry_time": "2050-12-31T00:00:00",
+        "subscription_first_charge_time": "2025-09-30T00:00:00",
+        "subscription_tags": {
+          "next_schedule_date": "2025-09-30T00:10:00"
+        }
+      },
+      "customer_details": {
+        "customer_name": "John Doe",
+        "customer_email": "john@cashfree.com",
+        "customer_phone": "9090909090"
+      },
+      "plan_details": {
+        "plan_id": "PLAN_1754550139964",
+        "plan_name": "MY_PLAN",
+        "plan_type": "PERIODIC",
+        "plan_max_cycles": 2,
+        "plan_recurring_amount": 5,
+        "plan_max_amount": 1000,
+        "plan_interval_type": "MONTH",
+        "plan_intervals": 1,
+        "plan_currency": null,
+        "plan_note": null,
+        "plan_status": null
+      },
+      "authorization_details": {
+        "authorizationAmount": 1,
+        "authorizationAmountRefund": false,
+        "approveByTime": "2025-09-06T12:36:22",
+        "authorizationReference": null,
+        "authorizationTime": "2025-08-07T13:14:18",
+        "authorizationStatus": "ACTIVE",
+        "paymentId": "160594_178_1754552533131",
+        "paymentMethod": "card",
+        "instrumentId": null
+      },
+      "payment_gateway_details": {
+        "gateway_name": "CASHFREE",
+        "gateway_subscription_id": "23661347",
+        "gateway_plan_id": "PLAN_1754550139964",
+        "gateway_auth_id": null
+      }
+    },
+    "card_expiry_date": "2025-09-30"
+  },
+  "event_time": "2025-09-24T02:00:09+05:30",
+  "type": "SUBSCRIPTION_CARD_EXPIRY_REMINDER"
+}

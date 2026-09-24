@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import com.spacewire.meratune.Home
 import com.spacewire.meratune.SubscriptionActivity
+import com.spacewire.meratune.analytics.PostAuthDestination
 import com.spacewire.meratune.data.User
 
 object AuthNavigator {
@@ -14,6 +15,10 @@ object AuthNavigator {
         status.isBlank() || status in statusesNeedingSubscription
 
     fun needsSubscription(user: User): Boolean = needsSubscription(user.status)
+
+    /** Where [navigateAfterAuth] sends [user]: a [PostAuthDestination] value. */
+    fun postAuthDestination(user: User): String =
+        if (needsSubscription(user)) PostAuthDestination.SUBSCRIPTION else PostAuthDestination.HOME
 
     fun navigateAfterAuth(context: Context, user: User) {
         val destination = if (needsSubscription(user)) {

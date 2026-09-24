@@ -135,7 +135,7 @@ Languages are gated by the anon-readable `generation_languages` table (default: 
 
 ## Timeout budget
 
-Gemini 25 s per attempt, 55 s total → mixer 60 s → upload 20 s. Must stay under the Edge wall clock (150 s Free, 400 s Paid). The app waits 90 s. A `processing` row older than 170 s cannot belong to a live request, so it no longer counts toward quota and its `client_request_id` can be retried.
+Gemini 25 s per attempt, 55 s total → mixer 60 s → upload 20 s. Must stay under the Edge wall clock (150 s Free, 400 s Paid). The app waits 155 s, past this budget and the 150 s Edge request limit, so an app-side `timeout` never overlaps the server's own `ringtone_created` / `ringtone_generation_failed`. A `processing` row older than 170 s cannot belong to a live request, so it no longer counts toward quota and its `client_request_id` can be retried.
 
 ## Deploy
 

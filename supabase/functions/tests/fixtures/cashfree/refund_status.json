@@ -1,0 +1,20 @@
+{
+  "data": {
+    "payment_id": "yCzJxeT2aXDqI",
+    "cf_payment_id": "49778199",
+    "refund_id": "WHOqiwy05P1l0",
+    "cf_refund_id": "SUB_21ebb4bf-e84f-4afa-bb09-07aac433abe4",
+    "refund_amount": 1000.00,
+    "refund_speed": "STANDARD",
+    "refund_note": "Tesg Refund",
+    "refund_status": "SUCCESS",
+    "failure_details": "",
+    "refund_gateway_details": {
+      "gateway_name": "CASHFREE",
+      "gateway_payment_id": "49778199",
+      "gateway_refund_id": "SUB_21ebb4bf-e84f-4afa-bb09-07aac433abe4"
+    }
+  },
+  "event_time": "2025-08-06T17:20:02+05:30",
+  "type": "SUBSCRIPTION_REFUND_STATUS"
+}

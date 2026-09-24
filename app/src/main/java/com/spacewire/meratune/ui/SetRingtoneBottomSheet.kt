@@ -13,6 +13,8 @@ import com.spacewire.meratune.calltheme.RingtoneSetMode
 class SetRingtoneBottomSheet(
     private val context: Context,
     private val onContinue: (RingtoneSetMode) -> Unit,
+    /** Dismissed without Continue (back, outside tap or swipe). */
+    private val onDismissed: () -> Unit,
 ) {
 
     fun show() {
@@ -21,6 +23,7 @@ class SetRingtoneBottomSheet(
         val container = sheetView.findViewById<LinearLayout>(R.id.setRingtoneOptionsContainer)
         val optionViews = mutableMapOf<RingtoneSetMode, View>()
         var selectedMode = RingtoneSetMode.AUDIO_ONLY
+        var continued = false
 
         fun bindSelection() {
             optionViews.forEach { (mode, view) ->
@@ -51,10 +54,15 @@ class SetRingtoneBottomSheet(
         bindSelection()
 
         sheetView.findViewById<TextView>(R.id.setRingtoneContinueButton).setOnClickListener {
+            if (continued) return@setOnClickListener
+            continued = true
             onContinue(selectedMode)
             dialog.dismiss()
         }
 
+        dialog.setOnDismissListener {
+            if (!continued) onDismissed()
+        }
         dialog.present(sheetView)
     }
 }

@@ -44,12 +44,15 @@ Deno.serve(async (req: Request) => {
   try {
     const { session_token, name, app_version } = await req.json();
     if (!session_token || !name) {
-      return jsonResponse({ error: "Session token and name are required" }, 400);
+      return jsonResponse({ error: "Session token and name are required", error_code: "missing_params" }, 400);
     }
 
     const trimmedName = String(name).trim();
     if (trimmedName.length < 2 || trimmedName.length > 100) {
-      return jsonResponse({ error: "Name must be between 2 and 100 characters" }, 400);
+      return jsonResponse(
+        { error: "Name must be between 2 and 100 characters", error_code: "name_invalid_length" },
+        400,
+      );
     }
 
     const supabase = createClient(
@@ -65,12 +68,12 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (sessionError || !session) {
-      return jsonResponse({ error: INVALID_SESSION_MESSAGE }, 401);
+      return jsonResponse({ error: INVALID_SESSION_MESSAGE, error_code: "session_invalid" }, 401);
     }
 
     const otpExpiresAt = Date.parse(String(session.expires_at));
     if (Number.isNaN(otpExpiresAt) || Date.now() > otpExpiresAt + SIGNUP_SESSION_GRACE_MS) {
-      return jsonResponse({ error: INVALID_SESSION_MESSAGE }, 401);
+      return jsonResponse({ error: INVALID_SESSION_MESSAGE, error_code: "session_expired" }, 401);
     }
 
     const { data: existingUser } = await supabase
@@ -90,7 +93,7 @@ Deno.serve(async (req: Request) => {
         .single();
 
       if (error) {
-        return jsonResponse({ error: "Could not update profile" }, 500);
+        return jsonResponse({ error: "Could not update profile", error_code: "profile_update_failed" }, 500);
       }
       user = data;
     } else {
@@ -103,7 +106,7 @@ Deno.serve(async (req: Request) => {
       if (error) {
         // Code and message only: PostgREST `details` can echo the row, e.g. `Key (phone)=(…)`.
         console.error("complete-signup: insert user failed", { code: error.code, message: error.message });
-        return jsonResponse({ error: "Could not create account" }, 500);
+        return jsonResponse({ error: "Could not create account", error_code: "account_create_failed" }, 500);
       }
       user = data;
     }
@@ -115,6 +118,6 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ success: true, user, api_token: apiToken });
   } catch (err) {
     console.error("complete-signup error:", err);
-    return jsonResponse({ error: "Internal server error" }, 500);
+    return jsonResponse({ error: "Internal server error", error_code: "internal_error" }, 500);
   }
 });

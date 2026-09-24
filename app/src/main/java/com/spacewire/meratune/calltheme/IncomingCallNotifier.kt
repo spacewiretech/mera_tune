@@ -20,6 +20,7 @@ import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.spacewire.meratune.R
+import com.spacewire.meratune.analytics.LaunchTrigger
 import com.spacewire.meratune.util.PhoneUtils
 import java.io.File
 
@@ -29,6 +30,9 @@ object IncomingCallNotifier {
     const val EXTRA_CONTACT_NAME = "extra_contact_name"
     const val EXTRA_TUNE_NAME = "extra_tune_name"
     const val EXTRA_PHONE_NUMBER = "extra_phone_number"
+
+    /** A [LaunchTrigger] value: `auto` for the direct start, `notification_tap` for the content intent. */
+    const val EXTRA_LAUNCH_TRIGGER = "extra_launch_trigger"
 
     private const val CHANNEL_HEADS_UP = "incoming_call_banner_v1"
     private const val CHANNEL_SILENT = "incoming_call_silent_v1"
@@ -66,13 +70,14 @@ object IncomingCallNotifier {
         )
     }
 
+    /** @return whether the overlay activity was requested; `false` means heads-up notification only. */
     fun show(
         context: Context,
         phoneNumber: String?,
         contactName: String?,
         imagePath: String?,
         tuneName: String?,
-    ) {
+    ): Boolean {
         ensureChannel(context)
         val appContext = context.applicationContext
         val displayName = contactName?.takeIf { it.isNotBlank() }
@@ -90,6 +95,7 @@ object IncomingCallNotifier {
             putExtra(EXTRA_CONTACT_NAME, contactName)
             putExtra(EXTRA_TUNE_NAME, tuneName)
             putExtra(EXTRA_PHONE_NUMBER, phoneNumber)
+            putExtra(EXTRA_LAUNCH_TRIGGER, LaunchTrigger.AUTO)
         }
 
         val overlayShown = if (!isLockedOrScreenOff(appContext)) {
@@ -111,6 +117,7 @@ object IncomingCallNotifier {
             themeIntent = themeIntent,
             headsUp = !overlayShown,
         )
+        return overlayShown
     }
 
     fun dismiss(context: Context) {
@@ -130,7 +137,8 @@ object IncomingCallNotifier {
         themeIntent: Intent,
         headsUp: Boolean,
     ) {
-        val contentPendingIntent = pendingActivity(appContext, REQUEST_CONTENT, themeIntent)
+        val tapIntent = Intent(themeIntent).putExtra(EXTRA_LAUNCH_TRIGGER, LaunchTrigger.NOTIFICATION_TAP)
+        val contentPendingIntent = pendingActivity(appContext, REQUEST_CONTENT, tapIntent)
         val answerIntent = Intent(appContext, IncomingCallActionReceiver::class.java).setAction(
             IncomingCallActionReceiver.ACTION_ANSWER,
         )
@@ -242,7 +250,7 @@ object IncomingCallNotifier {
         return inSampleSize
     }
 
-    private fun isLockedOrScreenOff(context: Context): Boolean {
+    internal fun isLockedOrScreenOff(context: Context): Boolean {
         val keyguardLocked = context.getSystemService(KeyguardManager::class.java)
             ?.isKeyguardLocked == true
         val screenOff = context.getSystemService(PowerManager::class.java)

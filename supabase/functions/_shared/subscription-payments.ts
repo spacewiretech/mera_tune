@@ -1,6 +1,6 @@
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import type { ServiceClient } from "./supabase-client.ts";
 
-type SupabaseClient = ReturnType<typeof createClient>;
+type SupabaseClient = ServiceClient;
 
 /** Real Cashfree charge IDs (e.g. CH_…) — never the subscription id. */
 export function isRealCashfreePaymentId(paymentId: string, cfSubId: string): boolean {

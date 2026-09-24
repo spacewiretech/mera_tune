@@ -14,9 +14,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import com.spacewire.meratune.analytics.AnalyticsSource
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.data.AuthException
+import com.spacewire.meratune.data.AuthFailureReason
 import com.spacewire.meratune.data.AuthRepository
+import com.spacewire.meratune.data.AuthStage
 import com.spacewire.meratune.util.AuthTermsHelper
 import com.spacewire.meratune.util.PhoneUtils
 import kotlinx.coroutines.launch
@@ -41,7 +44,7 @@ class PhoneAuthActivity : AppCompatActivity() {
             insets
         }
 
-        AuthTermsHelper.bind(findViewById<TextView>(R.id.authFooter))
+        AuthTermsHelper.bind(findViewById<TextView>(R.id.authFooter), AnalyticsSource.PHONE_ENTRY)
         findViewById<View>(R.id.authHeader).findViewById<View>(R.id.languageButton).setOnClickListener {
             startActivity(LanguageSelectionActivity.intent(this))
         }
@@ -58,6 +61,7 @@ class PhoneAuthActivity : AppCompatActivity() {
         nextButton.setOnClickListener {
             val normalized = PhoneUtils.normalizeIndianPhone(phoneInput.text.toString())
             if (normalized == null) {
+                mixpanelAnalytics().trackAuthFailed(AuthStage.PHONE_VALIDATION, AuthFailureReason.INVALID_PHONE_FORMAT)
                 Toast.makeText(this, R.string.auth_invalid_phone, Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
@@ -71,6 +75,11 @@ class PhoneAuthActivity : AppCompatActivity() {
                         startActivity(OtpVerificationActivity.intent(this@PhoneAuthActivity, verifiedPhone))
                     }
                     .onFailure { error ->
+                        mixpanelAnalytics().trackAuthFailed(
+                            stage = AuthStage.SEND_OTP,
+                            failureReason = AuthFailureReason.from(error),
+                            isResend = false,
+                        )
                         val message = (error as? AuthException)?.message ?: getString(R.string.auth_generic_error)
                         Toast.makeText(this@PhoneAuthActivity, message, Toast.LENGTH_LONG).show()
                     }

@@ -355,15 +355,15 @@ Screen slugs (12): `language_selection`, `phone_entry`, `otp_entry`, `name_entry
 
 ### Subscription (app)
 
-`payment_app` slugs: `phonepe`, `google_pay`, `paytm`, `bhim`.
+`payment_app` slugs (`PaymentAppSlug`): `phonepe`, `google_pay`, `paytm`, `bhim`, `upi_id`. `upi_id` is the "UPI ID" option: Cashfree's hosted subscription checkout (web page inside the Cashfree SDK), where the user enters a UPI ID or picks any UPI app the page finds. The paywall pill and the payment-app sheet list only the installed UPI apps; the default is the first installed app, and when none is installed the pill shows "UPI ID". The sheet always ends with the UPI ID row ("Doosre UPI app / UPI ID", or "UPI ID se pay karein" when it is the only row).
 
 | Event | Trigger | Properties |
 |-------|---------|------------|
 | `subscription_screen_viewed` | Paywall opens (`SubscriptionActivity`, no saved state, together with Meta `ViewContent`) | `previous_screen`, `user_status` (`AuthStore` status), `installed_app_count`, `entry_point` |
 | `paywall_dismissed` | The paywall finishes without converting, through system back or the header close X: `onPause` with `isFinishing`, once. Back on the Pending / Failed states only returns to the paywall state and is not a dismissal. Suppressed for the programmatic finishes (verify success, logout, not logged in); back and the X are ignored while a verify runs | `entry_point`, `dismiss_method` (`system_back` / `close_button`), `attempt` (0 before any CTA tap), `video_completed` |
-| `subscription_cta_tapped` | Paywall CTA ("Tune banayein", `tryNowButton`) tapped (ignored while a payment is processing) | `payment_app`, `payment_app_installed`, `attempt`, `video_completed` |
-| `payment_app_selected` | Row picked in the payment-app sheet | `payment_app`, `previous_payment_app` |
-| `subscription_started` | Create-subscription API succeeds, **before** Cashfree UPI checkout opens | `payment_app`, `auth_amount`, `recurring_amount` (both from `app_config`, see [Prices](#prices-app_config)), `attempt` |
+| `subscription_cta_tapped` | Paywall CTA ("Tune banayein", `tryNowButton`) tapped (ignored while a payment is processing) | `payment_app`, `payment_app_installed` (always `false` for `upi_id`, which is not an app), `attempt`, `video_completed` |
+| `payment_app_selected` | Row picked in the payment-app sheet (the installed apps, then the UPI ID row) | `payment_app`, `previous_payment_app` |
+| `subscription_started` | Create-subscription API succeeds, **before** Cashfree checkout opens: the UPI app intent, or for `upi_id` the hosted web checkout (same session, same verify / failure callbacks) | `payment_app`, `auth_amount`, `recurring_amount` (both from `app_config`, see [Prices](#prices-app_config)), `attempt` |
 | `trial_payment_completed` | `verifySubscription` returns `active == true` with a user. Once per paywall (`verifyInFlight`): from the Cashfree verify callback, its re-run when the paywall was recreated during the UPI switch (id from saved state or the Cashfree response) or while the verify request ran (`verify_pending` in saved state re-runs it; Cashfree delivers the callback only once), or a manual "Payment Status Dekhein" re-check on the Pending state. The member screen opens next (`finishWithoutDismiss`); a returned user who still needs a subscription is routed as before (`AuthNavigator`) | `payment_app`, `subscription_id`, `amount` (auth amount, default `3.0`), `currency` (`"INR"`), `attempt`, `previous_status` (`AuthStore` status when the paywall opened) |
 | `subscription_failed` | Precheck, create, checkout or verify failure. See [Paywall states](#paywall-states) for what the user sees after each | `stage`, `failure_reason`, `payment_app`, `cf_error_code` (lower-cased Cashfree SDK code), `http_status`, `cashfree_status` (verify pending only), `attempt` |
 | `subscription_video_ended` | Paywall video completes or errors, each at most once per paywall | `end_reason` (`completed` / `error`), `error_code` (ExoPlayer code name without `ERROR_CODE_`), `duration_ms` |
@@ -372,7 +372,7 @@ Screen slugs (12): `language_selection`, `phone_entry`, `otp_entry`, `name_entry
 
 | `stage` | `failure_reason` |
 |---------|------------------|
-| `precheck` | `payment_app_not_installed`, `no_payment_app_installed`, `not_logged_in` |
+| `precheck` | `payment_app_not_installed`, `no_payment_app_installed` (both only when the selected app was uninstalled while the paywall was open; the selection then moves to another installed app or UPI ID. Never with `upi_id`, and the pill no longer sends `no_payment_app_installed`), `not_logged_in` |
 | `create` | By HTTP status: `missing_user_id` (400), `user_not_found` (404), `already_active` (409), `gateway_error` (502), `gateway_not_configured` (503), `server_error` (other). Transport: `network`, `timeout`, `invalid_response`, `unknown` |
 | `checkout` | `user_cancelled` (Cashfree `action_cancelled`), `payment_failed`, `sdk_exception`, `other` |
 | `verify` | `pending` (with `cashfree_status`), `missing_user`, `missing_subscription_id`, `not_logged_in`, `server_error`, `network`, `timeout`, `unknown` |
@@ -393,7 +393,7 @@ The paywall has three states inside `SubscriptionActivity` (`PaywallUiPolicy`): 
 
 | Outcome | Tracked | Then shows |
 |---------|---------|------------|
-| Checkout `action_cancelled` (UPI cancel) | `subscription_failed` `checkout` / `user_cancelled` | The paywall, quietly |
+| Checkout `action_cancelled` (UPI cancel, or "Yes" on the hosted checkout's exit dialog for `upi_id`) | `subscription_failed` `checkout` / `user_cancelled` | The paywall, quietly |
 | Any other checkout failure, or a Cashfree SDK exception | `subscription_failed` `checkout` / `payment_failed`, `other` or `sdk_exception` | Failed. The "bank / funds / details" reasons show only for `payment_failed`. "Dobara Try Karein" returns to the paywall |
 | Checkout verify (or its re-run after recreation) not active, no user, or a server or transport error | `subscription_failed` `verify` (`pending`, `missing_user`, `server_error`, `network`, `timeout`, `unknown`) | Pending |
 | Verify with no logged-in user or no subscription id | `subscription_failed` `verify` (`not_logged_in` / `missing_subscription_id`) | The current state stays (no request is made) |
@@ -407,14 +407,16 @@ There is no automatic re-check. Back on Pending or Failed returns to the paywall
 |-------|---------|------------|
 | `home_viewed` | First successful tunes load with non-empty categories, **once per `HomeViewModel`** (survives rotation; `HomeViewModel.trackHomeViewedOnce`) | `tune_count`, `category_count`, `load_ms` (Home creation → first content), `has_active_ringtone` |
 | `home_load_failed` | Categories or tunes fetch fails (`HomeViewModel`); cancellation is not tracked | `stage` (`categories` / `tunes`), `failure_reason`, `trigger` (`initial` / `retry` / `category_change` / `reset`) |
-| `tune_played` | Playback starts on Home (not stop, not empty URL). Stop vs play follows the UI state, not `isPlaying` | `tune_id`, `category`, `source` (`"search_results"` while a search query is active, else `"home"`), `rank` (1-based in the visible list), `category_filter` (category name; omitted for All), `from_search`, `is_active_ringtone` |
+| `tune_played` | Playback starts on Home (not stop, not empty URL). Stop vs play follows the UI state, not `isPlaying` | `tune_id`, `category`, `source` (`"search_results"` while a search query is active, else `"home"`), `rank` (1-based in the visible list), `category_filter` (category name, `my_name` for the name chip; omitted for All), `from_search`, `is_active_ringtone` |
 | `tune_play_ended` | A preview session ends at completion, stop/release or error (`PreviewPlayerController`), on Home, the song picker and the Ready screen. A replay after completion (including a seek on the Ready screen) opens a new session | `source` (`home` / `search_results` (same as its `tune_played`) / `song_picker` / `creation_flow`), `tune_id` (base tune id on the Ready screen), `end_reason` (`completed` / `stopped` / `error`), `listened_ms`, `duration_ms`, `percent_listened`, `time_to_start_ms`, `error_code` |
-| `search_performed` | Search query debounced **500 ms** (`HomeViewModel`); a pending one is sent early by the create CTA and the Home reset on return | `query_length` (trimmed), `result_count` (at send time), `category_filter` |
-| `category_filtered` | Category chip selected, deselected (tapping the selected chip; Home only) or "All", on Home or in the song picker | `category_id`, `category_name` (both omitted for `all`), `source` (`"home"` / `"song_picker"`), `selection` (`selected` / `deselected` / `all`) |
-| `create_ringtone_cta_tapped` | Empty-search create CTA on Home, or the member screen's CTA or any of its 3 checklist rows (`MembershipWelcomeActivity`, which then opens the create form with `entry_point = post_purchase`); double taps ignored on both | `source` (`"search_bar"` / `"membership_welcome"`), `prefill_name_length` (Home: the trimmed query; member screen: the saved profile name, which the form prefills) |
+| `search_performed` | Search query debounced **500 ms** (`HomeViewModel`); a pending one is sent early by the create CTA and the Home reset on return | `query_length` (trimmed), `result_count` (at send time), `category_filter` (`my_name` while the name chip is selected) |
+| `category_filtered` | Category chip selected, deselected (tapping the selected chip; Home only) or "All", on Home or in the song picker. Includes the Home name chip | `category_id` (the name chip: `__my_name__`), `category_name` (the name chip: `my_name`, never the user's name; both omitted for `all`), `source` (`"home"` / `"song_picker"`), `selection` (`selected` / `deselected` / `all`) |
+| `create_ringtone_cta_tapped` | Empty-state create CTA on Home ("Make {name} tune", after a search or under the name chip), or the member screen's CTA or any of its 3 checklist rows (`MembershipWelcomeActivity`, which then opens the create form with `entry_point = post_purchase`); double taps ignored on both | `source` (`"search_bar"` / `"my_name_chip"` / `"membership_welcome"`), `prefill_name_length` (Home: the trimmed query, or under the name chip without a query the profile first name; member screen: the saved profile name, which the form prefills) |
 | `ringtone_replaced_externally` | Home `onResume` finds the saved MeraTune ringtone is no longer the system default (including silent). Once per saved ringtone (`ActiveRingtoneStore`) | `tune_id`, `personalized`, `days_since_set` |
 
 Raw query text is never sent.
+
+**Name chip.** Home shows a synthetic chip right after All Tunes: "{first name} Tunes" (the `ProfileStore` name's first word; "Meri Tunes" when blank), id `__my_name__`. It lists every active tune whose title contains that first name (case-insensitive, the same match as search; search still applies on top), and when none match it shows the same empty state as a search for the name (message with the name, "Make {name} tune" CTA, which prefills the name). Tapping it again or All Tunes goes back to all tunes (no reload: both use the same loaded tunes). `home_viewed.category_count` does not count it. Analytics carry only `__my_name__` / `my_name`, never the name itself.
 
 `home_load_failed.failure_reason` (`LoadErrorMapper.reason`): `network`, `timeout`, `server_error` (5xx), `client_error` (4xx), `decode_error`, `unknown`.
 
@@ -457,9 +459,9 @@ The app does not send `ringtone_created`, and sends `ringtone_generation_failed`
 
 `fallback_level` = `hindi` when the requested language has no songs but Hindi does: the picker shows the empty state (`load_state = empty`, `sample_count` = 0) with a Hindi offer, and the content load after the user accepts it (`trigger = hindi_fallback`) also sends `hindi`. `any` when neither has songs (empty state).
 
-`entry_point` (`CreationEntryPoint`, kept in saved state): `search_bar` (Home empty-search CTA), `post_purchase` (the member screen's CTA and checklist rows), `processing` ("Change language" on the processing error screen); omitted for other entries. `ready_screen` ("Make another") is no longer sent from 1.3.0: the Ready screen's "Gaana Badlein" and "Naya Naam Try Karein" buttons were removed, so `ringtone_ready_action_tapped` no longer sends `change_song` / `make_another` either.
+`entry_point` (`CreationEntryPoint`, kept in saved state): `search_bar` (Home empty-search CTA), `my_name_chip` (the same CTA under the Home name chip without a search query), `post_purchase` (the member screen's CTA and checklist rows), `processing` ("Change language" on the processing error screen); omitted for other entries. `ready_screen` ("Make another") is no longer sent from 1.3.0: the Ready screen's "Gaana Badlein" and "Naya Naam Try Karein" buttons were removed, so `ringtone_ready_action_tapped` no longer sends `change_song` / `make_another` either.
 
-`language_source`: `user_picked`, `profile_default`, `hindi_default`, `first_enabled`. `prefill_source`: `search_query`, `profile_name`, `retained` (CLEAR_TOP re-entry kept the name), `none`.
+`language_source`: `user_picked`, `profile_default`, `hindi_default`, `first_enabled`. `prefill_source`: `search_query`, `profile_name` (the profile default, or the first name the `my_name_chip` CTA passes), `retained` (CLEAR_TOP re-entry kept the name), `none`.
 
 ### Set flow
 
@@ -721,7 +723,7 @@ Names and values from the name-ringtone spec for features that are not built yet
 | Signup | `SignUpNameActivity.kt` |
 | Post-auth destination | `util/AuthNavigator.kt` |
 | Language | `LanguageSelectionActivity.kt` |
-| Paywall / trial / failures / video / logout / close X | `SubscriptionActivity.kt`, `ui/PaymentAppBottomSheet.kt` |
+| Paywall / trial / failures / video / logout / close X | `SubscriptionActivity.kt`, `ui/PaymentAppBottomSheet.kt`, `model/PaymentApp.kt` (installed apps, UPI ID option), `PaymentAppSlug` in `analytics/AnalyticsContract.kt` |
 | Paywall Pending / Failed rules | `ui/PaywallUiPolicy.kt` (`PaywallUiState`, `VerifyTrigger`) |
 | Member screen (`membership_welcome`, post-purchase CTA) | `MembershipWelcomeActivity.kt` |
 | Subscription failure mapping | `data/SubscriptionRepository.kt` (`SubscriptionFailureReason`) |
@@ -734,7 +736,7 @@ Names and values from the name-ringtone spec for features that are not built yet
 | Incoming call | `calltheme/IncomingCallEvents.kt`, `calltheme/IncomingCallThemeActivity.kt`, `calltheme/IncomingCallActionReceiver.kt` |
 | Startup permissions | `util/StartupPermissionRequester.kt` |
 | Home / play / empty CTA / set entry | `Home.kt`, `ui/HomeScreenViewGate.kt` (`onNewIntent` screen-view de-dup) |
-| Home load / search / category / replaced ringtone | `ui/HomeViewModel.kt`, `util/LoadErrorMapper.kt`, `util/ActiveRingtoneStore.kt` |
+| Home load / search / category / name chip / replaced ringtone | `ui/HomeViewModel.kt`, `ui/HomeTuneFilter.kt`, `util/LoadErrorMapper.kt`, `util/ActiveRingtoneStore.kt` |
 | Profile logout / links | `ProfileActivity.kt` |
 | Webhook | `supabase/functions/cashfree-webhook/index.ts`, `cashfree-webhook/signature.ts` |
 | Trial via app verify | `supabase/functions/verify-subscription/index.ts` |
@@ -744,7 +746,7 @@ Names and values from the name-ringtone spec for features that are not built yet
 | Payment dedup table | `subscription_payments` (`20260728160000_add_subscription_payments.sql`) |
 | Cashfree status, trial expiry guard, signature mode, name-lookup index | `20260924120000_add_subscription_cashfree_status.sql` |
 | Backup exclusions | `app/src/main/res/xml/backup_rules.xml`, `data_extraction_rules.xml` |
-| Tests | `app/src/test/…` (`DailyCapPolicyTest`, `AnalyticsDerivationTest` (`user_state`, paywall `entry_point`, including `membership_welcome` → omitted), `LoadErrorMapperTest`, `AuthFailureReasonTest`, `SubscriptionFailureReasonTest`, `SetFailureClassifierTest`, `GenerationErrorCodeTest`, `PaywallUiPolicyTest`, `HomeScreenViewGateTest`, `SetChoiceTest`), `supabase/functions/tests/mixpanel_test.ts`, `cashfree_webhook_test.ts`, `generate_analytics_test.ts` |
+| Tests | `app/src/test/…` (`DailyCapPolicyTest`, `AnalyticsDerivationTest` (`user_state`, paywall `entry_point`, including `membership_welcome` → omitted), `LoadErrorMapperTest`, `AuthFailureReasonTest`, `SubscriptionFailureReasonTest`, `SetFailureClassifierTest`, `GenerationErrorCodeTest`, `PaywallUiPolicyTest`, `HomeScreenViewGateTest`, `SetChoiceTest`, `PaymentAppTest`, `HomeTuneFilterTest`), `supabase/functions/tests/mixpanel_test.ts`, `cashfree_webhook_test.ts`, `generate_analytics_test.ts` |
 
 ---
 
@@ -785,6 +787,9 @@ The UI refresh adds and removes no events (still 57) and changes no server code.
 | `external_link_opened` | New sources `otp_entry` and `name_entry` (terms footer on all 3 auth screens) |
 | `permission_prompt_answered` | New members answer the `startup` prompts on their first Home visit (usually after the create flow), only for permissions still missing. On the create path, WRITE_SETTINGS (`set_ringtone`) is asked up front on Ready, before the download |
 | `language_selected` | `context = settings` now comes only from Profile (the auth screens and paywall lost their language button) |
+| `payment_app` (paywall events) | New `upi_id` (Cashfree hosted checkout); the pill no longer defaults to PhonePe when no UPI app is installed, so `subscription_cta_tapped` sends `payment_app_installed = false` for `upi_id` (always) or for a UPI app uninstalled while the paywall was open (restored selection; that case still fires the `precheck` failure), and `subscription_failed` `precheck` / `no_payment_app_installed` is no longer sent from the pill |
+| `category_filtered`, `tune_played` / `search_performed` `category_filter` | New Home name chip: `category_id = __my_name__`, `category_name` / `category_filter` = `my_name` |
+| `create_ringtone_cta_tapped` / `ringtone_creation_started` | New `source` / `entry_point` = `my_name_chip` (the Home empty-state CTA under the name chip, no search query); the form then reports `prefill_source = profile_name` |
 
 ---
 

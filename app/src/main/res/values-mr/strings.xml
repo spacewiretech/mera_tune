@@ -128,7 +128,6 @@
     <string name="auth_name_required">कृपया तुमचे नाव प्रविष्ट करा</string>
     <string name="auth_generic_error">काहीतरी चुकले. कृपया पुन्हा प्रयत्न करा.</string>
     <string name="subscription_logout">लॉग आउट</string>
-    <string name="subscription_phonepe">PhonePe</string>
     <string name="subscription_select_payment_app">पेमेंट ॲप निवडा</string>
     <string name="subscription_payment_app_not_installed">%1$s या डिव्हाइसवर इंस्टॉल नाही</string>
     <string name="subscription_no_payment_app_installed">या डिव्हाइसवर UPI पेमेंट ॲप इंस्टॉल नाही</string>
@@ -157,6 +156,9 @@
 
     <!-- lane A: paywall, payment states, member screen. UI refresh: native review pending -->
     <string name="paywall_home_button">होमवर जा</string>
+    <string name="paywall_upi_id">UPI ID</string>
+    <string name="paywall_upi_id_pay">UPI ID ने पेमेंट करा</string>
+    <string name="paywall_upi_id_other">इतर UPI ॲप / UPI ID</string>
     <string name="paywall_title">1 दिवसाचा ॲक्सेस मिळवा</string>
     <string name="paywall_price_a11y">आधी ₹%1$s, आता फक्त ₹%2$s</string>
     <string name="paywall_then_price">नंतर ₹%1$s/महिना • कधीही रद्द करा</string>
@@ -228,6 +230,10 @@
     <string name="empty_search_title">चला, एक रिंगटोन तयार करूया %1$s</string>
     <string name="empty_search_title_highlight">फक्त तुमच्यासाठी!</string>
     <string name="home_pause_tune">ट्यून थांबवा</string>
+    <string name="home_category_my_name">%1$s ट्यून्स</string>
+    <string name="home_category_my_name_fallback">माझ्या ट्यून्स</string>
+    <string name="home_make_name_tune">%1$s ची ट्यून बनवा</string>
+    <string name="home_my_name_empty_message">आम्हाला तुमच्या नावाची रिंगटोन सापडली नाही, तुम्ही पहिले तयार करा</string>
     <!-- Set flow: permanently denied permission dialog. UI refresh: native review pending -->
     <string name="permission_blocked_title">परवानगी बंद आहे</string>
     <string name="permission_blocked_phone_message">फोनची परवानगी बंद आहे, त्यामुळे कॉलवर फोटो दिसणार नाही. सेटिंग्जमध्ये परवानगी द्या किंवा फक्त रिंगटोन सेट करा.</string>

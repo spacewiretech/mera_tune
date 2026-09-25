@@ -13,6 +13,15 @@ data class Category(
 ) {
     companion object {
         const val ALL_CATEGORY_ID = "__all__"
+
+        /**
+         * The synthetic Home "{name} Tunes" chip (after All Tunes): every active tune whose title
+         * contains the profile's first name. Never a DB id.
+         */
+        const val MY_NAME_CATEGORY_ID = "__my_name__"
+
+        /** [MY_NAME_CATEGORY_ID]'s `category_name` / `category_filter` in analytics; never the user's name. */
+        const val MY_NAME_CATEGORY_NAME = "my_name"
     }
 }
 

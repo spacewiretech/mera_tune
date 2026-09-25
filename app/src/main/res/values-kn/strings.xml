@@ -128,7 +128,6 @@
     <string name="auth_name_required">ದಯವಿಟ್ಟು ನಿಮ್ಮ ಹೆಸರನ್ನು ನಮೂದಿಸಿ</string>
     <string name="auth_generic_error">ಏನೋ ತಪ್ಪಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</string>
     <string name="subscription_logout">ಲಾಗ್ ಔಟ್</string>
-    <string name="subscription_phonepe">PhonePe</string>
     <string name="subscription_select_payment_app">ಪಾವತಿ ಆ್ಯಪ್ ಆಯ್ಕೆ ಮಾಡಿ</string>
     <string name="subscription_payment_app_not_installed">ಈ ಸಾಧನದಲ್ಲಿ %1$s ಇನ್‌ಸ್ಟಾಲ್ ಆಗಿಲ್ಲ</string>
     <string name="subscription_no_payment_app_installed">ಈ ಸಾಧನದಲ್ಲಿ UPI ಪಾವತಿ ಆ್ಯಪ್ ಇನ್‌ಸ್ಟಾಲ್ ಆಗಿಲ್ಲ</string>
@@ -157,6 +156,9 @@
 
     <!-- lane A: paywall, payment states, member screen. UI refresh: native review pending -->
     <string name="paywall_home_button">ಹೋಮ್‌ಗೆ ಹೋಗಿ</string>
+    <string name="paywall_upi_id">UPI ID</string>
+    <string name="paywall_upi_id_pay">UPI ID ಮೂಲಕ ಪಾವತಿಸಿ</string>
+    <string name="paywall_upi_id_other">ಇತರ UPI ಆ್ಯಪ್ / UPI ID</string>
     <string name="paywall_title">1 ದಿನದ ಪ್ರವೇಶ ಪಡೆಯಿರಿ</string>
     <string name="paywall_price_a11y">ಮೊದಲು ₹%1$s, ಈಗ ಕೇವಲ ₹%2$s</string>
     <string name="paywall_then_price">ನಂತರ ₹%1$s/ತಿಂಗಳು • ಯಾವಾಗ ಬೇಕಾದರೂ ರದ್ದುಮಾಡಿ</string>
@@ -228,6 +230,10 @@
     <string name="empty_search_title">ಬನ್ನಿ, ಒಂದು ರಿಂಗ್‌ಟೋನ್ ತಯಾರಿಸೋಣ %1$s</string>
     <string name="empty_search_title_highlight">ಕೇವಲ ನಿಮಗಾಗಿ!</string>
     <string name="home_pause_tune">ಟ್ಯೂನ್ ನಿಲ್ಲಿಸಿ</string>
+    <string name="home_category_my_name">%1$s ಟ್ಯೂನ್‌ಗಳು</string>
+    <string name="home_category_my_name_fallback">ನನ್ನ ಟ್ಯೂನ್‌ಗಳು</string>
+    <string name="home_make_name_tune">%1$s ಗಾಗಿ ಟ್ಯೂನ್ ಮಾಡಿ</string>
+    <string name="home_my_name_empty_message">ನಿಮ್ಮ ಹೆಸರಿನ ರಿಂಗ್‌ಟೋನ್ ಸಿಗಲಿಲ್ಲ, ಮೊದಲು ರಚಿಸುವವರಾಗಿರಿ</string>
     <!-- Set flow: permanently denied permission dialog. UI refresh: native review pending -->
     <string name="permission_blocked_title">ಅನುಮತಿ ಆಫ್ ಆಗಿದೆ</string>
     <string name="permission_blocked_phone_message">ಫೋನ್ ಅನುಮತಿ ಆಫ್ ಆಗಿದೆ, ಆದ್ದರಿಂದ ಕರೆಯಲ್ಲಿ ಫೋಟೋ ಕಾಣಿಸುವುದಿಲ್ಲ. ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಅನುಮತಿಸಿ ಅಥವಾ ಕೇವಲ ರಿಂಗ್‌ಟೋನ್ ಹೊಂದಿಸಿ.</string>

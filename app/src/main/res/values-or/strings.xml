@@ -128,7 +128,6 @@
     <string name="auth_name_required">ଦୟାକରି ଆପଣଙ୍କ ନାମ ଲେଖନ୍ତୁ</string>
     <string name="auth_generic_error">କିଛି ଭୁଲ୍ ହେଲା। ଦୟାକରି ପୁନର୍ବାର ଚେଷ୍ଟା କରନ୍ତୁ।</string>
     <string name="subscription_logout">ଲଗ୍‌ଆଉଟ୍</string>
-    <string name="subscription_phonepe">PhonePe</string>
     <string name="subscription_select_payment_app">ପେମେଣ୍ଟ୍ ଆପ୍ ବାଛନ୍ତୁ</string>
     <string name="subscription_payment_app_not_installed">%1$s ଏହି ଡିଭାଇସ୍‌ରେ ଇନଷ୍ଟଲ୍ ନାହିଁ</string>
     <string name="subscription_no_payment_app_installed">ଏହି ଡିଭାଇସ୍‌ରେ କୌଣସି UPI ପେମେଣ୍ଟ୍ ଆପ୍ ଇନଷ୍ଟଲ୍ ନାହିଁ</string>
@@ -157,6 +156,9 @@
 
     <!-- lane A: paywall, payment states, member screen. UI refresh: native review pending -->
     <string name="paywall_home_button">ହୋମ୍‌କୁ ଯାଆନ୍ତୁ</string>
+    <string name="paywall_upi_id">UPI ID</string>
+    <string name="paywall_upi_id_pay">UPI ID ଦ୍ୱାରା ପେମେଣ୍ଟ୍ କରନ୍ତୁ</string>
+    <string name="paywall_upi_id_other">ଅନ୍ୟ UPI ଆପ୍ / UPI ID</string>
     <string name="paywall_title">1 ଦିନର ଆକ୍ସେସ୍ ପାଆନ୍ତୁ</string>
     <string name="paywall_price_a11y">ପୂର୍ବରୁ ₹%1$s, ଏବେ କେବଳ ₹%2$s</string>
     <string name="paywall_then_price">ତାପରେ ₹%1$s/ମାସ • ଯେକୌଣସି ସମୟରେ ବାତିଲ କରନ୍ତୁ</string>
@@ -228,6 +230,10 @@
     <string name="empty_search_title">ଚାଲନ୍ତୁ, ଏକ ରିଙ୍ଗଟୋନ୍ ବନାନ୍ତୁ %1$s</string>
     <string name="empty_search_title_highlight">କେବଳ ଆପଣଙ୍କ ପାଇଁ!</string>
     <string name="home_pause_tune">ଟ୍ୟୁନ୍ ବନ୍ଦ କରନ୍ତୁ</string>
+    <string name="home_category_my_name">%1$s ଟ୍ୟୁନ୍</string>
+    <string name="home_category_my_name_fallback">ମୋ ଟ୍ୟୁନ୍</string>
+    <string name="home_make_name_tune">%1$s ପାଇଁ ଟ୍ୟୁନ୍ ତିଆରି କରନ୍ତୁ</string>
+    <string name="home_my_name_empty_message">ଆମେ ଆପଣଙ୍କ ନାମର ରିଙ୍ଗଟୋନ୍ ପାଇଲୁ ନାହିଁ, ପ୍ରଥମେ ବନାଇବା ବ୍ୟକ୍ତି ହୁଅନ୍ତୁ</string>
     <!-- Set flow: permanently denied permission dialog. UI refresh: native review pending -->
     <string name="permission_blocked_title">ଅନୁମତି ବନ୍ଦ ଅଛି</string>
     <string name="permission_blocked_phone_message">ଫୋନ୍ ଅନୁମତି ବନ୍ଦ ଅଛି, ତେଣୁ କଲ୍‌ରେ ଫଟୋ ଦେଖାଯିବ ନାହିଁ। ସେଟିଂସରେ ଅନୁମତି ଦିଅନ୍ତୁ କିମ୍ବା କେବଳ ରିଙ୍ଗଟୋନ୍ ସେଟ୍ କରନ୍ତୁ।</string>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Round badge for the "UPI ID" payment option: a generic UPI mark (orange and green arrows) on a white disc. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="40dp"
+    android:height="40dp"
+    android:viewportWidth="40"
+    android:viewportHeight="40">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M20,0.5a19.5,19.5 0,1 1,0 39a19.5,19.5 0,1 1,0 -39z"
+        android:strokeWidth="1"
+        android:strokeColor="#EBE9EB" />
+    <path
+        android:fillColor="#098041"
+        android:pathData="M19.5,9L29.9,20L19.5,31L22.7,20Z" />
+    <path
+        android:fillColor="#E97626"
+        android:pathData="M10.1,9L20.5,20L10.1,31L13.4,20Z" />
+</vector>

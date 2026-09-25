@@ -339,7 +339,6 @@
                     android:id="@+id/paymentAppIcon"
                     android:layout_width="40dp"
                     android:layout_height="40dp"
-                    android:background="@drawable/bg_phonepe_icon"
                     android:fontFamily="@font/manrope_bold"
                     android:gravity="center"
                     android:importantForAccessibility="no"
@@ -350,8 +349,10 @@
                     app:autoSizeMinTextSize="10sp"
                     app:autoSizeTextType="uniform"
                     app:fontFamily="@font/manrope_bold"
+                    tools:background="@drawable/bg_phonepe_icon"
                     tools:text="पे" />
 
+                <!-- Bound in SubscriptionActivity: an installed UPI app, else "UPI ID". -->
                 <TextView
                     android:id="@+id/paymentAppName"
                     style="@style/Text.MeraTune.Label"
@@ -361,7 +362,7 @@
                     android:layout_weight="1"
                     android:ellipsize="end"
                     android:maxLines="1"
-                    android:text="@string/subscription_phonepe" />
+                    tools:text="PhonePe" />
 
                 <ImageView
                     android:layout_width="20dp"

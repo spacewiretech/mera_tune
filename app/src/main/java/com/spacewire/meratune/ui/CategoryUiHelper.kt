@@ -31,25 +31,42 @@ object CategoryUiHelper {
     }
 
     /**
-     * Full-bleed art style: All (by id) is the brand mark, a bundled illustration wins next,
-     * otherwise the flat glyph fallback. Never keyed by the display label.
+     * Full-bleed art style: All (by id) is the brand mark, the synthetic name chip (by id) its
+     * bundled art, a bundled illustration wins next, otherwise the flat glyph fallback. Never keyed
+     * by the display label.
      */
     fun styleFor(category: Category?): Style {
         if (category == null) return styleFor("")
         if (category.id == Category.ALL_CATEGORY_ID) {
             return Style(R.drawable.bg_category_art_circle, R.drawable.logo, Kind.BRAND_MARK)
         }
+        if (category.id == Category.MY_NAME_CATEGORY_ID) {
+            // Cropped inside the design's own ring, so only the shared selection ring is drawn.
+            return Style(R.drawable.bg_category_art_circle, R.drawable.ic_category_my_name, Kind.ILLUSTRATION)
+        }
         val art = CategoryArt.illustrationFor(category.name)
         if (art != null) return Style(R.drawable.bg_category_art_circle, art, Kind.ILLUSTRATION)
         return styleFor(category.name)
     }
 
-    /** Localized chip/row label. Analytics keep [Category.name]. */
-    fun displayName(context: Context, category: Category): String = when (CategoryArt.labelKind(category)) {
-        CategoryArt.LabelKind.ALL_TUNES -> context.getString(R.string.category_all_tunes)
-        CategoryArt.LabelKind.YOUR_NAME -> context.getString(R.string.category_your_name)
-        CategoryArt.LabelKind.DB_NAME -> category.name
-    }
+    /**
+     * Localized chip/row label. Analytics keep [Category.name]. [myFirstName] labels the synthetic
+     * name chip ("Ram Tunes"; "Meri Tunes" when blank).
+     */
+    fun displayName(context: Context, category: Category, myFirstName: String = ""): String =
+        when (CategoryArt.labelKind(category)) {
+            CategoryArt.LabelKind.ALL_TUNES -> context.getString(R.string.category_all_tunes)
+            CategoryArt.LabelKind.MY_NAME -> myNameLabel(context, myFirstName)
+            CategoryArt.LabelKind.YOUR_NAME -> context.getString(R.string.category_your_name)
+            CategoryArt.LabelKind.DB_NAME -> category.name
+        }
+
+    private fun myNameLabel(context: Context, firstName: String): String =
+        if (firstName.isBlank()) {
+            context.getString(R.string.home_category_my_name_fallback)
+        } else {
+            context.getString(R.string.home_category_my_name, firstName.trim())
+        }
 
     /** Pre-refresh binding (flat circle + icon). Kept for existing callers. */
     fun bindIcon(container: View, icon: ImageView, category: Category) {

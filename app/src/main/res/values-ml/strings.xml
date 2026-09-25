@@ -128,7 +128,6 @@
     <string name="auth_name_required">ദയവായി നിങ്ങളുടെ പേര് നൽകുക</string>
     <string name="auth_generic_error">എന്തോ കുഴപ്പം സംഭവിച്ചു. ദയവായി വീണ്ടും ശ്രമിക്കുക.</string>
     <string name="subscription_logout">ലോഗൗട്ട്</string>
-    <string name="subscription_phonepe">PhonePe</string>
     <string name="subscription_select_payment_app">പേയ്‌മെന്റ് ആപ്പ് തിരഞ്ഞെടുക്കുക</string>
     <string name="subscription_payment_app_not_installed">ഈ ഉപകരണത്തിൽ %1$s ഇൻസ്റ്റാൾ ചെയ്തിട്ടില്ല</string>
     <string name="subscription_no_payment_app_installed">ഈ ഉപകരണത്തിൽ UPI പേയ്‌മെന്റ് ആപ്പ് ഇൻസ്റ്റാൾ ചെയ്തിട്ടില്ല</string>
@@ -157,6 +156,9 @@
 
     <!-- lane A: paywall, payment states, member screen. UI refresh: native review pending -->
     <string name="paywall_home_button">ഹോമിലേക്ക് പോകൂ</string>
+    <string name="paywall_upi_id">UPI ID</string>
+    <string name="paywall_upi_id_pay">UPI ID വഴി പണമടയ്ക്കൂ</string>
+    <string name="paywall_upi_id_other">മറ്റ് UPI ആപ്പ് / UPI ID</string>
     <string name="paywall_title">1 ദിവസത്തെ ആക്സസ് നേടൂ</string>
     <string name="paywall_price_a11y">മുമ്പ് ₹%1$s, ഇപ്പോൾ വെറും ₹%2$s</string>
     <string name="paywall_then_price">പിന്നീട് ₹%1$s/മാസം • എപ്പോൾ വേണമെങ്കിലും റദ്ദാക്കാം</string>
@@ -228,6 +230,10 @@
     <string name="empty_search_title">നമുക്ക് ഒരു റിംഗ്ടോൺ ഉണ്ടാക്കാം %1$s</string>
     <string name="empty_search_title_highlight">നിങ്ങൾക്ക് മാത്രം!</string>
     <string name="home_pause_tune">ട്യൂൺ നിർത്തുക</string>
+    <string name="home_category_my_name">%1$s ട്യൂണുകൾ</string>
+    <string name="home_category_my_name_fallback">എന്റെ ട്യൂണുകൾ</string>
+    <string name="home_make_name_tune">%1$s-ന്റെ ട്യൂൺ ഉണ്ടാക്കൂ</string>
+    <string name="home_my_name_empty_message">നിങ്ങളുടെ പേരിലുള്ള റിംഗ്ടോൺ കണ്ടെത്താനായില്ല, ആദ്യം ഒന്ന് സൃഷ്ടിക്കൂ</string>
     <!-- Set flow: permanently denied permission dialog. UI refresh: native review pending -->
     <string name="permission_blocked_title">അനുമതി ഓഫാണ്</string>
     <string name="permission_blocked_phone_message">ഫോൺ അനുമതി ഓഫാണ്, അതിനാൽ കോളിൽ ഫോട്ടോ കാണിക്കില്ല. ക്രമീകരണങ്ങളിൽ അനുമതി നൽകുക അല്ലെങ്കിൽ റിംഗ്ടോൺ മാത്രം സജ്ജമാക്കുക.</string>

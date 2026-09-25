@@ -16,7 +16,8 @@ object CategoryArt {
      */
     internal val BUNDLED: Map<String, Int> = emptyMap()
 
-    enum class LabelKind { ALL_TUNES, YOUR_NAME, DB_NAME }
+    /** [MY_NAME] is the synthetic "{name} Tunes" chip; [YOUR_NAME] a DB category named "Name". */
+    enum class LabelKind { ALL_TUNES, MY_NAME, YOUR_NAME, DB_NAME }
 
     private val NON_SLUG = Regex("[^a-z0-9]+")
 
@@ -27,6 +28,7 @@ object CategoryArt {
 
     fun labelKind(category: Category): LabelKind = when {
         category.id == Category.ALL_CATEGORY_ID -> LabelKind.ALL_TUNES
+        category.id == Category.MY_NAME_CATEGORY_ID -> LabelKind.MY_NAME
         slugFor(category.name) == YOUR_NAME_SLUG -> LabelKind.YOUR_NAME
         else -> LabelKind.DB_NAME
     }

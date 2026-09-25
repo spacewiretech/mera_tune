@@ -128,7 +128,6 @@
     <string name="auth_name_required">অনুগ্রহ করে আপনার নাম লিখুন</string>
     <string name="auth_generic_error">কিছু ভুল হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।</string>
     <string name="subscription_logout">লগ আউট</string>
-    <string name="subscription_phonepe">PhonePe</string>
     <string name="subscription_select_payment_app">পেমেন্ট অ্যাপ বেছে নিন</string>
     <string name="subscription_payment_app_not_installed">%1$s এই ডিভাইসে ইনস্টল করা নেই</string>
     <string name="subscription_no_payment_app_installed">এই ডিভাইসে কোনো UPI পেমেন্ট অ্যাপ ইনস্টল করা নেই</string>
@@ -157,6 +156,9 @@
 
     <!-- lane A: paywall, payment states, member screen. UI refresh: native review pending -->
     <string name="paywall_home_button">হোমে যান</string>
+    <string name="paywall_upi_id">UPI ID</string>
+    <string name="paywall_upi_id_pay">UPI ID দিয়ে পেমেন্ট করুন</string>
+    <string name="paywall_upi_id_other">অন্য UPI অ্যাপ / UPI ID</string>
     <string name="paywall_title">1 দিনের অ্যাক্সেস পান</string>
     <string name="paywall_price_a11y">আগে ₹%1$s, এখন মাত্র ₹%2$s</string>
     <string name="paywall_then_price">তারপর ₹%1$s/মাস • যেকোনো সময় বাতিল করুন</string>
@@ -228,6 +230,10 @@
     <string name="empty_search_title">চলুন, একটি রিংটোন বানাই %1$s</string>
     <string name="empty_search_title_highlight">শুধু আপনার জন্য!</string>
     <string name="home_pause_tune">টিউন থামান</string>
+    <string name="home_category_my_name">%1$s-এর টিউন</string>
+    <string name="home_category_my_name_fallback">আমার টিউন</string>
+    <string name="home_make_name_tune">%1$s-এর টিউন বানান</string>
+    <string name="home_my_name_empty_message">আপনার নামের রিংটোন পাওয়া যায়নি, প্রথমে তৈরি করুন</string>
     <!-- Set flow: permanently denied permission dialog. UI refresh: native review pending -->
     <string name="permission_blocked_title">অনুমতি বন্ধ আছে</string>
     <string name="permission_blocked_phone_message">ফোনের অনুমতি বন্ধ আছে, তাই কলে ফটো দেখা যাবে না। সেটিংসে অনুমতি দিন অথবা শুধু রিংটোন সেট করুন।</string>

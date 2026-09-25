@@ -10,6 +10,10 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.spacewire.meratune.R
 import com.spacewire.meratune.model.PaymentApp
 
+/**
+ * The paywall's payment-app sheet. [availableApps] is [PaymentApp.sheetOptions]: the installed UPI
+ * apps, then the [PaymentApp.UPI_ID] row ("other UPI app / UPI ID", or "pay with UPI ID" alone).
+ */
 class PaymentAppBottomSheet(
     private val context: Context,
     private val selectedApp: PaymentApp,
@@ -23,15 +27,19 @@ class PaymentAppBottomSheet(
         val dialog = BottomSheetDialog(context)
         val sheetView = LayoutInflater.from(context).inflate(R.layout.bottom_sheet_payment_apps, null)
         val container = sheetView.findViewById<LinearLayout>(R.id.paymentAppOptionsContainer)
+        sheetView.findViewById<TextView>(R.id.paymentAppSheetTitle)
+            .setText(PaymentApp.sheetTitleRes(availableApps))
         // Two quick taps on different rows can both land before dismiss() takes effect.
         var handled = false
+        val upiIdLabel = context.getString(PaymentApp.upiIdSheetLabelRes(availableApps))
 
         availableApps.forEach { app ->
             val optionView = LayoutInflater.from(context)
                 .inflate(R.layout.item_payment_app_option, container, false)
 
             PaymentAppBadge.bind(optionView.findViewById(R.id.paymentAppOptionIcon), app)
-            optionView.findViewById<TextView>(R.id.paymentAppOptionName).text = app.displayName
+            optionView.findViewById<TextView>(R.id.paymentAppOptionName).text =
+                if (app == PaymentApp.UPI_ID) upiIdLabel else app.label(context)
             bindSelection(optionView, app == selectedApp)
 
             optionView.setOnClickListener {

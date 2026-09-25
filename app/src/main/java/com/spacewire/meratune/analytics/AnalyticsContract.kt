@@ -8,6 +8,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.spacewire.meratune.calltheme.CallActions
+import com.spacewire.meratune.model.PaymentApp
 import com.spacewire.meratune.util.RingtoneHelper
 import java.time.LocalDate
 import java.util.Locale
@@ -54,6 +55,9 @@ object AnalyticsSource {
     /** The Home search empty-state Create CTA (`create_ringtone_cta_tapped`). */
     const val SEARCH_BAR = "search_bar"
 
+    /** The same empty-state CTA when the "{name} Tunes" chip (no search query) found no tune. */
+    const val MY_NAME_CHIP = "my_name_chip"
+
     /** `tune_played` on Home while a search query is active. */
     const val SEARCH_RESULTS = "search_results"
     const val UNKNOWN = "unknown"
@@ -62,6 +66,9 @@ object AnalyticsSource {
 /** `ringtone_creation_started.entry_point`: how the create form was reached. */
 object CreationEntryPoint {
     const val SEARCH_BAR = "search_bar"
+
+    /** The Home empty-state CTA under the "{name} Tunes" chip, without a search query. */
+    const val MY_NAME_CHIP = "my_name_chip"
     const val READY_SCREEN = "ready_screen"
     const val PROCESSING = "processing"
 
@@ -105,6 +112,25 @@ object PaywallDismissMethod {
 
     /** The Home button on the paywall's video card (it replaced the header close X before release). */
     const val HOME_BUTTON = "home_button"
+}
+
+/** `payment_app` / `previous_payment_app` on the paywall events. */
+object PaymentAppSlug {
+    const val PHONEPE = "phonepe"
+    const val GOOGLE_PAY = "google_pay"
+    const val PAYTM = "paytm"
+    const val BHIM = "bhim"
+
+    /** Cashfree's hosted checkout, where the user enters a UPI ID (no UPI app intent). */
+    const val UPI_ID = "upi_id"
+
+    fun of(app: PaymentApp): String = when (app) {
+        PaymentApp.PHONEPE -> PHONEPE
+        PaymentApp.GOOGLE_PAY -> GOOGLE_PAY
+        PaymentApp.PAYTM -> PAYTM
+        PaymentApp.BHIM -> BHIM
+        PaymentApp.UPI_ID -> UPI_ID
+    }
 }
 
 /** `user_state` super property, from the AuthStore status. */

@@ -15,6 +15,7 @@
         android:importantForAccessibility="no" />
 
     <TextView
+        android:id="@+id/paymentAppSheetTitle"
         style="@style/Text.MeraTune.Title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

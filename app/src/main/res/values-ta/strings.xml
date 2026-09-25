@@ -128,7 +128,6 @@
     <string name="auth_name_required">தயவுசெய்து உங்கள் பெயரை உள்ளிடவும்</string>
     <string name="auth_generic_error">ஏதோ தவறு ஏற்பட்டது. மீண்டும் முயற்சிக்கவும்.</string>
     <string name="subscription_logout">வெளியேறு</string>
-    <string name="subscription_phonepe">PhonePe</string>
     <string name="subscription_select_payment_app">கட்டண செயலியை தேர்ந்தெடுக்கவும்</string>
     <string name="subscription_payment_app_not_installed">இந்த சாதனத்தில் %1$s நிறுவப்படவில்லை</string>
     <string name="subscription_no_payment_app_installed">இந்த சாதனத்தில் UPI கட்டண செயலி நிறுவப்படவில்லை</string>
@@ -157,6 +156,9 @@
 
     <!-- lane A: paywall, payment states, member screen. UI refresh: native review pending -->
     <string name="paywall_home_button">முகப்புக்குச் செல்</string>
+    <string name="paywall_upi_id">UPI ID</string>
+    <string name="paywall_upi_id_pay">UPI ID மூலம் பணம் செலுத்துங்கள்</string>
+    <string name="paywall_upi_id_other">பிற UPI செயலி / UPI ID</string>
     <string name="paywall_title">1 நாள் அணுகலைப் பெறுங்கள்</string>
     <string name="paywall_price_a11y">முன்பு ₹%1$s, இப்போது வெறும் ₹%2$s</string>
     <string name="paywall_then_price">பிறகு ₹%1$s/மாதம் • எப்போது வேண்டுமானாலும் ரத்து செய்யலாம்</string>
@@ -228,6 +230,10 @@
     <string name="empty_search_title">வாருங்கள், ஒரு ரிங்டோன் உருவாக்குவோம் %1$s</string>
     <string name="empty_search_title_highlight">உங்களுக்காக மட்டும்!</string>
     <string name="home_pause_tune">டியூனை நிறுத்து</string>
+    <string name="home_category_my_name">%1$s டியூன்கள்</string>
+    <string name="home_category_my_name_fallback">என் டியூன்கள்</string>
+    <string name="home_make_name_tune">%1$s க்கான ட்யூன் உருவாக்கு</string>
+    <string name="home_my_name_empty_message">உங்கள் பெயருக்கான ரிங்டோனை கண்டுபிடிக்க முடியவில்லை, முதலில் உருவாக்குபவராக இருங்கள்</string>
     <!-- Set flow: permanently denied permission dialog. UI refresh: native review pending -->
     <string name="permission_blocked_title">அனுமதி முடக்கப்பட்டுள்ளது</string>
     <string name="permission_blocked_phone_message">ஃபோன் அனுமதி முடக்கப்பட்டுள்ளது, எனவே அழைப்பில் புகைப்படம் தெரியாது. அமைப்புகளில் அனுமதிக்கவும் அல்லது ரிங்டோனை மட்டும் அமைக்கவும்.</string>

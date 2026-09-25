@@ -15,10 +15,13 @@ class CategoryAdapter(
 
     private var categories: List<Category> = emptyList()
     private var selectedCategoryId: String? = null
+    private var myFirstName: String = ""
 
-    fun submitList(categories: List<Category>, selectedCategoryId: String?) {
+    /** [myFirstName] labels the synthetic "{name} Tunes" chip (display only, never tracked). */
+    fun submitList(categories: List<Category>, selectedCategoryId: String?, myFirstName: String = "") {
         this.categories = categories
         this.selectedCategoryId = selectedCategoryId
+        this.myFirstName = myFirstName
         notifyDataSetChanged()
     }
 
@@ -42,7 +45,7 @@ class CategoryAdapter(
 
         fun bind(category: Category) {
             // Localized label only; the click and analytics keep the DB id/name.
-            label.text = CategoryUiHelper.displayName(itemView.context, category)
+            label.text = CategoryUiHelper.displayName(itemView.context, category, myFirstName)
             CategoryUiHelper.bindArt(iconContainer, icon, category)
 
             val isSelected = when {

@@ -217,18 +217,39 @@ class Home : AppCompatActivity() {
         createCta.setOnClickListener {
             if (isNavigating) return@setOnClickListener
             isNavigating = true
-            val query = searchInput.text.toString().trim()
+            val state = viewModel.uiState.value
+            // The trimmed query, or the profile first name under the "{name} Tunes" chip.
+            val prefillName = state.emptyStateName
+            val fromNameChip = state.searchQuery.isBlank() && state.isMyNameSelected
             viewModel.flushPendingSearchTracking()
             mixpanelAnalytics().trackCreateRingtoneCtaTapped(
-                source = AnalyticsSource.SEARCH_BAR,
-                prefillNameLength = query.length,
+                source = if (fromNameChip) AnalyticsSource.MY_NAME_CHIP else AnalyticsSource.SEARCH_BAR,
+                prefillNameLength = prefillName.length,
             )
             // No trial yet: the paywall (entry_point locked_home) instead of the create form.
             if (AuthNavigator.needsSubscription(this)) {
                 startActivity(SubscriptionActivity.intent(this))
             } else {
-                startActivity(CreateRingtoneActivity.intent(this, query, CreationEntryPoint.SEARCH_BAR))
+                val entryPoint = if (fromNameChip) CreationEntryPoint.MY_NAME_CHIP else CreationEntryPoint.SEARCH_BAR
+                startActivity(CreateRingtoneActivity.intent(this, prefillName, entryPoint))
             }
+        }
+    }
+
+    /**
+     * The searched name (or, under the name chip, the profile first name) in the message and the
+     * "Make %1$s tune" CTA; a blank name keeps the generic "Create Ringtone" copy.
+     */
+    private fun bindEmptyStateName(name: String) {
+        findViewById<TextView>(R.id.emptyStateMessage).text = if (name.isBlank()) {
+            getString(R.string.home_my_name_empty_message)
+        } else {
+            getString(R.string.empty_search_message, name)
+        }
+        createCta.text = if (name.isBlank()) {
+            getString(R.string.create_ringtone)
+        } else {
+            getString(R.string.home_make_name_tune, name)
         }
     }
 
@@ -263,7 +284,7 @@ class Home : AppCompatActivity() {
                         errorView.visibility = View.GONE
                     }
 
-                    categoryAdapter.submitList(state.categories, state.selectedCategoryId)
+                    categoryAdapter.submitList(state.categories, state.selectedCategoryId, state.profileFirstName)
                     tuneAdapter.submitList(state.filteredTunes, state.playingTuneId, state.activeRingtoneId)
 
                     val showEmptyState = state.showSearchEmptyState
@@ -271,12 +292,7 @@ class Home : AppCompatActivity() {
                     findViewById<RecyclerView>(R.id.tunesRecycler).visibility =
                         if (showEmptyState) View.GONE else View.VISIBLE
 
-                    if (showEmptyState) {
-                        findViewById<TextView>(R.id.emptyStateMessage).text = getString(
-                            R.string.empty_search_message,
-                            state.searchQuery.trim(),
-                        )
-                    }
+                    if (showEmptyState) bindEmptyStateName(state.emptyStateName)
                     if (showEmptyState && !emptyStateShown && imeVisible) ensureCreateCtaVisible()
                     emptyStateShown = showEmptyState
 
@@ -365,6 +381,7 @@ class Home : AppCompatActivity() {
         super.onResume()
         screenViewGate.onResume()
         isNavigating = false
+        viewModel.refreshProfileName()
         viewModel.refreshActiveRingtone()
     }
 

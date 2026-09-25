@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import com.spacewire.meratune.analytics.AnalyticsScreen
+import com.spacewire.meratune.analytics.CreationEntryPoint
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.data.HomeRepository
 import com.spacewire.meratune.data.LanguageDefinition
@@ -164,7 +165,10 @@ class CreateRingtoneActivity : AppCompatActivity() {
             val prefill = extraName.ifBlank { ProfileStore(this).getProfile().name.trim() }
             nameInput.setText(prefill)
             nameInput.setSelection(nameInput.text.length)
+            // The Home "{name} Tunes" chip passes the profile first name, not a typed query.
+            val fromNameChip = intent.getStringExtra(EXTRA_ENTRY_POINT) == CreationEntryPoint.MY_NAME_CHIP
             val source = when {
+                extraName.isNotEmpty() && fromNameChip -> PREFILL_PROFILE_NAME
                 extraName.isNotEmpty() -> PREFILL_SEARCH_QUERY
                 prefill.isNotEmpty() -> PREFILL_PROFILE_NAME
                 else -> PREFILL_NONE

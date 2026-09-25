@@ -18,7 +18,8 @@ object PaymentAppBadge {
     /**
      * The installed app's own launcher icon, cropped to a circle (the manifest `<queries>` makes
      * the four UPI packages visible). Falls back to [PaymentApp.logoRes] when set, else the
-     * brand-colour oval with its label, e.g. when the app is not installed.
+     * brand-colour oval with its label, e.g. when the app is not installed. [PaymentApp.UPI_ID] has
+     * no package, so it always shows its bundled UPI mark.
      */
     fun bind(badge: TextView, app: PaymentApp) {
         val icon = launcherIcon(badge, app)
@@ -40,6 +41,7 @@ object PaymentAppBadge {
     }
 
     private fun launcherIcon(badge: TextView, app: PaymentApp): Drawable? {
+        val packageName = app.packageName ?: return null
         val sizePx = badge.layoutParams?.width?.takeIf { it > 0 }
             ?: TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_DIP,
@@ -47,7 +49,7 @@ object PaymentAppBadge {
                 badge.resources.displayMetrics,
             ).toInt()
         return try {
-            val icon = badge.context.packageManager.getApplicationIcon(app.packageName)
+            val icon = badge.context.packageManager.getApplicationIcon(packageName)
             // Adaptive icons draw inside the launcher mask; every mask shape contains its inscribed
             // circle, so the circular crop always shows a full round logo.
             val bitmap = icon.toBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
@@ -57,7 +59,7 @@ object PaymentAppBadge {
             }
         } catch (e: Exception) {
             // Not installed (NameNotFoundException) or the icon failed to draw: the text badge.
-            Log.d(TAG, "No launcher icon for ${app.packageName}: ${e.javaClass.simpleName}")
+            Log.d(TAG, "No launcher icon for $packageName: ${e.javaClass.simpleName}")
             null
         }
     }

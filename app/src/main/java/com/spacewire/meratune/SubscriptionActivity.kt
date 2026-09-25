@@ -32,12 +32,15 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.cashfree.pg.api.CFPaymentGatewayService
 import com.cashfree.pg.core.api.CFSubscriptionSession
+import com.cashfree.pg.core.api.base.CFPayment
 import com.cashfree.pg.core.api.callback.CFSubscriptionResponseCallback
 import com.cashfree.pg.core.api.exception.CFException
+import com.cashfree.pg.core.api.subscription.CFSubscriptionPayment
 import com.cashfree.pg.core.api.subscription.upi.CFSubsUpi
 import com.cashfree.pg.core.api.subscription.upi.CFSubsUpiPayment
 import com.cashfree.pg.core.api.utils.CFErrorResponse
 import com.cashfree.pg.core.api.utils.CFSubscriptionResponse
+import com.cashfree.pg.core.api.webcheckout.CFWebCheckoutTheme
 import com.spacewire.meratune.analytics.AnalyticsSource
 import com.spacewire.meratune.analytics.PaywallDismissMethod
 import com.spacewire.meratune.analytics.PaywallEntryPoint
@@ -64,6 +67,7 @@ import com.spacewire.meratune.util.AuthStore
 import com.spacewire.meratune.util.GradientTextHelper
 import com.spacewire.meratune.util.ProfileStore
 import com.spacewire.meratune.util.enableLightEdgeToEdge
+import java.util.Locale
 import kotlinx.coroutines.launch
 
 class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback {
@@ -78,7 +82,8 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
 
     /** A verify request is running; redone after a recreation, which cancels it. */
     private var verifyPending = false
-    private var selectedPaymentApp: PaymentApp = PaymentApp.DEFAULT
+    /** Set in onCreate: the first installed UPI app, else [PaymentApp.UPI_ID]. */
+    private var selectedPaymentApp: PaymentApp = PaymentApp.UPI_ID
     private var attempt = 0
     private var previousStatus: String? = null
     private var videoCompleted = false
@@ -154,7 +159,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         bindViews()
 
         val installedApps = PaymentApp.installed(packageManager)
-        selectedPaymentApp = installedApps.firstOrNull() ?: PaymentApp.DEFAULT
+        selectedPaymentApp = PaymentApp.defaultSelection(installedApps)
         // Restored before the callback is set: Cashfree replays a stored checkout result into it.
         if (savedInstanceState != null) {
             restoreCheckoutState(savedInstanceState)
@@ -318,6 +323,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         tryNowButton.setOnClickListener {
             if (isProcessingPayment) return@setOnClickListener
             attempt += 1
+            // Always false for UPI ID (no app): that option opens Cashfree's web checkout instead.
             val appInstalled = selectedPaymentApp.isInstalled(packageManager)
             mixpanelAnalytics().trackSubscriptionCtaTapped(
                 paymentApp = selectedPaymentApp,
@@ -325,10 +331,12 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
                 attempt = attempt,
                 videoCompleted = videoCompleted,
             )
-            if (!appInstalled) {
+            if (selectedPaymentApp.isUpiApp && !appInstalled) {
+                // The chosen app was uninstalled while the paywall was open.
+                val installedApps = PaymentApp.installed(packageManager)
                 trackFailure(
                     stage = SubscriptionFailureReason.STAGE_PRECHECK,
-                    reason = if (PaymentApp.installed(packageManager).isEmpty()) {
+                    reason = if (installedApps.isEmpty()) {
                         SubscriptionFailureReason.NO_PAYMENT_APP_INSTALLED
                     } else {
                         SubscriptionFailureReason.PAYMENT_APP_NOT_INSTALLED
@@ -339,6 +347,9 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
                     getString(R.string.subscription_payment_app_not_installed, selectedPaymentApp.displayName),
                     Toast.LENGTH_LONG,
                 ).show()
+                // The next tap uses an option that exists (another app, or UPI ID).
+                selectedPaymentApp = PaymentApp.defaultSelection(installedApps)
+                bindSelectedPaymentApp()
                 return@setOnClickListener
             }
             startSubscriptionCheckout()
@@ -346,16 +357,9 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
 
         paymentAppSelector.setOnClickListener {
             if (isProcessingPayment) return@setOnClickListener
-            val installedApps = PaymentApp.installed(packageManager)
-            if (installedApps.isEmpty()) {
-                trackFailure(
-                    stage = SubscriptionFailureReason.STAGE_PRECHECK,
-                    reason = SubscriptionFailureReason.NO_PAYMENT_APP_INSTALLED,
-                )
-                Toast.makeText(this, R.string.subscription_no_payment_app_installed, Toast.LENGTH_LONG).show()
-                return@setOnClickListener
-            }
-            PaymentAppBottomSheet(this, selectedPaymentApp, installedApps) { app ->
+            // Installed apps first, UPI ID last (the only row when no UPI app is installed).
+            val options = PaymentApp.sheetOptions(PaymentApp.installed(packageManager))
+            PaymentAppBottomSheet(this, selectedPaymentApp, options) { app ->
                 mixpanelAnalytics().trackPaymentAppSelected(
                     paymentApp = app,
                     previousPaymentApp = selectedPaymentApp,
@@ -478,7 +482,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
 
     private fun bindSelectedPaymentApp() {
         PaymentAppBadge.bind(findViewById(R.id.paymentAppIcon), selectedPaymentApp)
-        findViewById<TextView>(R.id.paymentAppName).text = selectedPaymentApp.displayName
+        findViewById<TextView>(R.id.paymentAppName).text = selectedPaymentApp.label(this)
     }
 
     private fun startSubscriptionCheckout() {
@@ -569,16 +573,24 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
                 .setSubscriptionId(subscriptionId)
                 .build()
 
-            val upi = CFSubsUpi.CFSubsUpiBuilder()
-                .setMode(CFSubsUpi.Mode.INTENT)
-                .setUPIID(paymentApp.packageName)
-                .build()
+            val payment: CFPayment = when (val upiPackage = paymentApp.packageName) {
+                // UPI ID: Cashfree's hosted checkout, where the user enters a UPI ID (or picks an app).
+                null -> CFSubscriptionPayment.CFSubscriptionCheckoutBuilder()
+                    .setSubscriptionSession(session)
+                    .setSubscriptionUITheme(webCheckoutTheme())
+                    .build()
+                else -> CFSubsUpiPayment.CFSubsUpiPaymentBuilder()
+                    .setSubscriptionSession(session)
+                    .setSubsUpi(
+                        CFSubsUpi.CFSubsUpiBuilder()
+                            .setMode(CFSubsUpi.Mode.INTENT)
+                            .setUPIID(upiPackage)
+                            .build(),
+                    )
+                    .build()
+            }
 
-            val payment = CFSubsUpiPayment.CFSubsUpiPaymentBuilder()
-                .setSubscriptionSession(session)
-                .setSubsUpi(upi)
-                .build()
-
+            // Both flows answer through the registered callback (onSubscriptionVerify / onSubscriptionFailure).
             isProcessingPayment = true
             CFPaymentGatewayService.getInstance().doSubscriptionPayment(this, payment)
         } catch (e: CFException) {
@@ -594,6 +606,16 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
             e.printStackTrace()
         }
     }
+
+    /** Brand pink header (and status bar) with white text on Cashfree's hosted checkout page. */
+    private fun webCheckoutTheme(): CFWebCheckoutTheme =
+        CFWebCheckoutTheme.CFWebCheckoutThemeBuilder()
+            .setNavigationBarBackgroundColor(colorHex(R.color.gradient_pink))
+            .setNavigationBarTextColor(colorHex(R.color.white))
+            .build()
+
+    private fun colorHex(colorRes: Int): String =
+        String.format(Locale.ROOT, "#%06X", ContextCompat.getColor(this, colorRes) and 0xFFFFFF)
 
     override fun onSubscriptionVerify(cfSubscriptionResponse: CFSubscriptionResponse) {
         // After a recreation mid-checkout the replayed callback still carries the id.

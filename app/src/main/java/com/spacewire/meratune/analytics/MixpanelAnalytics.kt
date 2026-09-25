@@ -912,12 +912,7 @@ class MixpanelAnalytics private constructor(context: Context) {
         }
     }
 
-    private fun PaymentApp.analyticsSlug(): String = when (this) {
-        PaymentApp.PHONEPE -> "phonepe"
-        PaymentApp.GOOGLE_PAY -> "google_pay"
-        PaymentApp.PAYTM -> "paytm"
-        PaymentApp.BHIM -> "bhim"
-    }
+    private fun PaymentApp.analyticsSlug(): String = PaymentAppSlug.of(this)
 
     /** Convention: never send null or blank string properties; omit them instead. */
     private fun JSONObject.putIfNotBlank(key: String, value: String?) {

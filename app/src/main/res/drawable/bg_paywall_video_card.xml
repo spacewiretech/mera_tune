@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Paywall 5:3 video card: 1dp grey ring around the rounded player. -->
+<!-- Paywall 1:1 video card: 1dp grey ring around the rounded player. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <solid android:color="@color/video_placeholder" />

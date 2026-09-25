@@ -1,5 +1,6 @@
 package com.spacewire.meratune.ui
 
+import com.spacewire.meratune.analytics.PaywallEntryPoint
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -53,5 +54,30 @@ class PaywallUiPolicyTest {
         assertEquals(PaywallUiState.PAYWALL, PaywallUiPolicy.restoredState("PAYWALL", hasSubscriptionId = true))
         assertEquals(PaywallUiState.PAYWALL, PaywallUiPolicy.restoredState("AUTO_CHECK", hasSubscriptionId = true))
         assertEquals(PaywallUiState.PAYWALL, PaywallUiPolicy.restoredState(null, hasSubscriptionId = true))
+    }
+
+    @Test
+    fun homeButtonFromHomeUncoversIt() {
+        assertEquals(HomeButtonRoute.FINISH, PaywallUiPolicy.homeButtonRoute(PaywallEntryPoint.LOCKED_HOME, isTaskRoot = false))
+    }
+
+    @Test
+    fun homeButtonDeeperInTheTaskClearsBackToHome() {
+        listOf(PaywallEntryPoint.LIMIT_SCREEN, PaywallEntryPoint.ONBOARDING, PaywallEntryPoint.WIN_BACK, null).forEach {
+            assertEquals("entry=$it", HomeButtonRoute.CLEAR_TOP_TO_HOME, PaywallUiPolicy.homeButtonRoute(it, isTaskRoot = false))
+        }
+    }
+
+    @Test
+    fun homeButtonAsTaskRootStartsHome() {
+        listOf(
+            PaywallEntryPoint.ONBOARDING,
+            PaywallEntryPoint.WIN_BACK,
+            PaywallEntryPoint.LOCKED_HOME,
+            PaywallEntryPoint.LIMIT_SCREEN,
+            null,
+        ).forEach {
+            assertEquals("entry=$it", HomeButtonRoute.NEW_TASK_TO_HOME, PaywallUiPolicy.homeButtonRoute(it, isTaskRoot = true))
+        }
     }
 }

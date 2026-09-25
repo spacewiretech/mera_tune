@@ -16,55 +16,20 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <LinearLayout
-            android:id="@+id/paywallHeader"
-            android:layout_width="0dp"
-            android:layout_height="64dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingStart="20dp"
-            android:paddingEnd="16dp"
+        <!-- Hidden: kept for the WIP logout path (logged_out source=subscription). -->
+        <TextView
+            android:id="@+id/logoutButton"
+            style="@style/Text.MeraTune.Body"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_logout_outline"
+            android:gravity="center"
+            android:paddingHorizontal="16dp"
+            android:text="@string/subscription_logout"
+            android:textSize="14sp"
+            android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
-
-            <ImageView
-                android:id="@+id/paywallLogo"
-                android:layout_width="wrap_content"
-                android:layout_height="26dp"
-                android:adjustViewBounds="true"
-                android:contentDescription="@string/app_name"
-                android:src="@drawable/logo_banner" />
-
-            <Space
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
-
-            <!-- Hidden: kept for the WIP logout path (logged_out source=subscription). -->
-            <TextView
-                android:id="@+id/logoutButton"
-                style="@style/Text.MeraTune.Body"
-                android:layout_width="wrap_content"
-                android:layout_height="40dp"
-                android:layout_marginEnd="8dp"
-                android:background="@drawable/bg_logout_outline"
-                android:gravity="center"
-                android:paddingHorizontal="16dp"
-                android:text="@string/subscription_logout"
-                android:textSize="14sp"
-                android:visibility="gone" />
-
-            <ImageButton
-                android:id="@+id/closeButton"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:background="@drawable/bg_close_circle"
-                android:contentDescription="@string/close"
-                android:padding="14dp"
-                android:scaleType="fitCenter"
-                android:src="@drawable/ic_close" />
-        </LinearLayout>
+            app:layout_constraintTop_toTopOf="parent" />
 
         <ScrollView
             android:id="@+id/subscriptionScroll"
@@ -76,7 +41,7 @@
             app:layout_constraintBottom_toTopOf="@id/bottomBar"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/paywallHeader">
+            app:layout_constraintTop_toTopOf="parent">
 
             <LinearLayout
                 android:id="@+id/paywallScrollContent"
@@ -84,7 +49,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:paddingHorizontal="20dp"
-                android:paddingTop="12dp"
+                android:paddingTop="8dp"
                 android:paddingBottom="24dp">
 
                 <androidx.constraintlayout.widget.ConstraintLayout
@@ -97,7 +62,7 @@
                         android:layout_height="0dp"
                         android:background="@drawable/bg_paywall_video_card"
                         android:padding="1dp"
-                        app:layout_constraintDimensionRatio="H,5:3"
+                        app:layout_constraintDimensionRatio="H,1:1"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toTopOf="parent"
@@ -131,6 +96,19 @@
                             android:contentDescription="@string/subscription_play_video"
                             android:padding="14dp"
                             android:src="@drawable/ic_play_white" />
+
+                        <!-- 40dp disc in a 48dp touch target; opens Home (the old header close X). -->
+                        <ImageButton
+                            android:id="@+id/homeButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:layout_gravity="top|end"
+                            android:layout_margin="4dp"
+                            android:background="@drawable/bg_paywall_home_button"
+                            android:contentDescription="@string/paywall_home_button"
+                            android:padding="14dp"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/ic_home" />
                     </FrameLayout>
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -139,18 +117,22 @@
                     style="@style/Text.MeraTune.Title"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="28dp"
+                    android:layout_marginTop="12dp"
                     android:accessibilityHeading="true"
                     android:gravity="center"
                     android:text="@string/paywall_title"
                     android:textSize="22sp" />
 
+                <!--
+                    Negative margins here and on renewalText trim the hero price's Manrope ascent and
+                    descent (about a third of its height), so the gaps read like the mock.
+                -->
                 <LinearLayout
                     android:id="@+id/priceRow"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center_horizontal"
-                    android:layout_marginTop="20dp"
+                    android:layout_marginTop="-6dp"
                     android:focusable="true"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
@@ -170,13 +152,13 @@
                         android:id="@+id/offerPrice"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="16dp"
+                        android:layout_marginStart="14dp"
                         android:fontFamily="@font/manrope_extrabold"
                         android:importantForAccessibility="no"
                         android:includeFontPadding="false"
                         android:maxLines="1"
                         android:textColor="@color/gradient_pink"
-                        android:textSize="88dp"
+                        android:textSize="68dp"
                         app:fontFamily="@font/manrope_extrabold"
                         tools:ignore="SpUsage"
                         tools:text="₹3" />
@@ -187,20 +169,21 @@
                     style="@style/Text.MeraTune.Label"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
+                    android:layout_marginTop="-8dp"
                     android:gravity="center"
+                    android:textSize="16sp"
                     tools:text="Then ₹299/month • Cancel anytime" />
 
                 <LinearLayout
                     android:id="@+id/benefitsCard"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="32dp"
+                    android:layout_marginTop="12dp"
                     android:background="@drawable/bg_paywall_benefits_card"
                     android:orientation="vertical"
-                    android:paddingHorizontal="20dp"
-                    android:paddingTop="20dp"
-                    android:paddingBottom="24dp">
+                    android:paddingHorizontal="16dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="16dp">
 
                     <TextView
                         style="@style/Text.MeraTune.Title"
@@ -209,18 +192,19 @@
                         android:accessibilityHeading="true"
                         android:fontFamily="@font/manrope_bold"
                         android:text="@string/paywall_benefits_title"
+                        android:textSize="18sp"
                         app:fontFamily="@font/manrope_bold" />
 
                     <!-- Check top-aligned with the first line, so wrapped rows read as in the mock. -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="18dp"
+                        android:layout_marginTop="10dp"
                         android:orientation="horizontal">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
                             android:importantForAccessibility="no"
                             android:src="@drawable/ic_benefit_check" />
 
@@ -228,20 +212,21 @@
                             style="@style/Text.MeraTune.Body"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="12dp"
+                            android:layout_marginStart="10dp"
                             android:layout_weight="1"
+                            android:textSize="15sp"
                             android:text="@string/paywall_benefit_names" />
                     </LinearLayout>
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="14dp"
+                        android:layout_marginTop="8dp"
                         android:orientation="horizontal">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
                             android:importantForAccessibility="no"
                             android:src="@drawable/ic_benefit_check" />
 
@@ -249,20 +234,21 @@
                             style="@style/Text.MeraTune.Body"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="12dp"
+                            android:layout_marginStart="10dp"
                             android:layout_weight="1"
+                            android:textSize="15sp"
                             android:text="@string/paywall_benefit_photo" />
                     </LinearLayout>
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="14dp"
+                        android:layout_marginTop="8dp"
                         android:orientation="horizontal">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
                             android:importantForAccessibility="no"
                             android:src="@drawable/ic_benefit_check" />
 
@@ -270,20 +256,21 @@
                             style="@style/Text.MeraTune.Body"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="12dp"
+                            android:layout_marginStart="10dp"
                             android:layout_weight="1"
+                            android:textSize="15sp"
                             android:text="@string/paywall_benefit_family" />
                     </LinearLayout>
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="14dp"
+                        android:layout_marginTop="8dp"
                         android:orientation="horizontal">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
                             android:importantForAccessibility="no"
                             android:src="@drawable/ic_benefit_check" />
 
@@ -291,8 +278,9 @@
                             style="@style/Text.MeraTune.Body"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="12dp"
+                            android:layout_marginStart="10dp"
                             android:layout_weight="1"
+                            android:textSize="15sp"
                             android:text="@string/paywall_benefit_monthly" />
                     </LinearLayout>
                 </LinearLayout>
@@ -301,7 +289,7 @@
                     style="@style/Text.MeraTune.Label"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="32dp"
+                    android:layout_marginTop="24dp"
                     android:accessibilityHeading="true"
                     android:drawablePadding="8dp"
                     android:gravity="center_vertical"

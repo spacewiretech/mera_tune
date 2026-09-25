@@ -38,6 +38,7 @@ import com.spacewire.meratune.ui.InsetDividerDecoration
 import com.spacewire.meratune.ui.PlaybackSessionStats
 import com.spacewire.meratune.ui.PreviewPlayerController
 import com.spacewire.meratune.ui.TuneAdapter
+import com.spacewire.meratune.util.AuthNavigator
 import com.spacewire.meratune.util.GradientTextHelper
 import com.spacewire.meratune.util.InsetsUi
 import com.spacewire.meratune.util.StartupPermissionRequester
@@ -150,13 +151,18 @@ class Home : AppCompatActivity() {
         tuneAdapter = TuneAdapter(
             onPlayClick = { tune -> togglePlayback(tune) },
             onSetClick = { tune ->
-                ringtoneSetController.start(
-                    tune,
-                    SetEntryContext(
-                        rank = viewModel.uiState.value.rankOf(tune.id),
-                        wasPreviewed = tune.id in previewedTuneIds,
-                    ),
-                )
+                // No trial yet: the paywall instead of the set flow (so no ringtone_set_started).
+                if (AuthNavigator.needsSubscription(this)) {
+                    openPaywall()
+                } else {
+                    ringtoneSetController.start(
+                        tune,
+                        SetEntryContext(
+                            rank = viewModel.uiState.value.rankOf(tune.id),
+                            wasPreviewed = tune.id in previewedTuneIds,
+                        ),
+                    )
+                }
             },
         )
 
@@ -217,8 +223,20 @@ class Home : AppCompatActivity() {
                 source = AnalyticsSource.SEARCH_BAR,
                 prefillNameLength = query.length,
             )
-            startActivity(CreateRingtoneActivity.intent(this, query, CreationEntryPoint.SEARCH_BAR))
+            // No trial yet: the paywall (entry_point locked_home) instead of the create form.
+            if (AuthNavigator.needsSubscription(this)) {
+                startActivity(SubscriptionActivity.intent(this))
+            } else {
+                startActivity(CreateRingtoneActivity.intent(this, query, CreationEntryPoint.SEARCH_BAR))
+            }
         }
+    }
+
+    /** A gated Set tap; [isNavigating] (reset on resume) keeps a double tap to one paywall. */
+    private fun openPaywall() {
+        if (isNavigating) return
+        isNavigating = true
+        startActivity(SubscriptionActivity.intent(this))
     }
 
     private fun setupErrorRetry() {

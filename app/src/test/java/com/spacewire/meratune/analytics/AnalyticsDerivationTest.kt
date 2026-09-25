@@ -69,4 +69,10 @@ class AnalyticsDerivationTest {
         assertNull(PaywallEntryPoint.derive(AnalyticsScreen.PROFILE, "none"))
         assertNull(PaywallEntryPoint.derive(AnalyticsScreen.RINGTONE_READY, "cancelled"))
     }
+
+    @Test
+    fun paywallDismissMethods() {
+        assertEquals("system_back", PaywallDismissMethod.SYSTEM_BACK)
+        assertEquals("home_button", PaywallDismissMethod.HOME_BUTTON)
+    }
 }

@@ -8,7 +8,10 @@ enum class PaymentApp(
     val packageName: String,
     val iconBackgroundRes: Int,
     val iconLabel: String,
-    /** A brand logo for the round badge (see `ui/PaymentAppBadge`); null shows [iconLabel] on [iconBackgroundRes]. */
+    /**
+     * A bundled brand logo for the round badge, used when the installed app's launcher icon cannot
+     * be loaded (see `ui/PaymentAppBadge`); null shows [iconLabel] on [iconBackgroundRes] then.
+     */
     val logoRes: Int? = null,
 ) {
     PHONEPE(

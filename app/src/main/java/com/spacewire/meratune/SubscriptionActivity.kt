@@ -53,6 +53,7 @@ import com.spacewire.meratune.data.User
 import com.spacewire.meratune.model.PaymentApp
 import com.spacewire.meratune.ui.CtaButtons
 import com.spacewire.meratune.ui.FaqAccordionController
+import com.spacewire.meratune.ui.HomeButtonRoute
 import com.spacewire.meratune.ui.PaymentAppBadge
 import com.spacewire.meratune.ui.PaymentAppBottomSheet
 import com.spacewire.meratune.ui.PaywallUiPolicy
@@ -112,7 +113,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
     private var authAmountLabel = DEFAULT_AUTH_AMOUNT
     private var recurringAmountLabel = DEFAULT_RECURRING_AMOUNT
 
-    /** `paywall_dismissed.dismiss_method` for the next finish (the close X sets its own). */
+    /** `paywall_dismissed.dismiss_method` for the next finish (the Home button sets its own). */
     private var dismissMethod = PaywallDismissMethod.SYSTEM_BACK
     private var pendingRingAnimator: ObjectAnimator? = null
     /** Set in onStart / cleared in onStop; lifecycle.currentState is still CREATED inside onStart. */
@@ -273,10 +274,22 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
     )
 
     private fun setupActions() {
-        findViewById<View>(R.id.closeButton).setOnClickListener {
-            // Like back: ignored while a verify runs, else the same finish and onPause dismissal.
+        findViewById<View>(R.id.homeButton).setOnClickListener {
+            // Like back: ignored while a verify runs, else a finish with the onPause dismissal.
             if (verifyInFlight || isFinishing) return@setOnClickListener
-            dismissMethod = PaywallDismissMethod.CLOSE_BUTTON
+            AuthStore(this).markBrowsingWithoutTrial()
+            dismissMethod = PaywallDismissMethod.HOME_BUTTON
+            when (PaywallUiPolicy.homeButtonRoute(entryPoint, isTaskRoot)) {
+                HomeButtonRoute.FINISH -> Unit
+                HomeButtonRoute.CLEAR_TOP_TO_HOME -> startActivity(
+                    Intent(this, Home::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                )
+                HomeButtonRoute.NEW_TASK_TO_HOME -> startActivity(
+                    Intent(this, Home::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
+                )
+            }
             finish()
         }
 
@@ -814,9 +827,9 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
     }
 
     /**
-     * System back on the paywall and the close X ([dismissMethod]) are the ways this screen is
-     * dismissed; [verifyBackBlocker] swallows back (and the X is ignored) while a verify runs, back
-     * on Pending / Failed only returns to the paywall, and a paid user is never counted.
+     * System back on the paywall and the Home button ([dismissMethod]) are the ways this screen is
+     * dismissed; [verifyBackBlocker] swallows back (and the Home button is ignored) while a verify
+     * runs, back on Pending / Failed only returns to the paywall, and a paid user is never counted.
      */
     override fun onPause() {
         super.onPause()

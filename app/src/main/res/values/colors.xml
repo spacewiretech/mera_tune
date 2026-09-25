@@ -48,6 +48,7 @@
     <color name="disc_gradient_top">#FDA532</color>
     <color name="disc_gradient_bottom">#F95C98</color>
     <color name="video_scrim">#59FFFFFF</color>
+    <color name="video_home_button">#E6FFFFFF</color>
     <color name="video_placeholder">#F3E9E6</color>
     <color name="text_faq">#101010</color>
     <color name="member_star">#FFC93C</color>

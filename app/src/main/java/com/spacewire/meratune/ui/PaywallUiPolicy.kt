@@ -1,5 +1,6 @@
 package com.spacewire.meratune.ui
 
+import com.spacewire.meratune.analytics.PaywallEntryPoint
 import com.spacewire.meratune.data.SubscriptionFailureReason
 
 /** Which of the paywall's three in-activity screens is showing. */
@@ -10,6 +11,14 @@ enum class PaywallUiState { PAYWALL, PENDING, FAILED }
  * recreation ([RESTORED]) or a "Payment Status Dekhein" tap on Pending ([MANUAL]).
  */
 enum class VerifyTrigger { CHECKOUT, RESTORED, MANUAL }
+
+/**
+ * How the paywall's Home button reaches Home: [FINISH] uncovers the Home that opened the paywall,
+ * [CLEAR_TOP_TO_HOME] returns to the Home deeper in the task (the processing screen's Subscribe),
+ * and [NEW_TASK_TO_HOME] starts Home when the paywall is the task root (after onboarding or at
+ * app launch).
+ */
+enum class HomeButtonRoute { FINISH, CLEAR_TOP_TO_HOME, NEW_TASK_TO_HOME }
 
 /**
  * Pure UI rules for the paywall's Pending / Failed screens. They only decide what the user sees
@@ -39,6 +48,16 @@ object PaywallUiPolicy {
             VerifyTrigger.CHECKOUT, VerifyTrigger.RESTORED -> PaywallUiState.PENDING
             VerifyTrigger.MANUAL -> current
         }
+
+    /**
+     * [entryPoint] is the paywall's `entry_point` (kept in saved state): [PaywallEntryPoint.LOCKED_HOME]
+     * means Home opened it and sits right below. [isTaskRoot] wins, since nothing is below then.
+     */
+    fun homeButtonRoute(entryPoint: String?, isTaskRoot: Boolean): HomeButtonRoute = when {
+        isTaskRoot -> HomeButtonRoute.NEW_TASK_TO_HOME
+        entryPoint == PaywallEntryPoint.LOCKED_HOME -> HomeButtonRoute.FINISH
+        else -> HomeButtonRoute.CLEAR_TOP_TO_HOME
+    }
 
     /**
      * The screen to show after a recreation. Unknown names fall back to the paywall, and so does

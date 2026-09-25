@@ -103,8 +103,8 @@ object PaywallEntryPoint {
 object PaywallDismissMethod {
     const val SYSTEM_BACK = "system_back"
 
-    /** The paywall header's close X. */
-    const val CLOSE_BUTTON = "close_button"
+    /** The Home button on the paywall's video card (it replaced the header close X before release). */
+    const val HOME_BUTTON = "home_button"
 }
 
 /** `user_state` super property, from the AuthStore status. */

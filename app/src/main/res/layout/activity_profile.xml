@@ -81,7 +81,9 @@
                         android:src="@drawable/ic_profile_avatar_placeholder" />
                 </FrameLayout>
 
+                <!-- Members only: ProfileActivity hides it while the user still needs a subscription. -->
                 <FrameLayout
+                    android:id="@+id/profileCrownBadge"
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:layout_gravity="bottom|end"

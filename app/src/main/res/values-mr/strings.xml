@@ -156,6 +156,7 @@
     <string name="category_your_name">तुमचे नाव</string>
 
     <!-- lane A: paywall, payment states, member screen. UI refresh: native review pending -->
+    <string name="paywall_home_button">होमवर जा</string>
     <string name="paywall_title">1 दिवसाचा ॲक्सेस मिळवा</string>
     <string name="paywall_price_a11y">आधी ₹%1$s, आता फक्त ₹%2$s</string>
     <string name="paywall_then_price">नंतर ₹%1$s/महिना • कधीही रद्द करा</string>

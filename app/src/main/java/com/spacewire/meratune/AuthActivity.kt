@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.spacewire.meratune.util.AuthNavigator
 import com.spacewire.meratune.util.AuthStore
+import com.spacewire.meratune.util.LaunchDestination
 import com.spacewire.meratune.util.ProfileStore
 
 class AuthActivity : AppCompatActivity() {
@@ -17,14 +18,18 @@ class AuthActivity : AppCompatActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
 
-        val profileStore = ProfileStore(this)
         val authStore = AuthStore(this)
-        val destination = when {
-            !profileStore.hasSelectedLanguage() ->
-                LanguageSelectionActivity.intent(this, onboarding = true)
-            !authStore.isLoggedIn() -> PhoneAuthActivity.intent(this)
-            AuthNavigator.needsSubscription(authStore.getStatus()) -> SubscriptionActivity.intent(this)
-            else -> Intent(this, Home::class.java)
+        val route = AuthNavigator.launchDestination(
+            hasSelectedLanguage = ProfileStore(this).hasSelectedLanguage(),
+            isLoggedIn = authStore.isLoggedIn(),
+            status = authStore.getStatus(),
+            browsingWithoutTrial = authStore.isBrowsingWithoutTrial(),
+        )
+        val destination = when (route) {
+            LaunchDestination.LANGUAGE_SELECTION -> LanguageSelectionActivity.intent(this, onboarding = true)
+            LaunchDestination.PHONE_AUTH -> PhoneAuthActivity.intent(this)
+            LaunchDestination.SUBSCRIPTION -> SubscriptionActivity.intent(this)
+            LaunchDestination.HOME -> Intent(this, Home::class.java)
         }
 
         startActivity(destination)

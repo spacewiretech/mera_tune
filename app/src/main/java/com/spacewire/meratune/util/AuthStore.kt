@@ -40,7 +40,18 @@ class AuthStore(context: Context) {
             .apply()
     }
 
-    /** Logout: drops the profile and the API token. */
+    /**
+     * The user left the paywall with its Home button: app launches then open Home instead of the
+     * paywall while [getStatus] still needs a subscription. Session-scoped: kept in this file so
+     * logout ([clearSession]) drops it and Auto Backup never restores it onto a new login.
+     */
+    fun isBrowsingWithoutTrial(): Boolean = prefs.getBoolean(KEY_BROWSING_WITHOUT_TRIAL, false)
+
+    fun markBrowsingWithoutTrial() {
+        prefs.edit().putBoolean(KEY_BROWSING_WITHOUT_TRIAL, true).apply()
+    }
+
+    /** Logout: drops the profile, the API token and the browse-without-trial choice. */
     fun clearSession() {
         prefs.edit().clear().apply()
     }
@@ -53,5 +64,6 @@ class AuthStore(context: Context) {
         private const val KEY_NAME = "name"
         private const val KEY_STATUS = "status"
         private const val KEY_API_TOKEN = "api_token"
+        private const val KEY_BROWSING_WITHOUT_TRIAL = "browse_without_trial"
     }
 }

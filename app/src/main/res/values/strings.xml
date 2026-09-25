@@ -203,6 +203,7 @@
 
     <!-- lane A: paywall, payment states, member screen -->
     <string name="price_rupee" translatable="false">₹%1$s</string>
+    <string name="paywall_home_button">Home par jayen</string>
     <string name="paywall_title">Get 1-Day Access for</string>
     <string name="paywall_price_a11y">Pehle ₹%1$s, ab sirf ₹%2$s</string>
     <string name="paywall_then_price">Then ₹%1$s/month • Cancel anytime</string>

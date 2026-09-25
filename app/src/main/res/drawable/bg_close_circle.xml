@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Paywall close X: 40dp ring (1.5dp navy) inset in a 48dp touch target, with a round ripple. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="?attr/colorControlHighlight">
+    <item>
+        <inset android:inset="4dp">
+            <shape android:shape="oval">
+                <solid android:color="@android:color/transparent" />
+                <stroke
+                    android:width="1.5dp"
+                    android:color="@color/navy" />
+            </shape>
+        </inset>
+    </item>
+    <item android:id="@android:id/mask">
+        <inset android:inset="4dp">
+            <shape android:shape="oval">
+                <solid android:color="@android:color/white" />
+            </shape>
+        </inset>
+    </item>
+</ripple>

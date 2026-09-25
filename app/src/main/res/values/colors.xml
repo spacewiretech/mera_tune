@@ -33,4 +33,23 @@
     <!-- P3 shared list rows -->
     <color name="home_play_overlay_disc">#EBFFFFFF</color>
     <color name="home_play_overlay_glyph">#73120938</color>
+    <!-- lane A: paywall, payment states, member screen -->
+    <color name="surface_paywall">#FCF6F3</color>
+    <color name="surface_payment_pending">#FFFEFA</color>
+    <color name="surface_payment_failed">#FFF6F5</color>
+    <color name="card_paywall_benefits">#FCEDED</color>
+    <color name="card_member_checklist">#FFFBF5</color>
+    <color name="status_pending">#FEC804</color>
+    <color name="status_error">#F92206</color>
+    <color name="stroke_video_card">#B2ADAD</color>
+    <color name="paywall_bar_glow">#FBEAED</color>
+    <color name="benefit_check_start">#F94B79</color>
+    <color name="benefit_check_end">#FB6357</color>
+    <color name="disc_gradient_top">#FDA532</color>
+    <color name="disc_gradient_bottom">#F95C98</color>
+    <color name="video_scrim">#59FFFFFF</color>
+    <color name="video_placeholder">#F3E9E6</color>
+    <color name="text_faq">#101010</color>
+    <color name="member_star">#FFC93C</color>
+    <color name="member_star_highlight">#FFE9A6</color>
 </resources>

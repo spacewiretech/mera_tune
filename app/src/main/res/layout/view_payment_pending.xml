@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Payment Pending (SubscriptionActivity state PENDING): rotating ring + manual status check. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:overScrollMode="never"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingHorizontal="29dp"
+        android:paddingVertical="32dp">
+
+        <ImageView
+            android:id="@+id/pendingRing"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_payment_pending_ring" />
+
+        <TextView
+            android:id="@+id/pendingTitle"
+            style="@style/Text.MeraTune.Title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="36dp"
+            android:accessibilityHeading="true"
+            android:gravity="center"
+            android:text="@string/paywall_pending_title"
+            android:textSize="24sp" />
+
+        <TextView
+            android:id="@+id/pendingBody"
+            style="@style/Text.MeraTune.Body.Muted"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:maxWidth="300dp"
+            android:text="@string/paywall_pending_body" />
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="128dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/pendingCheckButton"
+                style="@style/Widget.MeraTune.Cta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/paywall_pending_cta"
+                app:icon="@drawable/ic_arrow_next_white" />
+
+            <ProgressBar
+                android:id="@+id/pendingCheckProgress"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="center"
+                android:indeterminateTint="@color/white"
+                android:visibility="gone" />
+        </FrameLayout>
+    </LinearLayout>
+</ScrollView>

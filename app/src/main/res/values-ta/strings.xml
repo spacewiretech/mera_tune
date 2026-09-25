@@ -109,8 +109,6 @@
     <string name="ready_change_song">பாடலை மாற்று</string>
     <string name="ready_make_another">புதிய பெயரை முயற்சிக்கவும்</string>
     <string name="ready_go_home">முகப்புக்குச் செல்</string>
-    <string name="auth_speaker">சத்தமாக படிக்க</string>
-    <string name="auth_language">மொழியை மாற்று</string>
     <!-- UI refresh: native review pending -->
     <string name="language_continue">தொடரவும்</string>
     <!-- UI refresh: native review pending -->
@@ -127,12 +125,6 @@
     <string name="auth_name_required">தயவுசெய்து உங்கள் பெயரை உள்ளிடவும்</string>
     <string name="auth_generic_error">ஏதோ தவறு ஏற்பட்டது. மீண்டும் முயற்சிக்கவும்.</string>
     <string name="subscription_logout">வெளியேறு</string>
-    <string name="subscription_title_prefix">1-நாள்</string>
-    <string name="subscription_free_badge">இலவச சோதனை</string>
-    <string name="subscription_rating">★★★★★ 4.6 ( 10M+ Subscribers)</string>
-    <string name="subscription_feature_auth">வெறும் ₹ %1$s செலுத்தி சோதனையைத் தொடங்குங்கள்</string>
-    <string name="subscription_feature_trial">1-நாள் இலவசம், எப்போது வேண்டுமானாலும் ரத்து செய்யலாம்</string>
-    <string name="subscription_feature_autopay">தானியங்கி கட்டணம் ₹ %1$s/1 மாதங்கள்</string>
     <string name="subscription_phonepe">PhonePe</string>
     <string name="subscription_select_payment_app">கட்டண செயலியை தேர்ந்தெடுக்கவும்</string>
     <string name="subscription_payment_app_not_installed">இந்த சாதனத்தில் %1$s நிறுவப்படவில்லை</string>
@@ -140,7 +132,6 @@
     <string name="subscription_try_now">இப்போது முயற்சிக்கவும்</string>
     <string name="subscription_play_video">வீடியோ இயக்கு</string>
     <string name="subscription_error">கட்டணத்தை தொடங்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.</string>
-    <string name="subscription_pending">கட்டணம் பெறப்பட்டது. உங்கள் சோதனையை செயல்படுத்துகிறது…</string>
 
     <!-- UI refresh: native review pending -->
     <string name="cta_loading">ஏற்றுகிறது…</string>
@@ -160,4 +151,44 @@
     <string name="category_all_tunes">அனைத்து டியூன்கள்</string>
     <!-- UI refresh: native review pending -->
     <string name="category_your_name">உங்கள் பெயர்</string>
+
+    <!-- lane A: paywall, payment states, member screen. UI refresh: native review pending -->
+    <string name="paywall_title">1 நாள் அணுகலைப் பெறுங்கள்</string>
+    <string name="paywall_price_a11y">முன்பு ₹%1$s, இப்போது வெறும் ₹%2$s</string>
+    <string name="paywall_then_price">பிறகு ₹%1$s/மாதம் • எப்போது வேண்டுமானாலும் ரத்து செய்யலாம்</string>
+    <string name="paywall_benefits_title">உறுப்பினர் நன்மைகள்</string>
+    <string name="paywall_benefit_names">உங்கள் பெயரில் வரம்பற்ற ட்யூன்களை உருவாக்குங்கள்</string>
+    <string name="paywall_benefit_photo">நீங்கள் அழைப்பவர்களுக்கு உங்கள் புகைப்படம் தெரியும்</string>
+    <string name="paywall_benefit_family">குடும்பத்திற்கான ட்யூன்கள்</string>
+    <string name="paywall_benefit_monthly">ஒவ்வொரு மாதமும் புதிய ட்யூன்கள் — பாலிவுட், பக்தி, சினிமாட்டிக் போன்றவை.</string>
+    <string name="paywall_faq_title">அடிக்கடி கேட்கப்படும் கேள்விகள்</string>
+    <string name="paywall_faq_q1">MeraTune-இல் எனக்கு என்ன கிடைக்கும்?</string>
+    <string name="paywall_faq_a1">உறுப்பினராக, உங்கள் பெயருடன் தனிப்பயன் ரிங்டோன்களை உருவாக்கலாம், குடும்பத்திற்கு ட்யூன்களை அமைக்கலாம், அழைப்பு வரும்போது திரையில் புகைப்படத்தைக் காட்டலாம். ஒவ்வொரு மாதமும் புதிய ட்யூன்களும் சேர்க்கப்படும்.</string>
+    <string name="paywall_faq_q2">₹%1$s சோதனை எப்படி செயல்படுகிறது?</string>
+    <string name="paywall_faq_a2">இன்று வெறும் ₹%1$s செலுத்தி உறுப்பினராகுங்கள். பணம் செலுத்தும்போது உங்கள் UPI ஆப்பில் ஆட்டோபே அமைக்கப்படும், மறுநாள் காலை (சுமார் 10 மணி) முதல் நீங்கள் ரத்து செய்யும் வரை மாதம் ₹%2$s தானாகக் கழிக்கப்படும்.</string>
+    <string name="paywall_faq_q3">நான் எப்போது வேண்டுமானாலும் ரத்து செய்யலாமா?</string>
+    <string name="paywall_faq_a3">ஆம். உங்கள் UPI ஆப்பின் (எ.கா. PhonePe, Google Pay, Paytm அல்லது BHIM) Autopay / Mandates பகுதிக்குச் சென்று MeraTune ஆட்டோபேயை எப்போது வேண்டுமானாலும் ரத்து செய்யலாம். ரத்து செய்த பிறகு எந்த ஆட்டோபே கட்டணமும் கழிக்கப்படாது. உதவிக்கு Profile-இல் Help &amp; Support பாருங்கள்.</string>
+    <string name="paywall_faq_q4">உடனே கட்டணம் வசூலிக்கப்படுமா?</string>
+    <string name="paywall_faq_a4">ஆம், இப்போது வெறும் ₹%1$s மட்டும் கழிக்கப்படும். இது ஒருமுறை சோதனைக் கட்டணம், திருப்பித் தரப்படாது. ₹%2$s-இன் முதல் ஆட்டோபே மறுநாள் காலை சுமார் 10 மணிக்குக் கழிக்கப்படும், பிறகு ஒவ்வொரு மாதமும். அதற்கு முன் ரத்து செய்தால் ₹%2$s கழிக்கப்படாது.</string>
+    <string name="paywall_faq_state_expanded">திறந்துள்ளது</string>
+    <string name="paywall_faq_state_collapsed">மூடியுள்ளது</string>
+    <string name="paywall_cta">ட்யூன் உருவாக்கு</string>
+    <string name="paywall_pending_title">பணம் நிலுவையில் உள்ளது</string>
+    <string name="paywall_pending_body">உங்கள் பணம் சரிபார்க்கப்படுகிறது. உறுதிசெய்யும் வரை காத்திருக்கவும்.</string>
+    <string name="paywall_pending_cta">பண நிலையைப் பார்க்கவும்</string>
+    <string name="paywall_pending_not_yet">பணம் இன்னும் உறுதிசெய்யப்படவில்லை. சிறிது நேரம் கழித்து மீண்டும் பாருங்கள்.</string>
+    <string name="paywall_pending_check_failed">நிலையைச் சரிபார்க்க முடியவில்லை. இணையத்தைச் சரிபார்த்து மீண்டும் முயலுங்கள்.</string>
+    <string name="paywall_failed_title">பணம் செலுத்துதல் தோல்வி</string>
+    <string name="paywall_failed_body">உங்கள் பணம் செலுத்துதலை முடிக்க முடியவில்லை. மீண்டும் முயலவும் அல்லது வேறு கட்டண முறையைப் பயன்படுத்தவும்.</string>
+    <string name="paywall_failed_reason_bank">உங்கள் வங்கி பணத்தை நிராகரித்தது</string>
+    <string name="paywall_failed_reason_funds">போதுமான இருப்பு இல்லை</string>
+    <string name="paywall_failed_reason_details">தவறான கட்டண விவரங்கள்</string>
+    <string name="paywall_failed_cta">மீண்டும் முயலுங்கள்</string>
+    <string name="member_title">நீங்கள் இப்போது உறுப்பினர்!</string>
+    <string name="member_subtitle">₹%1$s-க்கு 1 நாள் · எப்போது வேண்டுமானாலும் ரத்து செய்யலாம்</string>
+    <string name="member_checklist_title">இன்று இந்த 3 விஷயங்களைச் செய்யுங்கள்</string>
+    <string name="member_row_first_tune">உங்கள் முதல் ட்யூனை உருவாக்குங்கள்</string>
+    <string name="member_row_photo">அழைப்புகளில் புகைப்படத்தை இயக்குங்கள்</string>
+    <string name="member_row_family">குடும்பத்திற்கு ட்யூன்களை உருவாக்குங்கள்</string>
+    <string name="member_cta">உங்கள் ட்யூனை உருவாக்குங்கள்</string>
 </resources>

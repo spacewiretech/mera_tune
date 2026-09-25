@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Member badge star with sparkles (vector fallback until the designer's member_star asset lands). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="36dp"
+    android:height="36dp"
+    android:viewportWidth="36"
+    android:viewportHeight="36">
+    <path
+        android:fillColor="@color/member_star"
+        android:pathData="M18,8.5l2.94,5.96l6.58,0.96l-4.76,4.64l1.12,6.55L18,23.52l-5.88,3.09l1.12,-6.55l-4.76,-4.64l6.58,-0.96z"
+        android:strokeWidth="1.2"
+        android:strokeColor="@color/member_star_highlight"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M18,2.5L18,5M9.5,5.5L11,7.5M26.5,5.5L25,7.5M18,29L18,33"
+        android:strokeWidth="1.6"
+        android:strokeColor="@color/member_star"
+        android:strokeLineCap="round" />
+</vector>

@@ -2,19 +2,27 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:background="@drawable/bg_bottom_sheet"
     android:orientation="vertical"
-    android:paddingTop="8dp"
-    android:background="@color/white"
     android:paddingBottom="24dp">
 
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_sheet_handle"
+        android:importantForAccessibility="no" />
+
     <TextView
+        style="@style/Text.MeraTune.Title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:fontFamily="@font/manrope_bold"
+        android:accessibilityHeading="true"
         android:paddingHorizontal="20dp"
-        android:paddingBottom="12dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="8dp"
         android:text="@string/subscription_select_payment_app"
-        android:textColor="@color/navy"
         android:textSize="18sp" />
 
     <LinearLayout

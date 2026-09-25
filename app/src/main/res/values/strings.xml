@@ -148,8 +148,6 @@
     <string name="ready_change_song">Gaana Badlein</string>
     <string name="ready_make_another">Naya Naam Try Karein</string>
     <string name="ready_go_home">Home Par Jaayein</string>
-    <string name="auth_speaker">Read aloud</string>
-    <string name="auth_language">Change language</string>
     <string name="language_continue">Aage badhein</string>
     <string name="language_subtitle_english" translatable="false">English</string>
     <string name="language_subtitle_hindi" translatable="false">Hindi</string>
@@ -172,12 +170,6 @@
     <string name="auth_name_required">Please enter your name</string>
     <string name="auth_generic_error">Something went wrong. Please try again.</string>
     <string name="subscription_logout">Log out</string>
-    <string name="subscription_title_prefix">1-Day</string>
-    <string name="subscription_free_badge">FREE Trial</string>
-    <string name="subscription_rating">★★★★★ 4.6 ( 500K Subscribers)</string>
-    <string name="subscription_feature_auth">Start trial by paying just ₹ %1$s</string>
-    <string name="subscription_feature_trial">1-Day FREE, cancel anytime</string>
-    <string name="subscription_feature_autopay">Autopay ₹ %1$s/1 months</string>
     <string name="subscription_phonepe">PhonePe</string>
     <string name="subscription_select_payment_app">Select payment app</string>
     <string name="subscription_payment_app_not_installed">%1$s is not installed on this device</string>
@@ -189,7 +181,6 @@
     <string name="subscription_error">Could not start payment. Please try again.</string>
     <string name="subscription_auth_failed">Payment authentication failed. Check Cashfree App ID and Secret Key match production in Supabase app_config.</string>
     <string name="subscription_integrity_failed">Production payments require the app to be installed from Google Play internal testing. Debug installs are blocked by Cashfree.</string>
-    <string name="subscription_pending">Payment received. Activating your trial…</string>
 
     <!-- UI refresh: shared CTA / close (cta_loading = state description while a CTA shows its spinner) -->
     <string name="cta_loading">Load ho raha hai…</string>
@@ -212,4 +203,45 @@
     <!-- P3 shared list rows: category display labels (analytics keep DB names) -->
     <string name="category_all_tunes">All Tunes</string>
     <string name="category_your_name">Your Name</string>
+
+    <!-- lane A: paywall, payment states, member screen -->
+    <string name="price_rupee" translatable="false">₹%1$s</string>
+    <string name="paywall_title">Get 1-Day Access for</string>
+    <string name="paywall_price_a11y">Pehle ₹%1$s, ab sirf ₹%2$s</string>
+    <string name="paywall_then_price">Then ₹%1$s/month • Cancel anytime</string>
+    <string name="paywall_benefits_title">Membership ke fayde</string>
+    <string name="paywall_benefit_names">Apne naam ki unlimited tunes banayein</string>
+    <string name="paywall_benefit_photo">Jisko call karein, unhe aapki photo dikhe</string>
+    <string name="paywall_benefit_family">Family ke liye tunes</string>
+    <string name="paywall_benefit_monthly">Har mahine nayi tunes — Bollywood, Devotional, Cinematic, etc.</string>
+    <string name="paywall_faq_title">FAQ’s</string>
+    <string name="paywall_faq_q1">What do I get with MeraTune?</string>
+    <string name="paywall_faq_a1">Membership mein aap apne naam wali personalised ringtones bana sakte hain, family ke liye tunes set kar sakte hain aur call aane par screen par photo laga sakte hain. Har mahine nayi tunes bhi judti rehti hain.</string>
+    <string name="paywall_faq_q2">How does the ₹%1$s trial work?</string>
+    <string name="paywall_faq_a2">Aaj sirf ₹%1$s dekar membership shuru karein. Payment ke waqt aapke UPI app mein Autopay set hota hai, aur agle din subah (lagbhag 10 baje) se ₹%2$s/month apne aap katenge, jab tak aap cancel na karein.</string>
+    <string name="paywall_faq_q3">Can I cancel anytime?</string>
+    <string name="paywall_faq_a3">Haan. Apne UPI app (jaise PhonePe, Google Pay, Paytm ya BHIM) ke Autopay / Mandates section mein jaakar MeraTune ka autopay kabhi bhi cancel kar sakte hain. Cancel karne ke baad aage koi autopay charge nahi katega. Madad ke liye Profile mein Help &amp; Support dekhein.</string>
+    <string name="paywall_faq_q4">Will I be charged immediately?</string>
+    <string name="paywall_faq_a4">Haan, abhi sirf ₹%1$s katenge. Yeh ek baar ka trial charge hai aur wapas nahi hota. ₹%2$s ka pehla autopay agle din subah lagbhag 10 baje katega, phir har mahine. Usse pehle cancel karne par ₹%2$s nahi katenge.</string>
+    <string name="paywall_faq_state_expanded">Khula hai</string>
+    <string name="paywall_faq_state_collapsed">Band hai</string>
+    <string name="paywall_cta">Tune banayein</string>
+    <string name="paywall_pending_title">Payment Pending</string>
+    <string name="paywall_pending_body">Your payment is being verified. Please wait while we confirm it.</string>
+    <string name="paywall_pending_cta">Payment Status Dekhein</string>
+    <string name="paywall_pending_not_yet">Payment abhi confirm nahi hua. Thodi der mein dobara dekhein.</string>
+    <string name="paywall_pending_check_failed">Status check nahi ho paya. Internet check karke dobara try karein.</string>
+    <string name="paywall_failed_title">Payment Failed</string>
+    <string name="paywall_failed_body">We couldn’t complete your payment. Please try again or use another payment method.</string>
+    <string name="paywall_failed_reason_bank">Payment declined by your bank</string>
+    <string name="paywall_failed_reason_funds">Insufficient funds</string>
+    <string name="paywall_failed_reason_details">Incorrect payment details</string>
+    <string name="paywall_failed_cta">Dobara Try Karein</string>
+    <string name="member_title">Aap ab member hain!</string>
+    <string name="member_subtitle">₹%1$s mein 1 din · Kabhi bhi cancel karein</string>
+    <string name="member_checklist_title">Yeh 3 cheezein karo aaj</string>
+    <string name="member_row_first_tune">Apni pehli tune banayein</string>
+    <string name="member_row_photo">Photo on calls chalu karein</string>
+    <string name="member_row_family">Family ke liye tunes banayein</string>
+    <string name="member_cta">Apni tune banayein</string>
 </resources>

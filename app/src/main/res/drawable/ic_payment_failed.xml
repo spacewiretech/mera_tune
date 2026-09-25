@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Payment Failed: red ring with a round-cap X. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="64dp"
+    android:height="64dp"
+    android:viewportWidth="64"
+    android:viewportHeight="64">
+    <path
+        android:pathData="M32,3a29,29 0,1 1,0 58a29,29 0,1 1,0 -58z"
+        android:strokeWidth="4"
+        android:strokeColor="@color/status_error" />
+    <path
+        android:pathData="M23,23L41,41M41,23L23,41"
+        android:strokeWidth="4"
+        android:strokeColor="@color/status_error"
+        android:strokeLineCap="round" />
+</vector>

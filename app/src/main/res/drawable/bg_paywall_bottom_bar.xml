@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Floating paywall bar: two soft pink glow rings around a light pill. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#80FBEAED" />
+            <corners android:radius="40dp" />
+        </shape>
+    </item>
+    <item
+        android:bottom="3dp"
+        android:left="3dp"
+        android:right="3dp"
+        android:top="3dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/paywall_bar_glow" />
+            <corners android:radius="37dp" />
+        </shape>
+    </item>
+    <item
+        android:bottom="6dp"
+        android:left="6dp"
+        android:right="6dp"
+        android:top="6dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/white" />
+            <corners android:radius="34dp" />
+        </shape>
+    </item>
+</layer-list>

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Payment Failed (SubscriptionActivity state FAILED). The reasons box shows only for payment_failed. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:overScrollMode="never"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingHorizontal="29dp"
+        android:paddingVertical="32dp">
+
+        <ImageView
+            android:id="@+id/failedIcon"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_payment_failed" />
+
+        <TextView
+            android:id="@+id/failedTitle"
+            style="@style/Text.MeraTune.Title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="36dp"
+            android:accessibilityHeading="true"
+            android:gravity="center"
+            android:text="@string/paywall_failed_title"
+            android:textSize="24sp" />
+
+        <TextView
+            android:id="@+id/failedBody"
+            style="@style/Text.MeraTune.Body.Muted"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:maxWidth="300dp"
+            android:text="@string/paywall_failed_body" />
+
+        <LinearLayout
+            android:id="@+id/failedReasons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="10dp"
+            android:layout_marginTop="96dp"
+            android:background="@drawable/bg_payment_failed_reasons"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:paddingVertical="12dp">
+
+            <TextView
+                style="@style/Text.MeraTune.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:drawablePadding="12dp"
+                android:text="@string/paywall_failed_reason_bank"
+                app:drawableStartCompat="@drawable/bg_bullet_dot" />
+
+            <TextView
+                style="@style/Text.MeraTune.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:drawablePadding="12dp"
+                android:text="@string/paywall_failed_reason_funds"
+                app:drawableStartCompat="@drawable/bg_bullet_dot" />
+
+            <TextView
+                style="@style/Text.MeraTune.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:drawablePadding="12dp"
+                android:text="@string/paywall_failed_reason_details"
+                app:drawableStartCompat="@drawable/bg_bullet_dot" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/failedRetryButton"
+            style="@style/Widget.MeraTune.Cta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="40dp"
+            android:text="@string/paywall_failed_cta"
+            app:icon="@drawable/ic_arrow_next_white" />
+    </LinearLayout>
+</ScrollView>

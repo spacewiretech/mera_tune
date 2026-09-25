@@ -110,6 +110,9 @@
             android:name=".SubscriptionActivity"
             android:exported="false" />
         <activity
+            android:name=".MembershipWelcomeActivity"
+            android:exported="false" />
+        <activity
             android:name=".Home"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />

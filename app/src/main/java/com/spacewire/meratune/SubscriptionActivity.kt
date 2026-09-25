@@ -242,6 +242,10 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         failedReasons = findViewById(R.id.failedReasons)
         pendingRing = findViewById(R.id.pendingRing)
         videoPlayerView = findViewById(R.id.subscriptionVideoPlayer)
+        // android:clipToOutline in XML only applies on API 31+; set it in code so the video,
+        // scrim and poster are clipped to the card's rounded corners on every supported version.
+        findViewById<View>(R.id.videoContainer).clipToOutline = true
+        videoPlayerView.clipToOutline = true
         playButton = findViewById(R.id.playButton)
         videoScrim = findViewById(R.id.videoScrim)
         tryNowButton = findViewById(R.id.tryNowButton)

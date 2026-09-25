@@ -109,8 +109,6 @@
     <string name="ready_change_song">ಹಾಡು ಬದಲಾಯಿಸಿ</string>
     <string name="ready_make_another">ಹೊಸ ಹೆಸರು ಪ್ರಯತ್ನಿಸಿ</string>
     <string name="ready_go_home">ಹೋಮ್‌ಗೆ ಹೋಗಿ</string>
-    <string name="auth_speaker">ಜೋರಾಗಿ ಓದಿ</string>
-    <string name="auth_language">ಭಾಷೆ ಬದಲಾಯಿಸಿ</string>
     <!-- UI refresh: native review pending -->
     <string name="language_continue">ಮುಂದುವರಿಯಿರಿ</string>
     <!-- UI refresh: native review pending -->
@@ -127,12 +125,6 @@
     <string name="auth_name_required">ದಯವಿಟ್ಟು ನಿಮ್ಮ ಹೆಸರನ್ನು ನಮೂದಿಸಿ</string>
     <string name="auth_generic_error">ಏನೋ ತಪ್ಪಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</string>
     <string name="subscription_logout">ಲಾಗ್ ಔಟ್</string>
-    <string name="subscription_title_prefix">1-ದಿನ</string>
-    <string name="subscription_free_badge">ಉಚಿತ ಪ್ರಯೋಗ</string>
-    <string name="subscription_rating">★★★★★ 4.6 ( 10M+ Subscribers)</string>
-    <string name="subscription_feature_auth">₹ %1$s ಮಾತ್ರ ಪಾವತಿಸಿ ಪ್ರಯೋಗವನ್ನು ಪ್ರಾರಂಭಿಸಿ</string>
-    <string name="subscription_feature_trial">1-ದಿನ ಉಚಿತ, ಯಾವಾಗ ಬೇಕಾದರೂ ರದ್ದುಗೊಳಿಸಿ</string>
-    <string name="subscription_feature_autopay">ಸ್ವಯಂ ಪಾವತಿ ₹ %1$s/1 ತಿಂಗಳು</string>
     <string name="subscription_phonepe">PhonePe</string>
     <string name="subscription_select_payment_app">ಪಾವತಿ ಆ್ಯಪ್ ಆಯ್ಕೆ ಮಾಡಿ</string>
     <string name="subscription_payment_app_not_installed">ಈ ಸಾಧನದಲ್ಲಿ %1$s ಇನ್‌ಸ್ಟಾಲ್ ಆಗಿಲ್ಲ</string>
@@ -140,7 +132,6 @@
     <string name="subscription_try_now">ಈಗ ಪ್ರಯತ್ನಿಸಿ</string>
     <string name="subscription_play_video">ವೀಡಿಯೊ ಪ್ಲೇ ಮಾಡಿ</string>
     <string name="subscription_error">ಪಾವತಿ ಪ್ರಾರಂಭಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</string>
-    <string name="subscription_pending">ಪಾವತಿ ಸ್ವೀಕರಿಸಲಾಗಿದೆ. ನಿಮ್ಮ ಪ್ರಯೋಗವನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಲಾಗುತ್ತಿದೆ…</string>
 
     <!-- UI refresh: native review pending -->
     <string name="cta_loading">ಲೋಡ್ ಆಗುತ್ತಿದೆ…</string>
@@ -155,4 +146,44 @@
     <string name="auth_otp_verify">ಪರಿಶೀಲಿಸಿ</string>
     <string name="auth_name_headline">ನಿಮ್ಮ %1$s</string>
     <string name="auth_name_headline_highlight">ಹೆಸರನ್ನು ನಮೂದಿಸಿ</string>
+
+    <!-- lane A: paywall, payment states, member screen. UI refresh: native review pending -->
+    <string name="paywall_title">1 ದಿನದ ಪ್ರವೇಶ ಪಡೆಯಿರಿ</string>
+    <string name="paywall_price_a11y">ಮೊದಲು ₹%1$s, ಈಗ ಕೇವಲ ₹%2$s</string>
+    <string name="paywall_then_price">ನಂತರ ₹%1$s/ತಿಂಗಳು • ಯಾವಾಗ ಬೇಕಾದರೂ ರದ್ದುಮಾಡಿ</string>
+    <string name="paywall_benefits_title">ಸದಸ್ಯತ್ವದ ಪ್ರಯೋಜನಗಳು</string>
+    <string name="paywall_benefit_names">ನಿಮ್ಮ ಹೆಸರಿನ ಅನಿಯಮಿತ ಟ್ಯೂನ್‌ಗಳನ್ನು ಮಾಡಿ</string>
+    <string name="paywall_benefit_photo">ನೀವು ಕರೆ ಮಾಡುವವರಿಗೆ ನಿಮ್ಮ ಫೋಟೋ ಕಾಣಿಸುತ್ತದೆ</string>
+    <string name="paywall_benefit_family">ಕುಟುಂಬಕ್ಕಾಗಿ ಟ್ಯೂನ್‌ಗಳು</string>
+    <string name="paywall_benefit_monthly">ಪ್ರತಿ ತಿಂಗಳು ಹೊಸ ಟ್ಯೂನ್‌ಗಳು — ಬಾಲಿವುಡ್, ಭಕ್ತಿ, ಸಿನಿಮಾಟಿಕ್, ಇತ್ಯಾದಿ.</string>
+    <string name="paywall_faq_title">ಪದೇ ಪದೇ ಕೇಳುವ ಪ್ರಶ್ನೆಗಳು</string>
+    <string name="paywall_faq_q1">MeraTune ನಲ್ಲಿ ನನಗೆ ಏನು ಸಿಗುತ್ತದೆ?</string>
+    <string name="paywall_faq_a1">ಸದಸ್ಯತ್ವದಲ್ಲಿ ನೀವು ನಿಮ್ಮ ಹೆಸರಿನ ವೈಯಕ್ತಿಕ ರಿಂಗ್‌ಟೋನ್‌ಗಳನ್ನು ಮಾಡಬಹುದು, ಕುಟುಂಬಕ್ಕಾಗಿ ಟ್ಯೂನ್‌ಗಳನ್ನು ಹೊಂದಿಸಬಹುದು ಮತ್ತು ಕರೆ ಬಂದಾಗ ಪರದೆಯ ಮೇಲೆ ಫೋಟೋ ಹಾಕಬಹುದು. ಪ್ರತಿ ತಿಂಗಳು ಹೊಸ ಟ್ಯೂನ್‌ಗಳೂ ಸೇರುತ್ತವೆ.</string>
+    <string name="paywall_faq_q2">₹%1$s ಟ್ರಯಲ್ ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತದೆ?</string>
+    <string name="paywall_faq_a2">ಇಂದು ಕೇವಲ ₹%1$s ಪಾವತಿಸಿ ಸದಸ್ಯತ್ವ ಆರಂಭಿಸಿ. ಪಾವತಿಯ ವೇಳೆ ನಿಮ್ಮ UPI ಆ್ಯಪ್‌ನಲ್ಲಿ ಆಟೋಪೇ ಹೊಂದಿಸಲಾಗುತ್ತದೆ, ಮತ್ತು ಮರುದಿನ ಬೆಳಿಗ್ಗೆ (ಸುಮಾರು 10 ಗಂಟೆ) ಯಿಂದ ನೀವು ರದ್ದುಮಾಡುವವರೆಗೆ ತಿಂಗಳಿಗೆ ₹%2$s ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಕಡಿತವಾಗುತ್ತದೆ.</string>
+    <string name="paywall_faq_q3">ನಾನು ಯಾವಾಗ ಬೇಕಾದರೂ ರದ್ದುಮಾಡಬಹುದೇ?</string>
+    <string name="paywall_faq_a3">ಹೌದು. ನಿಮ್ಮ UPI ಆ್ಯಪ್‌ನ (ಉದಾ. PhonePe, Google Pay, Paytm ಅಥವಾ BHIM) Autopay / Mandates ವಿಭಾಗಕ್ಕೆ ಹೋಗಿ MeraTune ಆಟೋಪೇಯನ್ನು ಯಾವಾಗ ಬೇಕಾದರೂ ರದ್ದುಮಾಡಬಹುದು. ರದ್ದುಮಾಡಿದ ನಂತರ ಯಾವುದೇ ಆಟೋಪೇ ಶುಲ್ಕ ಕಡಿತವಾಗುವುದಿಲ್ಲ. ಸಹಾಯಕ್ಕಾಗಿ Profile ನಲ್ಲಿ Help &amp; Support ನೋಡಿ.</string>
+    <string name="paywall_faq_q4">ನನಗೆ ತಕ್ಷಣ ಶುಲ್ಕ ವಿಧಿಸಲಾಗುತ್ತದೆಯೇ?</string>
+    <string name="paywall_faq_a4">ಹೌದು, ಈಗ ಕೇವಲ ₹%1$s ಕಡಿತವಾಗುತ್ತದೆ. ಇದು ಒಂದು ಬಾರಿಯ ಟ್ರಯಲ್ ಶುಲ್ಕ ಮತ್ತು ಮರುಪಾವತಿಯಾಗುವುದಿಲ್ಲ. ₹%2$s ನ ಮೊದಲ ಆಟೋಪೇ ಮರುದಿನ ಬೆಳಿಗ್ಗೆ ಸುಮಾರು 10 ಗಂಟೆಗೆ ಕಡಿತವಾಗುತ್ತದೆ, ನಂತರ ಪ್ರತಿ ತಿಂಗಳು. ಅದಕ್ಕೂ ಮೊದಲು ರದ್ದುಮಾಡಿದರೆ ₹%2$s ಕಡಿತವಾಗುವುದಿಲ್ಲ.</string>
+    <string name="paywall_faq_state_expanded">ತೆರೆದಿದೆ</string>
+    <string name="paywall_faq_state_collapsed">ಮುಚ್ಚಿದೆ</string>
+    <string name="paywall_cta">ಟ್ಯೂನ್ ಮಾಡಿ</string>
+    <string name="paywall_pending_title">ಪಾವತಿ ಬಾಕಿ ಇದೆ</string>
+    <string name="paywall_pending_body">ನಿಮ್ಮ ಪಾವತಿಯನ್ನು ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ. ದೃಢೀಕರಿಸುವವರೆಗೆ ದಯವಿಟ್ಟು ಕಾಯಿರಿ.</string>
+    <string name="paywall_pending_cta">ಪಾವತಿ ಸ್ಥಿತಿ ನೋಡಿ</string>
+    <string name="paywall_pending_not_yet">ಪಾವತಿ ಇನ್ನೂ ದೃಢೀಕರಿಸಲಾಗಿಲ್ಲ. ಸ್ವಲ್ಪ ಸಮಯದ ನಂತರ ಮತ್ತೆ ನೋಡಿ.</string>
+    <string name="paywall_pending_check_failed">ಸ್ಥಿತಿ ಪರಿಶೀಲಿಸಲು ಆಗಲಿಲ್ಲ. ಇಂಟರ್ನೆಟ್ ಪರಿಶೀಲಿಸಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</string>
+    <string name="paywall_failed_title">ಪಾವತಿ ವಿಫಲವಾಗಿದೆ</string>
+    <string name="paywall_failed_body">ನಿಮ್ಮ ಪಾವತಿಯನ್ನು ಪೂರ್ಣಗೊಳಿಸಲು ಆಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ ಅಥವಾ ಬೇರೆ ಪಾವತಿ ವಿಧಾನ ಬಳಸಿ.</string>
+    <string name="paywall_failed_reason_bank">ನಿಮ್ಮ ಬ್ಯಾಂಕ್ ಪಾವತಿಯನ್ನು ನಿರಾಕರಿಸಿದೆ</string>
+    <string name="paywall_failed_reason_funds">ಖಾತೆಯಲ್ಲಿ ಸಾಕಷ್ಟು ಹಣವಿಲ್ಲ</string>
+    <string name="paywall_failed_reason_details">ತಪ್ಪಾದ ಪಾವತಿ ವಿವರಗಳು</string>
+    <string name="paywall_failed_cta">ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ</string>
+    <string name="member_title">ನೀವು ಈಗ ಸದಸ್ಯರು!</string>
+    <string name="member_subtitle">₹%1$s ಗೆ 1 ದಿನ · ಯಾವಾಗ ಬೇಕಾದರೂ ರದ್ದುಮಾಡಿ</string>
+    <string name="member_checklist_title">ಇಂದು ಈ 3 ಕೆಲಸಗಳನ್ನು ಮಾಡಿ</string>
+    <string name="member_row_first_tune">ನಿಮ್ಮ ಮೊದಲ ಟ್ಯೂನ್ ಮಾಡಿ</string>
+    <string name="member_row_photo">ಕರೆಗಳಲ್ಲಿ ಫೋಟೋ ಆನ್ ಮಾಡಿ</string>
+    <string name="member_row_family">ಕುಟುಂಬಕ್ಕಾಗಿ ಟ್ಯೂನ್‌ಗಳನ್ನು ಮಾಡಿ</string>
+    <string name="member_cta">ನಿಮ್ಮ ಟ್ಯೂನ್ ಮಾಡಿ</string>
 </resources>

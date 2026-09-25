@@ -8,6 +8,7 @@ import com.spacewire.meratune.ChooseSongActivity
 import com.spacewire.meratune.CreateRingtoneActivity
 import com.spacewire.meratune.Home
 import com.spacewire.meratune.LanguageSelectionActivity
+import com.spacewire.meratune.MembershipWelcomeActivity
 import com.spacewire.meratune.OtpVerificationActivity
 import com.spacewire.meratune.PhoneAuthActivity
 import com.spacewire.meratune.ProfileActivity
@@ -137,6 +138,7 @@ class AnalyticsLifecycleCallbacks(
             ChooseSongActivity::class.java to AnalyticsScreen.SONG_PICKER,
             RingtoneProcessingActivity::class.java to AnalyticsScreen.RINGTONE_PROCESSING,
             RingtoneReadyActivity::class.java to AnalyticsScreen.RINGTONE_READY,
+            MembershipWelcomeActivity::class.java to AnalyticsScreen.MEMBERSHIP_WELCOME,
         )
     }
 }

@@ -121,8 +121,6 @@
     <string name="ready_change_song">गाना बदलें</string>
     <string name="ready_make_another">नया नाम आज़माएँ</string>
     <string name="ready_go_home">होम पर जाएँ</string>
-    <string name="auth_speaker">ज़ोर से पढ़ें</string>
-    <string name="auth_language">भाषा बदलें</string>
     <!-- UI refresh: native review pending -->
     <string name="language_continue">आगे बढ़ें</string>
     <!-- UI refresh: native review pending -->
@@ -139,12 +137,6 @@
     <string name="auth_name_required">कृपया अपना नाम दर्ज करें</string>
     <string name="auth_generic_error">कुछ गलत हो गया। कृपया पुनः प्रयास करें।</string>
     <string name="subscription_logout">लॉग आउट</string>
-    <string name="subscription_title_prefix">1-दिन</string>
-    <string name="subscription_free_badge">मुफ़्त परीक्षण</string>
-    <string name="subscription_rating">★★★★★ 4.6 ( 10M+ ग्राहक)</string>
-    <string name="subscription_feature_auth">सिर्फ़ ₹ %1$s का भुगतान करके परीक्षण शुरू करें</string>
-    <string name="subscription_feature_trial">1-दिन मुफ़्त, कभी भी रद्द करें</string>
-    <string name="subscription_feature_autopay">ऑटोपे ₹ %1$s/1 महीने</string>
     <string name="subscription_phonepe">PhonePe</string>
     <string name="subscription_select_payment_app">भुगतान ऐप चुनें</string>
     <string name="subscription_payment_app_not_installed">%1$s इस डिवाइस पर इंस्टॉल नहीं है</string>
@@ -152,7 +144,6 @@
     <string name="subscription_try_now">अभी आज़माएँ</string>
     <string name="subscription_play_video">वीडियो चलाएँ</string>
     <string name="subscription_error">भुगतान शुरू नहीं हो सका। कृपया पुनः प्रयास करें।</string>
-    <string name="subscription_pending">भुगतान प्राप्त हुआ। आपका परीक्षण सक्रिय किया जा रहा है…</string>
 
     <!-- UI refresh: native review pending -->
     <string name="cta_loading">लोड हो रहा है…</string>
@@ -167,4 +158,44 @@
     <string name="auth_otp_verify">सत्यापित करें</string>
     <string name="auth_name_headline">अपना %1$s</string>
     <string name="auth_name_headline_highlight">नाम दर्ज करें</string>
+
+    <!-- lane A: paywall, payment states, member screen. UI refresh: native review pending -->
+    <string name="paywall_title">1 दिन का एक्सेस पाएं</string>
+    <string name="paywall_price_a11y">पहले ₹%1$s, अब सिर्फ़ ₹%2$s</string>
+    <string name="paywall_then_price">फिर ₹%1$s/महीना • कभी भी कैंसिल करें</string>
+    <string name="paywall_benefits_title">मेंबरशिप के फ़ायदे</string>
+    <string name="paywall_benefit_names">अपने नाम की अनलिमिटेड ट्यून बनाएं</string>
+    <string name="paywall_benefit_photo">जिसे कॉल करें, उन्हें आपकी फ़ोटो दिखे</string>
+    <string name="paywall_benefit_family">परिवार के लिए ट्यून</string>
+    <string name="paywall_benefit_monthly">हर महीने नई ट्यून — बॉलीवुड, भक्ति, सिनेमैटिक, आदि।</string>
+    <string name="paywall_faq_title">सवाल-जवाब</string>
+    <string name="paywall_faq_q1">MeraTune में मुझे क्या मिलेगा?</string>
+    <string name="paywall_faq_a1">मेंबरशिप में आप अपने नाम वाली पर्सनलाइज़्ड रिंगटोन बना सकते हैं, परिवार के लिए ट्यून सेट कर सकते हैं और कॉल आने पर स्क्रीन पर फ़ोटो लगा सकते हैं। हर महीने नई ट्यून भी जुड़ती रहती हैं।</string>
+    <string name="paywall_faq_q2">₹%1$s वाला ट्रायल कैसे काम करता है?</string>
+    <string name="paywall_faq_a2">आज सिर्फ़ ₹%1$s देकर मेंबरशिप शुरू करें। पेमेंट के समय आपके UPI ऐप में ऑटोपे सेट होता है, और अगले दिन सुबह (लगभग 10 बजे) से ₹%2$s/महीना अपने आप कटेंगे, जब तक आप कैंसिल न करें।</string>
+    <string name="paywall_faq_q3">क्या मैं कभी भी कैंसिल कर सकता हूं?</string>
+    <string name="paywall_faq_a3">हां। अपने UPI ऐप (जैसे PhonePe, Google Pay, Paytm या BHIM) के Autopay / Mandates सेक्शन में जाकर MeraTune का ऑटोपे कभी भी कैंसिल कर सकते हैं। कैंसिल करने के बाद आगे कोई ऑटोपे चार्ज नहीं कटेगा। मदद के लिए Profile में Help &amp; Support देखें।</string>
+    <string name="paywall_faq_q4">क्या मुझसे तुरंत पैसे कटेंगे?</string>
+    <string name="paywall_faq_a4">हां, अभी सिर्फ़ ₹%1$s कटेंगे। यह एक बार का ट्रायल चार्ज है और वापस नहीं होता। ₹%2$s का पहला ऑटोपे अगले दिन सुबह लगभग 10 बजे कटेगा, फिर हर महीने। उससे पहले कैंसिल करने पर ₹%2$s नहीं कटेंगे।</string>
+    <string name="paywall_faq_state_expanded">खुला है</string>
+    <string name="paywall_faq_state_collapsed">बंद है</string>
+    <string name="paywall_cta">ट्यून बनाएं</string>
+    <string name="paywall_pending_title">पेमेंट पेंडिंग है</string>
+    <string name="paywall_pending_body">आपके पेमेंट की जांच हो रही है। कृपया कन्फ़र्म होने तक इंतज़ार करें।</string>
+    <string name="paywall_pending_cta">पेमेंट स्टेटस देखें</string>
+    <string name="paywall_pending_not_yet">पेमेंट अभी कन्फ़र्म नहीं हुआ। थोड़ी देर में दोबारा देखें।</string>
+    <string name="paywall_pending_check_failed">स्टेटस चेक नहीं हो पाया। इंटरनेट चेक करके दोबारा कोशिश करें।</string>
+    <string name="paywall_failed_title">पेमेंट फ़ेल हो गया</string>
+    <string name="paywall_failed_body">हम आपका पेमेंट पूरा नहीं कर पाए। कृपया दोबारा कोशिश करें या कोई दूसरा पेमेंट तरीका चुनें।</string>
+    <string name="paywall_failed_reason_bank">आपके बैंक ने पेमेंट अस्वीकार किया</string>
+    <string name="paywall_failed_reason_funds">खाते में पर्याप्त बैलेंस नहीं है</string>
+    <string name="paywall_failed_reason_details">पेमेंट की जानकारी गलत है</string>
+    <string name="paywall_failed_cta">दोबारा कोशिश करें</string>
+    <string name="member_title">अब आप मेंबर हैं!</string>
+    <string name="member_subtitle">₹%1$s में 1 दिन · कभी भी कैंसिल करें</string>
+    <string name="member_checklist_title">आज ये 3 काम करें</string>
+    <string name="member_row_first_tune">अपनी पहली ट्यून बनाएं</string>
+    <string name="member_row_photo">कॉल पर फ़ोटो चालू करें</string>
+    <string name="member_row_family">परिवार के लिए ट्यून बनाएं</string>
+    <string name="member_cta">अपनी ट्यून बनाएं</string>
 </resources>

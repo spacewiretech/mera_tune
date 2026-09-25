@@ -2,6 +2,7 @@ package com.spacewire.meratune.analytics
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AnalyticsDerivationTest {
@@ -54,6 +55,13 @@ class AnalyticsDerivationTest {
             assertEquals(screen, PaywallEntryPoint.ONBOARDING, PaywallEntryPoint.derive(screen, "none"))
             assertEquals(screen, PaywallEntryPoint.WIN_BACK, PaywallEntryPoint.derive(screen, "cancelled"))
         }
+    }
+
+    @Test
+    fun paywallFromMembershipWelcomeIsOmitted() {
+        assertNull(PaywallEntryPoint.derive(AnalyticsScreen.MEMBERSHIP_WELCOME, "trial"))
+        assertTrue(AnalyticsScreen.MEMBERSHIP_WELCOME in AnalyticsScreen.ALL)
+        assertEquals("membership_welcome", AnalyticsSource.MEMBERSHIP_WELCOME)
     }
 
     @Test

@@ -1,17 +1,26 @@
 package com.spacewire.meratune
 
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.content.Context
 import android.content.Intent
+import android.graphics.Paint
 import android.net.Uri
 import android.os.Bundle
+import android.transition.Fade
+import android.transition.TransitionManager
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
+import android.view.animation.LinearInterpolator
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -40,10 +49,18 @@ import com.spacewire.meratune.data.SubscriptionApiException
 import com.spacewire.meratune.data.SubscriptionFailureReason
 import com.spacewire.meratune.data.SubscriptionRepository
 import com.spacewire.meratune.data.SubscriptionVideoRepository
+import com.spacewire.meratune.data.User
 import com.spacewire.meratune.model.PaymentApp
+import com.spacewire.meratune.ui.CtaButtons
+import com.spacewire.meratune.ui.FaqAccordionController
+import com.spacewire.meratune.ui.PaymentAppBadge
 import com.spacewire.meratune.ui.PaymentAppBottomSheet
+import com.spacewire.meratune.ui.PaywallUiPolicy
+import com.spacewire.meratune.ui.PaywallUiState
+import com.spacewire.meratune.ui.VerifyTrigger
 import com.spacewire.meratune.util.AuthNavigator
 import com.spacewire.meratune.util.AuthStore
+import com.spacewire.meratune.util.GradientTextHelper
 import com.spacewire.meratune.util.ProfileStore
 import com.spacewire.meratune.util.enableLightEdgeToEdge
 import kotlinx.coroutines.launch
@@ -76,21 +93,61 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
     private val verifyBackBlocker = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() = Unit
     }
+
+    /**
+     * Back on Pending / Failed returns to the paywall (not a dismissal). Registered after
+     * [verifyBackBlocker], so it wins while enabled.
+     */
+    private val stateBackCallback = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() = showState(PaywallUiState.PAYWALL)
+    }
+    private var uiState = PaywallUiState.PAYWALL
+
+    /** Failed lists the bank / funds / details reasons only after a `payment_failed` checkout. */
+    private var failedShowsReasons = false
+    private var pendingRecurringAmount: Double? = null
+    private var authAmountLabel = DEFAULT_AUTH_AMOUNT
+    private var recurringAmountLabel = DEFAULT_RECURRING_AMOUNT
+
+    /** `paywall_dismissed.dismiss_method` for the next finish (the close X sets its own). */
+    private var dismissMethod = PaywallDismissMethod.SYSTEM_BACK
+    private var pendingRingAnimator: ObjectAnimator? = null
+    /** Set in onStart / cleared in onStop; lifecycle.currentState is still CREATED inside onStart. */
+    private var screenStarted = false
     private var videoPlayer: ExoPlayer? = null
     private lateinit var videoPlayerView: PlayerView
     private lateinit var playButton: ImageView
+    private lateinit var videoScrim: View
+    private lateinit var rootView: ViewGroup
+    private lateinit var paywallContainer: View
+    private lateinit var pendingContainer: View
+    private lateinit var failedContainer: View
+    private lateinit var failedReasons: View
+    private lateinit var pendingRing: ImageView
+    private lateinit var tryNowButton: TextView
+    private lateinit var loadingIndicator: ProgressBar
+    private lateinit var pendingCheckButton: TextView
+    private lateinit var pendingCheckProgress: ProgressBar
+    private lateinit var paymentAppSelector: View
+    private lateinit var originalPrice: TextView
+    private lateinit var offerPrice: TextView
+    private lateinit var renewalText: TextView
+    private lateinit var priceRow: View
+    private lateinit var faq: FaqAccordionController
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableLightEdgeToEdge()
         setContentView(R.layout.activity_subscription)
         onBackPressedDispatcher.addCallback(this, verifyBackBlocker)
+        onBackPressedDispatcher.addCallback(this, stateBackCallback)
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.subscriptionRoot)) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             view.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+        bindViews()
 
         val installedApps = PaymentApp.installed(packageManager)
         selectedPaymentApp = installedApps.firstOrNull() ?: PaymentApp.DEFAULT
@@ -110,11 +167,13 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
 
         setupActions()
         setupSubscriptionVideo()
-        bindFeatureRows()
+        setupFaq(savedInstanceState?.getInt(STATE_FAQ_EXPANDED, FaqAccordionController.NONE) ?: FaqAccordionController.NONE)
+        bindPricing(pendingAuthAmount, pendingRecurringAmount)
         bindSelectedPaymentApp()
+        renderUiState(animate = false)
         // Cashfree delivers the verify callback only once, to the instance that was destroyed.
         if (savedInstanceState?.getBoolean(STATE_VERIFY_PENDING) == true) {
-            verifySubscription(pendingSubscriptionId)
+            verifySubscription(pendingSubscriptionId, VerifyTrigger.RESTORED)
         }
         if (savedInstanceState == null) {
             mixpanelAnalytics().trackSubscriptionScreenViewed(
@@ -137,6 +196,10 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         outState.putBoolean(STATE_VIDEO_ERROR_TRACKED, videoErrorTracked)
         outState.putBoolean(STATE_VERIFY_PENDING, verifyPending)
         outState.putString(STATE_ENTRY_POINT, entryPoint)
+        outState.putString(STATE_UI_STATE, uiState.name)
+        outState.putBoolean(STATE_FAILED_REASONS, failedShowsReasons)
+        outState.putInt(STATE_FAQ_EXPANDED, faq.expandedIndex)
+        pendingRecurringAmount?.let { outState.putDouble(STATE_PENDING_RECURRING_AMOUNT, it) }
     }
 
     private fun restoreCheckoutState(state: Bundle) {
@@ -152,23 +215,74 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         videoCompleted = state.getBoolean(STATE_VIDEO_COMPLETED)
         videoErrorTracked = state.getBoolean(STATE_VIDEO_ERROR_TRACKED)
         entryPoint = state.getString(STATE_ENTRY_POINT)
+        if (state.containsKey(STATE_PENDING_RECURRING_AMOUNT)) {
+            pendingRecurringAmount = state.getDouble(STATE_PENDING_RECURRING_AMOUNT)
+        }
+        failedShowsReasons = state.getBoolean(STATE_FAILED_REASONS)
+        uiState = PaywallUiPolicy.restoredState(
+            saved = state.getString(STATE_UI_STATE),
+            hasSubscriptionId = !pendingSubscriptionId.isNullOrBlank(),
+        )
     }
 
-    private fun bindFeatureRows() {
-        bindFeatureRow(R.id.featureOneRow, R.drawable.ic_lock_white, getString(R.string.subscription_feature_auth, "3"))
-        bindFeatureRow(R.id.featureTwoRow, R.drawable.ic_lock_white, getString(R.string.subscription_feature_trial))
-        bindFeatureRow(R.id.featureThreeRow, R.drawable.ic_diamond_white, getString(R.string.subscription_feature_autopay, "299"))
+    private fun bindViews() {
+        rootView = findViewById(R.id.subscriptionRoot)
+        paywallContainer = findViewById(R.id.paywallContainer)
+        pendingContainer = findViewById(R.id.pendingContainer)
+        failedContainer = findViewById(R.id.failedContainer)
+        failedReasons = findViewById(R.id.failedReasons)
+        pendingRing = findViewById(R.id.pendingRing)
+        videoPlayerView = findViewById(R.id.subscriptionVideoPlayer)
+        playButton = findViewById(R.id.playButton)
+        videoScrim = findViewById(R.id.videoScrim)
+        tryNowButton = findViewById(R.id.tryNowButton)
+        loadingIndicator = findViewById(R.id.loadingIndicator)
+        pendingCheckButton = findViewById(R.id.pendingCheckButton)
+        pendingCheckProgress = findViewById(R.id.pendingCheckProgress)
+        paymentAppSelector = findViewById(R.id.paymentAppSelector)
+        originalPrice = findViewById(R.id.originalPrice)
+        offerPrice = findViewById(R.id.offerPrice)
+        renewalText = findViewById(R.id.renewalText)
+        priceRow = findViewById(R.id.priceRow)
+        faq = FaqAccordionController(findViewById<LinearLayout>(R.id.faqContainer))
+
+        originalPrice.paintFlags = originalPrice.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
+        GradientTextHelper.applyDiagonalGradient(offerPrice, R.color.gradient_orange, R.color.gradient_pink)
+        ViewCompat.setAccessibilityPaneTitle(pendingContainer, getString(R.string.paywall_pending_title))
+        ViewCompat.setAccessibilityPaneTitle(failedContainer, getString(R.string.paywall_failed_title))
     }
 
-    private fun bindFeatureRow(rowId: Int, iconRes: Int, text: String) {
-        val row = findViewById<View>(rowId)
-        row.findViewById<android.widget.ImageView>(R.id.featureIcon).setImageResource(iconRes)
-        row.findViewById<TextView>(R.id.featureText).text = text
+    private fun setupFaq(expandedIndex: Int) {
+        faq.bind(faqItems(), expandedIndex)
     }
+
+    private fun faqItems(): List<FaqAccordionController.Item> = listOf(
+        FaqAccordionController.Item(getString(R.string.paywall_faq_q1), getString(R.string.paywall_faq_a1)),
+        FaqAccordionController.Item(
+            getString(R.string.paywall_faq_q2, authAmountLabel),
+            getString(R.string.paywall_faq_a2, authAmountLabel, recurringAmountLabel),
+        ),
+        FaqAccordionController.Item(getString(R.string.paywall_faq_q3), getString(R.string.paywall_faq_a3)),
+        FaqAccordionController.Item(
+            getString(R.string.paywall_faq_q4),
+            getString(R.string.paywall_faq_a4, authAmountLabel, recurringAmountLabel),
+        ),
+    )
 
     private fun setupActions() {
-        findViewById<View>(R.id.languageButton).setOnClickListener {
-            startActivity(LanguageSelectionActivity.intent(this))
+        findViewById<View>(R.id.closeButton).setOnClickListener {
+            // Like back: ignored while a verify runs, else the same finish and onPause dismissal.
+            if (verifyInFlight || isFinishing) return@setOnClickListener
+            dismissMethod = PaywallDismissMethod.CLOSE_BUTTON
+            finish()
+        }
+
+        pendingCheckButton.setOnClickListener {
+            if (!verifyInFlight) verifySubscription(pendingSubscriptionId, VerifyTrigger.MANUAL)
+        }
+
+        findViewById<View>(R.id.failedRetryButton).setOnClickListener {
+            showState(PaywallUiState.PAYWALL)
         }
 
         findViewById<TextView>(R.id.logoutButton).setOnClickListener {
@@ -185,7 +299,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
             finishWithoutDismiss()
         }
 
-        findViewById<TextView>(R.id.tryNowButton).setOnClickListener {
+        tryNowButton.setOnClickListener {
             if (isProcessingPayment) return@setOnClickListener
             attempt += 1
             val appInstalled = selectedPaymentApp.isInstalled(packageManager)
@@ -214,7 +328,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
             startSubscriptionCheckout()
         }
 
-        findViewById<View>(R.id.paymentAppSelector).setOnClickListener {
+        paymentAppSelector.setOnClickListener {
             if (isProcessingPayment) return@setOnClickListener
             val installedApps = PaymentApp.installed(packageManager)
             if (installedApps.isEmpty()) {
@@ -237,9 +351,6 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
     }
 
     private fun setupSubscriptionVideo() {
-        videoPlayerView = findViewById(R.id.subscriptionVideoPlayer)
-        playButton = findViewById(R.id.playButton)
-
         videoPlayer = ExoPlayer.Builder(this)
             .setLoadControl(
                 DefaultLoadControl.Builder()
@@ -257,7 +368,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
             player.repeatMode = Player.REPEAT_MODE_OFF
             player.addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    playButton.visibility = if (isPlaying) View.GONE else View.VISIBLE
+                    setVideoOverlayVisible(!isPlaying)
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
@@ -271,12 +382,12 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
                         }
                         player.seekTo(0)
                         player.pause()
-                        playButton.visibility = View.VISIBLE
+                        setVideoOverlayVisible(true)
                     }
                 }
 
                 override fun onPlayerError(error: PlaybackException) {
-                    playButton.visibility = View.VISIBLE
+                    setVideoOverlayVisible(true)
                     if (!videoErrorTracked) {
                         videoErrorTracked = true
                         mixpanelAnalytics().trackSubscriptionVideoEnded(
@@ -294,7 +405,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
             })
         }
 
-        playButton.visibility = View.VISIBLE
+        setVideoOverlayVisible(true)
         playButton.setOnClickListener { videoPlayer?.play() }
 
         videoPlayerView.setOnClickListener {
@@ -332,20 +443,25 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
 
     private fun Player.knownDurationMs(): Long? = duration.takeIf { it > 0L }
 
+    /** The play disc and the light scrim show together whenever the video is not playing. */
+    private fun setVideoOverlayVisible(visible: Boolean) {
+        val visibility = if (visible) View.VISIBLE else View.GONE
+        playButton.visibility = visibility
+        videoScrim.visibility = visibility
+    }
+
     private fun playSubscriptionVideo(url: String) {
         val player = videoPlayer ?: return
         if (playingVideoUrl == url && player.mediaItemCount > 0) return
         playingVideoUrl = url
         player.setMediaItem(MediaItem.fromUri(Uri.parse(url)))
         player.prepare()
-        player.play()
+        // Autoplays on the paywall; a restore into Pending / Failed keeps it paused behind them.
+        player.playWhenReady = uiState == PaywallUiState.PAYWALL
     }
 
     private fun bindSelectedPaymentApp() {
-        findViewById<TextView>(R.id.paymentAppIcon).apply {
-            setBackgroundResource(selectedPaymentApp.iconBackgroundRes)
-            text = selectedPaymentApp.iconLabel
-        }
+        PaymentAppBadge.bind(findViewById(R.id.paymentAppIcon), selectedPaymentApp)
         findViewById<TextView>(R.id.paymentAppName).text = selectedPaymentApp.displayName
     }
 
@@ -400,17 +516,18 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         }
     }
 
+    /** Server amounts from create-subscription; null keeps the current (default 3 / 299) label. */
     private fun bindPricing(authAmount: Double?, recurringAmount: Double?) {
-        authAmount?.let {
-            findViewById<View>(R.id.featureOneRow)
-                .findViewById<TextView>(R.id.featureText)
-                .text = getString(R.string.subscription_feature_auth, formatRupee(it))
-        }
+        authAmount?.let { authAmountLabel = formatRupee(it) }
         recurringAmount?.let {
-            findViewById<View>(R.id.featureThreeRow)
-                .findViewById<TextView>(R.id.featureText)
-                .text = getString(R.string.subscription_feature_autopay, formatRupee(it))
+            recurringAmountLabel = formatRupee(it)
+            pendingRecurringAmount = it
         }
+        originalPrice.text = getString(R.string.price_rupee, recurringAmountLabel)
+        offerPrice.text = getString(R.string.price_rupee, authAmountLabel)
+        renewalText.text = getString(R.string.paywall_then_price, recurringAmountLabel)
+        priceRow.contentDescription = getString(R.string.paywall_price_a11y, recurringAmountLabel, authAmountLabel)
+        faq.rebind(faqItems())
     }
 
     private fun formatRupee(amount: Double): String {
@@ -456,7 +573,8 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
                 reason = SubscriptionFailureReason.SDK_EXCEPTION,
                 paymentApp = paymentApp,
             )
-            Toast.makeText(this, R.string.subscription_error, Toast.LENGTH_LONG).show()
+            failedShowsReasons = false
+            showState(PaywallUiState.FAILED)
             e.printStackTrace()
         }
     }
@@ -465,10 +583,15 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         // After a recreation mid-checkout the replayed callback still carries the id.
         verifySubscription(
             pendingSubscriptionId ?: cfSubscriptionResponse.subscriptionId?.takeIf { it.isNotBlank() },
+            VerifyTrigger.CHECKOUT,
         )
     }
 
-    private fun verifySubscription(subscriptionId: String?) {
+    /**
+     * A result that does not activate the trial opens Pending after a checkout ([trigger] CHECKOUT
+     * or RESTORED); a manual re-check from Pending stays where the user is and explains by toast.
+     */
+    private fun verifySubscription(subscriptionId: String?, trigger: VerifyTrigger) {
         if (verifyInFlight) return
         val userId = AuthStore(this).getUserId()
         if (userId <= 0L || subscriptionId.isNullOrBlank()) {
@@ -520,7 +643,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
                             amount = amount,
                             subscriptionId = subscriptionId,
                         )
-                        AuthNavigator.navigateAfterAuth(this@SubscriptionActivity, user)
+                        openMembershipWelcome(user)
                         finishWithoutDismiss()
                     } else {
                         verifyInFlight = false
@@ -537,12 +660,8 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
                                 cashfreeStatus = response.status,
                             )
                         }
-                        Toast.makeText(
-                            this@SubscriptionActivity,
-                            R.string.subscription_pending,
-                            Toast.LENGTH_LONG,
-                        ).show()
                         setLoading(false)
+                        showVerifyNotActive(trigger, R.string.paywall_pending_not_yet)
                     }
                 }
                 .onFailure { error ->
@@ -553,29 +672,54 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
                         reason = SubscriptionFailureReason.forVerify(error),
                         httpStatus = SubscriptionFailureReason.httpStatus(error),
                     )
-                    Toast.makeText(
-                        this@SubscriptionActivity,
-                        R.string.subscription_pending,
-                        Toast.LENGTH_LONG,
-                    ).show()
                     setLoading(false)
+                    showVerifyNotActive(trigger, R.string.paywall_pending_check_failed)
                 }
             isProcessingPayment = false
             verifyPending = false
         }
     }
 
+    /** Pending after a checkout verify; a manual re-check keeps the screen and toasts [manualMessage]. */
+    private fun showVerifyNotActive(trigger: VerifyTrigger, manualMessage: Int) {
+        showState(PaywallUiPolicy.stateAfterVerifyNotActive(uiState, trigger))
+        if (trigger == VerifyTrigger.MANUAL) {
+            Toast.makeText(this, manualMessage, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /**
+     * Opens the member screen for a paid user. A stale status that still needs a subscription keeps
+     * today's [AuthNavigator] route as a safety net.
+     */
+    private fun openMembershipWelcome(user: User) {
+        if (AuthNavigator.needsSubscription(user)) {
+            AuthNavigator.navigateAfterAuth(this, user)
+            return
+        }
+        startActivity(
+            MembershipWelcomeActivity.intent(this, authAmountLabel)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
+        )
+    }
+
     override fun onSubscriptionFailure(cfErrorResponse: CFErrorResponse) {
         isProcessingPayment = false
         setLoading(false)
-        val message = paymentFailureMessage(cfErrorResponse)
         Log.e(TAG, "Cashfree checkout failed: ${cfErrorResponse.message} code=${cfErrorResponse.code}")
         trackFailure(
             stage = SubscriptionFailureReason.STAGE_CHECKOUT,
             reason = SubscriptionFailureReason.forCheckout(cfErrorResponse.code),
             cfErrorCode = cfErrorResponse.code,
         )
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        // A UPI cancel returns quietly to the paywall; real failures show the Failed screen.
+        val nextState = PaywallUiPolicy.stateAfterCheckoutFailure(cfErrorResponse.code)
+        if (BuildConfig.DEBUG && nextState == PaywallUiState.FAILED) {
+            // Keeps the Cashfree auth / Play-integrity diagnostics visible to developers.
+            Toast.makeText(this, paymentFailureMessage(cfErrorResponse), Toast.LENGTH_LONG).show()
+        }
+        failedShowsReasons = PaywallUiPolicy.showsFailedReasons(cfErrorResponse.code)
+        showState(nextState)
     }
 
     /** [reason] is a bounded [SubscriptionFailureReason] value, never message text. */
@@ -613,17 +757,63 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         return raw.ifBlank { getString(R.string.subscription_error) }
     }
 
+    /** The paywall CTA and the Pending re-check CTA share one request, so they load together. */
     private fun setLoading(loading: Boolean) {
-        findViewById<ProgressBar>(R.id.loadingIndicator).visibility =
-            if (loading) View.VISIBLE else View.GONE
-        findViewById<TextView>(R.id.tryNowButton).isEnabled = !loading
-        findViewById<View>(R.id.paymentAppSelector).isEnabled = !loading
-        findViewById<View>(R.id.paymentAppSelector).alpha = if (loading) 0.7f else 1f
+        CtaButtons.setLoading(tryNowButton, loadingIndicator, loading)
+        CtaButtons.setLoading(pendingCheckButton, pendingCheckProgress, loading)
+        paymentAppSelector.isEnabled = !loading
+        paymentAppSelector.alpha = if (loading) 0.7f else 1f
+    }
+
+    private fun showState(state: PaywallUiState) {
+        if (state == uiState) return
+        uiState = state
+        renderUiState(animate = true)
+    }
+
+    private fun renderUiState(animate: Boolean) {
+        if (animate) TransitionManager.beginDelayedTransition(rootView, Fade().setDuration(STATE_FADE_MS))
+        paywallContainer.visibility = if (uiState == PaywallUiState.PAYWALL) View.VISIBLE else View.GONE
+        pendingContainer.visibility = if (uiState == PaywallUiState.PENDING) View.VISIBLE else View.GONE
+        failedContainer.visibility = if (uiState == PaywallUiState.FAILED) View.VISIBLE else View.GONE
+        failedReasons.visibility = if (failedShowsReasons) View.VISIBLE else View.GONE
+        rootView.setBackgroundColor(
+            ContextCompat.getColor(
+                this,
+                when (uiState) {
+                    PaywallUiState.PAYWALL -> R.color.surface_paywall
+                    PaywallUiState.PENDING -> R.color.surface_payment_pending
+                    PaywallUiState.FAILED -> R.color.surface_payment_failed
+                },
+            ),
+        )
+        stateBackCallback.isEnabled = uiState != PaywallUiState.PAYWALL
+        if (uiState != PaywallUiState.PAYWALL) videoPlayer?.pause()
+        updatePendingRing()
+    }
+
+    /** Spins the Pending ring only while Pending is showing and the screen is started. */
+    private fun updatePendingRing() {
+        val spin = uiState == PaywallUiState.PENDING && screenStarted
+        if (!spin) {
+            pendingRingAnimator?.cancel()
+            pendingRingAnimator = null
+            pendingRing.rotation = 0f
+            return
+        }
+        if (pendingRingAnimator != null) return
+        pendingRingAnimator = ObjectAnimator.ofFloat(pendingRing, View.ROTATION, 0f, 360f).apply {
+            duration = PENDING_RING_ROTATION_MS
+            interpolator = LinearInterpolator()
+            repeatCount = ValueAnimator.INFINITE
+            start()
+        }
     }
 
     /**
-     * System back is the only remaining way this screen finishes; [verifyBackBlocker] only swallows
-     * back while a verify runs, and a paid user is never counted as a dismissal.
+     * System back on the paywall and the close X ([dismissMethod]) are the ways this screen is
+     * dismissed; [verifyBackBlocker] swallows back (and the X is ignored) while a verify runs, back
+     * on Pending / Failed only returns to the paywall, and a paid user is never counted.
      */
     override fun onPause() {
         super.onPause()
@@ -631,7 +821,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         dismissTracked = true
         mixpanelAnalytics().trackPaywallDismissed(
             entryPoint = entryPoint,
-            dismissMethod = PaywallDismissMethod.SYSTEM_BACK,
+            dismissMethod = dismissMethod,
             attempt = attempt,
             videoCompleted = videoCompleted,
         )
@@ -642,9 +832,17 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         finish()
     }
 
+    override fun onStart() {
+        super.onStart()
+        screenStarted = true
+        updatePendingRing()
+    }
+
     override fun onStop() {
         videoPlayer?.pause()
         super.onStop()
+        screenStarted = false
+        updatePendingRing()
     }
 
     override fun onDestroy() {
@@ -665,6 +863,14 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         private const val STATE_VIDEO_ERROR_TRACKED = "video_error_tracked"
         private const val STATE_VERIFY_PENDING = "verify_pending"
         private const val STATE_ENTRY_POINT = "entry_point"
+        private const val STATE_UI_STATE = "ui_state"
+        private const val STATE_FAILED_REASONS = "failed_reasons"
+        private const val STATE_FAQ_EXPANDED = "faq_expanded"
+        private const val STATE_PENDING_RECURRING_AMOUNT = "pending_recurring_amount"
+        private const val DEFAULT_AUTH_AMOUNT = "3"
+        private const val DEFAULT_RECURRING_AMOUNT = "299"
+        private const val STATE_FADE_MS = 150L
+        private const val PENDING_RING_ROTATION_MS = 1_200L
 
         fun intent(context: Context): Intent = Intent(context, SubscriptionActivity::class.java)
     }

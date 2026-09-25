@@ -109,8 +109,6 @@
     <string name="ready_change_song">పాట మార్చండి</string>
     <string name="ready_make_another">కొత్త పేరు ప్రయత్నించండి</string>
     <string name="ready_go_home">హోమ్‌కి వెళ్ళండి</string>
-    <string name="auth_speaker">గట్టిగా చదవండి</string>
-    <string name="auth_language">భాష మార్చండి</string>
     <!-- UI refresh: native review pending -->
     <string name="language_continue">ముందుకు సాగండి</string>
     <!-- UI refresh: native review pending -->
@@ -127,12 +125,6 @@
     <string name="auth_name_required">దయచేసి మీ పేరు నమోదు చేయండి</string>
     <string name="auth_generic_error">ఏదో తప్పు జరిగింది. దయచేసి మళ్ళీ ప్రయత్నించండి.</string>
     <string name="subscription_logout">లాగ్ అవుట్</string>
-    <string name="subscription_title_prefix">1-రోజు</string>
-    <string name="subscription_free_badge">ఉచిత ట్రయల్</string>
-    <string name="subscription_rating">★★★★★ 4.6 ( 10M+ Subscribers)</string>
-    <string name="subscription_feature_auth">కేవలం ₹ %1$s చెల్లించి ట్రయల్ ప్రారంభించండి</string>
-    <string name="subscription_feature_trial">1-రోజు ఉచితం, ఎప్పుడైనా రద్దు చేయండి</string>
-    <string name="subscription_feature_autopay">ఆటోపే ₹ %1$s/1 నెలలు</string>
     <string name="subscription_phonepe">PhonePe</string>
     <string name="subscription_select_payment_app">చెల్లింపు యాప్ ఎంచుకోండి</string>
     <string name="subscription_payment_app_not_installed">%1$s ఈ పరికరంలో ఇన్‌స్టాల్ చేయబడలేదు</string>
@@ -140,7 +132,6 @@
     <string name="subscription_try_now">ఇప్పుడే ప్రయత్నించండి</string>
     <string name="subscription_play_video">వీడియో ప్లే చేయండి</string>
     <string name="subscription_error">చెల్లింపు ప్రారంభించలేకపోయాం. దయచేసి మళ్ళీ ప్రయత్నించండి.</string>
-    <string name="subscription_pending">చెల్లింపు అందింది. మీ ట్రయల్‌ను యాక్టివేట్ చేస్తున్నాం…</string>
 
     <!-- UI refresh: native review pending -->
     <string name="cta_loading">లోడ్ అవుతోంది…</string>
@@ -155,4 +146,44 @@
     <string name="auth_otp_verify">ధృవీకరించండి</string>
     <string name="auth_name_headline">మీ %1$s</string>
     <string name="auth_name_headline_highlight">పేరు నమోదు చేయండి</string>
+
+    <!-- lane A: paywall, payment states, member screen. UI refresh: native review pending -->
+    <string name="paywall_title">1 రోజు యాక్సెస్ పొందండి</string>
+    <string name="paywall_price_a11y">ముందు ₹%1$s, ఇప్పుడు కేవలం ₹%2$s</string>
+    <string name="paywall_then_price">తర్వాత ₹%1$s/నెల • ఎప్పుడైనా రద్దు చేయండి</string>
+    <string name="paywall_benefits_title">మెంబర్‌షిప్ ప్రయోజనాలు</string>
+    <string name="paywall_benefit_names">మీ పేరుతో అపరిమిత ట్యూన్లు తయారు చేయండి</string>
+    <string name="paywall_benefit_photo">మీరు కాల్ చేసేవారికి మీ ఫోటో కనిపిస్తుంది</string>
+    <string name="paywall_benefit_family">కుటుంబం కోసం ట్యూన్లు</string>
+    <string name="paywall_benefit_monthly">ప్రతి నెలా కొత్త ట్యూన్లు — బాలీవుడ్, భక్తి, సినిమాటిక్ మొదలైనవి.</string>
+    <string name="paywall_faq_title">తరచుగా అడిగే ప్రశ్నలు</string>
+    <string name="paywall_faq_q1">MeraTune లో నాకు ఏమి లభిస్తుంది?</string>
+    <string name="paywall_faq_a1">మెంబర్‌షిప్‌లో మీ పేరుతో వ్యక్తిగత రింగ్‌టోన్లు తయారు చేయవచ్చు, కుటుంబం కోసం ట్యూన్లు సెట్ చేయవచ్చు, కాల్ వచ్చినప్పుడు స్క్రీన్‌పై ఫోటో చూపించవచ్చు. ప్రతి నెలా కొత్త ట్యూన్లు కూడా జోడించబడతాయి.</string>
+    <string name="paywall_faq_q2">₹%1$s ట్రయల్ ఎలా పనిచేస్తుంది?</string>
+    <string name="paywall_faq_a2">ఈరోజు కేవలం ₹%1$s చెల్లించి మెంబర్‌షిప్ ప్రారంభించండి. చెల్లింపు సమయంలో మీ UPI యాప్‌లో ఆటోపే సెట్ అవుతుంది, మరుసటి రోజు ఉదయం (సుమారు 10 గంటలు) నుండి మీరు రద్దు చేసే వరకు నెలకు ₹%2$s ఆటోమేటిక్‌గా కట్ అవుతుంది.</string>
+    <string name="paywall_faq_q3">నేను ఎప్పుడైనా రద్దు చేయవచ్చా?</string>
+    <string name="paywall_faq_a3">అవును. మీ UPI యాప్ (ఉదా. PhonePe, Google Pay, Paytm లేదా BHIM) లోని Autopay / Mandates విభాగానికి వెళ్లి MeraTune ఆటోపేను ఎప్పుడైనా రద్దు చేయవచ్చు. రద్దు చేసిన తర్వాత ఎలాంటి ఆటోపే ఛార్జీ కట్ అవ్వదు. సహాయం కోసం Profile లో Help &amp; Support చూడండి.</string>
+    <string name="paywall_faq_q4">నాకు వెంటనే ఛార్జీ పడుతుందా?</string>
+    <string name="paywall_faq_a4">అవును, ఇప్పుడు కేవలం ₹%1$s మాత్రమే కట్ అవుతుంది. ఇది ఒక్కసారి ట్రయల్ ఛార్జీ, తిరిగి రాదు. ₹%2$s మొదటి ఆటోపే మరుసటి రోజు ఉదయం సుమారు 10 గంటలకు కట్ అవుతుంది, తర్వాత ప్రతి నెలా. అంతకు ముందే రద్దు చేస్తే ₹%2$s కట్ అవ్వదు.</string>
+    <string name="paywall_faq_state_expanded">తెరిచి ఉంది</string>
+    <string name="paywall_faq_state_collapsed">మూసి ఉంది</string>
+    <string name="paywall_cta">ట్యూన్ తయారు చేయండి</string>
+    <string name="paywall_pending_title">చెల్లింపు పెండింగ్‌లో ఉంది</string>
+    <string name="paywall_pending_body">మీ చెల్లింపు ధృవీకరించబడుతోంది. నిర్ధారించే వరకు దయచేసి వేచి ఉండండి.</string>
+    <string name="paywall_pending_cta">చెల్లింపు స్థితి చూడండి</string>
+    <string name="paywall_pending_not_yet">చెల్లింపు ఇంకా నిర్ధారించబడలేదు. కొద్దిసేపటి తర్వాత మళ్లీ చూడండి.</string>
+    <string name="paywall_pending_check_failed">స్థితిని తనిఖీ చేయలేకపోయాం. ఇంటర్నెట్ చూసి మళ్లీ ప్రయత్నించండి.</string>
+    <string name="paywall_failed_title">చెల్లింపు విఫలమైంది</string>
+    <string name="paywall_failed_body">మీ చెల్లింపును పూర్తి చేయలేకపోయాం. దయచేసి మళ్లీ ప్రయత్నించండి లేదా వేరే చెల్లింపు పద్ధతిని ఉపయోగించండి.</string>
+    <string name="paywall_failed_reason_bank">మీ బ్యాంక్ చెల్లింపును తిరస్కరించింది</string>
+    <string name="paywall_failed_reason_funds">తగినంత బ్యాలెన్స్ లేదు</string>
+    <string name="paywall_failed_reason_details">తప్పు చెల్లింపు వివరాలు</string>
+    <string name="paywall_failed_cta">మళ్లీ ప్రయత్నించండి</string>
+    <string name="member_title">మీరు ఇప్పుడు మెంబర్!</string>
+    <string name="member_subtitle">₹%1$s కి 1 రోజు · ఎప్పుడైనా రద్దు చేయండి</string>
+    <string name="member_checklist_title">ఈరోజు ఈ 3 పనులు చేయండి</string>
+    <string name="member_row_first_tune">మీ మొదటి ట్యూన్ తయారు చేయండి</string>
+    <string name="member_row_photo">కాల్స్‌లో ఫోటో ఆన్ చేయండి</string>
+    <string name="member_row_family">కుటుంబం కోసం ట్యూన్లు తయారు చేయండి</string>
+    <string name="member_cta">మీ ట్యూన్ తయారు చేయండి</string>
 </resources>

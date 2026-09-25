@@ -8,12 +8,14 @@ enum class PaymentApp(
     val packageName: String,
     val iconBackgroundRes: Int,
     val iconLabel: String,
+    /** A brand logo for the round badge (see `ui/PaymentAppBadge`); null shows [iconLabel] on [iconBackgroundRes]. */
+    val logoRes: Int? = null,
 ) {
     PHONEPE(
         displayName = "PhonePe",
         packageName = "com.phonepe.app",
         iconBackgroundRes = R.drawable.bg_phonepe_icon,
-        iconLabel = "Pe",
+        iconLabel = "पे",
     ),
     GOOGLE_PAY(
         displayName = "Google Pay",

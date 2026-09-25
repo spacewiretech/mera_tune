@@ -109,8 +109,6 @@
     <string name="ready_change_song">ଗୀତ ବଦଳାନ୍ତୁ</string>
     <string name="ready_make_another">ନୂଆ ନାମ ଚେଷ୍ଟା କରନ୍ତୁ</string>
     <string name="ready_go_home">ହୋମ୍‌କୁ ଯାଆନ୍ତୁ</string>
-    <string name="auth_speaker">ଜୋରରେ ପଢ଼ନ୍ତୁ</string>
-    <string name="auth_language">ଭାଷା ବଦଳାନ୍ତୁ</string>
     <!-- UI refresh: native review pending -->
     <string name="language_continue">ଆଗକୁ ବଢ଼ନ୍ତୁ</string>
     <!-- UI refresh: native review pending -->
@@ -127,12 +125,6 @@
     <string name="auth_name_required">ଦୟାକରି ଆପଣଙ୍କ ନାମ ଲେଖନ୍ତୁ</string>
     <string name="auth_generic_error">କିଛି ଭୁଲ୍ ହେଲା। ଦୟାକରି ପୁନର୍ବାର ଚେଷ୍ଟା କରନ୍ତୁ।</string>
     <string name="subscription_logout">ଲଗ୍‌ଆଉଟ୍</string>
-    <string name="subscription_title_prefix">1-ଦିନ</string>
-    <string name="subscription_free_badge">ମାଗଣା ଟ୍ରାୟାଲ୍</string>
-    <string name="subscription_rating">★★★★★ 4.6 ( 10M+ ଗ୍ରାହକ)</string>
-    <string name="subscription_feature_auth">ମାତ୍ର ₹ %1$s ଦେଇ ଟ୍ରାୟାଲ୍ ଆରମ୍ଭ କରନ୍ତୁ</string>
-    <string name="subscription_feature_trial">1-ଦିନ ମାଗଣା, ଯାକୋନ ସମଯିରେ ବାତିଲ୍</string>
-    <string name="subscription_feature_autopay">ଅଟୋପେ ₹ %1$s/1 ମାସ</string>
     <string name="subscription_phonepe">PhonePe</string>
     <string name="subscription_select_payment_app">ପେମେଣ୍ଟ୍ ଆପ୍ ବାଛନ୍ତୁ</string>
     <string name="subscription_payment_app_not_installed">%1$s ଏହି ଡିଭାଇସ୍‌ରେ ଇନଷ୍ଟଲ୍ ନାହିଁ</string>
@@ -140,7 +132,6 @@
     <string name="subscription_try_now">ବର୍ତ୍ତମାନ ଚେଷ୍ଟା କରନ୍ତୁ</string>
     <string name="subscription_play_video">ଭିଡିଓ ଚଲାନ୍ତୁ</string>
     <string name="subscription_error">ପେମେଣ୍ଟ୍ ଆରମ୍ଭ ହୋଇପାରିଲା ନାହିଁ। ଦୟାକରି ପୁନର୍ବାର ଚେଷ୍ଟା କରନ୍ତୁ।</string>
-    <string name="subscription_pending">ପେମେଣ୍ଟ୍ ଗ୍ରହଣ ହେଲା। ଆପଣଙ୍କ ଟ୍ରାୟାଲ୍ ସକ୍ରିୟ ହେଉଛି…</string>
 
     <!-- UI refresh: native review pending -->
     <string name="cta_loading">ଲୋଡ୍ ହେଉଛି…</string>
@@ -155,4 +146,44 @@
     <string name="auth_otp_verify">ଯାଞ୍ଚ କରନ୍ତୁ</string>
     <string name="auth_name_headline">ଆପଣଙ୍କ %1$s</string>
     <string name="auth_name_headline_highlight">ନାମ ଲେଖନ୍ତୁ</string>
+
+    <!-- lane A: paywall, payment states, member screen. UI refresh: native review pending -->
+    <string name="paywall_title">1 ଦିନର ଆକ୍ସେସ୍ ପାଆନ୍ତୁ</string>
+    <string name="paywall_price_a11y">ପୂର୍ବରୁ ₹%1$s, ଏବେ କେବଳ ₹%2$s</string>
+    <string name="paywall_then_price">ତାପରେ ₹%1$s/ମାସ • ଯେକୌଣସି ସମୟରେ ବାତିଲ କରନ୍ତୁ</string>
+    <string name="paywall_benefits_title">ମେମ୍ବରସିପ୍‌ର ସୁବିଧା</string>
+    <string name="paywall_benefit_names">ନିଜ ନାମର ଅସୀମିତ ଟ୍ୟୁନ୍ ତିଆରି କରନ୍ତୁ</string>
+    <string name="paywall_benefit_photo">ଯାହାକୁ କଲ୍ କରିବେ, ସେ ଆପଣଙ୍କ ଫଟୋ ଦେଖିବେ</string>
+    <string name="paywall_benefit_family">ପରିବାର ପାଇଁ ଟ୍ୟୁନ୍</string>
+    <string name="paywall_benefit_monthly">ପ୍ରତି ମାସରେ ନୂଆ ଟ୍ୟୁନ୍ — ବଲିଉଡ୍, ଭକ୍ତି, ସିନେମାଟିକ୍ ଇତ୍ୟାଦି।</string>
+    <string name="paywall_faq_title">ସାଧାରଣ ପ୍ରଶ୍ନ</string>
+    <string name="paywall_faq_q1">MeraTune ରେ ମୁଁ କ’ଣ ପାଇବି?</string>
+    <string name="paywall_faq_a1">ମେମ୍ବରସିପ୍‌ରେ ଆପଣ ନିଜ ନାମର ପର୍ସନାଲାଇଜଡ୍ ରିଙ୍ଗଟୋନ୍ ତିଆରି କରିପାରିବେ, ପରିବାର ପାଇଁ ଟ୍ୟୁନ୍ ସେଟ୍ କରିପାରିବେ ଏବଂ କଲ୍ ଆସିଲେ ସ୍କ୍ରିନ୍‌ରେ ଫଟୋ ଲଗାଇପାରିବେ। ପ୍ରତି ମାସରେ ନୂଆ ଟ୍ୟୁନ୍ ମଧ୍ୟ ଯୋଗ ହେଉଥାଏ।</string>
+    <string name="paywall_faq_q2">₹%1$s ଟ୍ରାଏଲ୍ କିପରି କାମ କରେ?</string>
+    <string name="paywall_faq_a2">ଆଜି କେବଳ ₹%1$s ଦେଇ ମେମ୍ବରସିପ୍ ଆରମ୍ଭ କରନ୍ତୁ। ପେମେଣ୍ଟ ସମୟରେ ଆପଣଙ୍କ UPI ଆପ୍‌ରେ ଅଟୋପେ ସେଟ୍ ହୁଏ, ଏବଂ ପରଦିନ ସକାଳ (ପ୍ରାୟ 10 ଟା) ଠାରୁ ଆପଣ ବାତିଲ ନକରିବା ପର୍ଯ୍ୟନ୍ତ ମାସକୁ ₹%2$s ସ୍ୱୟଂଚାଳିତ ଭାବେ କଟିବ।</string>
+    <string name="paywall_faq_q3">ମୁଁ କ’ଣ ଯେକୌଣସି ସମୟରେ ବାତିଲ କରିପାରିବି?</string>
+    <string name="paywall_faq_a3">ହଁ। ଆପଣଙ୍କ UPI ଆପ୍ (ଯେପରି PhonePe, Google Pay, Paytm କିମ୍ବା BHIM) ର Autopay / Mandates ବିଭାଗକୁ ଯାଇ MeraTune ର ଅଟୋପେ ଯେକୌଣସି ସମୟରେ ବାତିଲ କରିପାରିବେ। ବାତିଲ ପରେ ଆଉ କୌଣସି ଅଟୋପେ ଚାର୍ଜ କଟିବ ନାହିଁ। ସାହାଯ୍ୟ ପାଇଁ Profile ରେ Help &amp; Support ଦେଖନ୍ତୁ।</string>
+    <string name="paywall_faq_q4">ମୋଠାରୁ କ’ଣ ତୁରନ୍ତ ଟଙ୍କା କଟିବ?</string>
+    <string name="paywall_faq_a4">ହଁ, ଏବେ କେବଳ ₹%1$s କଟିବ। ଏହା ଗୋଟିଏ ଥର ଟ୍ରାଏଲ୍ ଚାର୍ଜ ଏବଂ ଫେରସ୍ତ ହୁଏ ନାହିଁ। ₹%2$s ର ପ୍ରଥମ ଅଟୋପେ ପରଦିନ ସକାଳ ପ୍ରାୟ 10 ଟାରେ କଟିବ, ତାପରେ ପ୍ରତି ମାସ। ତା ପୂର୍ବରୁ ବାତିଲ କଲେ ₹%2$s କଟିବ ନାହିଁ।</string>
+    <string name="paywall_faq_state_expanded">ଖୋଲା ଅଛି</string>
+    <string name="paywall_faq_state_collapsed">ବନ୍ଦ ଅଛି</string>
+    <string name="paywall_cta">ଟ୍ୟୁନ୍ ତିଆରି କରନ୍ତୁ</string>
+    <string name="paywall_pending_title">ପେମେଣ୍ଟ ବାକି ଅଛି</string>
+    <string name="paywall_pending_body">ଆପଣଙ୍କ ପେମେଣ୍ଟ ଯାଞ୍ଚ ହେଉଛି। ନିଶ୍ଚିତ ହେବା ପର୍ଯ୍ୟନ୍ତ ଦୟାକରି ଅପେକ୍ଷା କରନ୍ତୁ।</string>
+    <string name="paywall_pending_cta">ପେମେଣ୍ଟ ଷ୍ଟାଟସ୍ ଦେଖନ୍ତୁ</string>
+    <string name="paywall_pending_not_yet">ପେମେଣ୍ଟ ଏପର୍ଯ୍ୟନ୍ତ ନିଶ୍ଚିତ ହୋଇନାହିଁ। କିଛି ସମୟ ପରେ ପୁଣି ଦେଖନ୍ତୁ।</string>
+    <string name="paywall_pending_check_failed">ଷ୍ଟାଟସ୍ ଯାଞ୍ଚ ହୋଇପାରିଲା ନାହିଁ। ଇଣ୍ଟରନେଟ୍ ଦେଖି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।</string>
+    <string name="paywall_failed_title">ପେମେଣ୍ଟ ବିଫଳ ହେଲା</string>
+    <string name="paywall_failed_body">ଆମେ ଆପଣଙ୍କ ପେମେଣ୍ଟ ସମ୍ପୂର୍ଣ୍ଣ କରିପାରିଲୁ ନାହିଁ। ଦୟାକରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ କିମ୍ବା ଅନ୍ୟ ପେମେଣ୍ଟ ପଦ୍ଧତି ବ୍ୟବହାର କରନ୍ତୁ।</string>
+    <string name="paywall_failed_reason_bank">ଆପଣଙ୍କ ବ୍ୟାଙ୍କ ପେମେଣ୍ଟ ପ୍ରତ୍ୟାଖ୍ୟାନ କଲା</string>
+    <string name="paywall_failed_reason_funds">ପର୍ଯ୍ୟାପ୍ତ ବାଲାନ୍ସ ନାହିଁ</string>
+    <string name="paywall_failed_reason_details">ଭୁଲ ପେମେଣ୍ଟ ବିବରଣୀ</string>
+    <string name="paywall_failed_cta">ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ</string>
+    <string name="member_title">ଆପଣ ଏବେ ମେମ୍ବର!</string>
+    <string name="member_subtitle">₹%1$s ରେ 1 ଦିନ · ଯେକୌଣସି ସମୟରେ ବାତିଲ କରନ୍ତୁ</string>
+    <string name="member_checklist_title">ଆଜି ଏହି 3ଟି କାମ କରନ୍ତୁ</string>
+    <string name="member_row_first_tune">ଆପଣଙ୍କ ପ୍ରଥମ ଟ୍ୟୁନ୍ ତିଆରି କରନ୍ତୁ</string>
+    <string name="member_row_photo">କଲ୍‌ରେ ଫଟୋ ଚାଲୁ କରନ୍ତୁ</string>
+    <string name="member_row_family">ପରିବାର ପାଇଁ ଟ୍ୟୁନ୍ ତିଆରି କରନ୍ତୁ</string>
+    <string name="member_cta">ଆପଣଙ୍କ ଟ୍ୟୁନ୍ ତିଆରି କରନ୍ତୁ</string>
 </resources>

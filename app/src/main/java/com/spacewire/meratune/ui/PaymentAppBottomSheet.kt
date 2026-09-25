@@ -30,10 +30,7 @@ class PaymentAppBottomSheet(
             val optionView = LayoutInflater.from(context)
                 .inflate(R.layout.item_payment_app_option, container, false)
 
-            optionView.findViewById<TextView>(R.id.paymentAppOptionIcon).apply {
-                setBackgroundResource(app.iconBackgroundRes)
-                text = app.iconLabel
-            }
+            PaymentAppBadge.bind(optionView.findViewById(R.id.paymentAppOptionIcon), app)
             optionView.findViewById<TextView>(R.id.paymentAppOptionName).text = app.displayName
             bindSelection(optionView, app == selectedApp)
 
@@ -46,8 +43,7 @@ class PaymentAppBottomSheet(
             container.addView(optionView)
         }
 
-        dialog.setContentView(sheetView)
-        dialog.show()
+        dialog.present(sheetView)
     }
 
     private fun bindSelection(optionView: View, selected: Boolean) {

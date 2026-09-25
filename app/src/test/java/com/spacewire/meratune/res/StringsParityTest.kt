@@ -17,11 +17,15 @@ import javax.xml.parsers.DocumentBuilderFactory
  * UI refresh: the shared `cta_*` keys (P1) and the onboarding `language_*` / `auth_*` keys (P2) are
  * guarded the same way. Keys marked `translatable="false"` in the default file (the English
  * `language_subtitle_*` names) are skipped by the parity checks and must not appear in any locale.
+ *
+ * UI refresh P6/P7: the paywall / payment-state `paywall_*` keys and the member-screen `member_*`
+ * keys are guarded too.
  */
 class StringsParityTest {
 
     private val prefixes = listOf(
         "create_form_", "song_choice_", "processing_", "ready_", "cta_", "language_", "auth_",
+        "paywall_", "member_",
     )
     private val locales = listOf("bn", "hi", "kn", "ml", "mr", "or", "ta", "te")
     private val placeholder = Regex("%(\\d+)\\$[sd]")
@@ -67,6 +71,11 @@ class StringsParityTest {
         "auth_otp_title", "auth_otp_subtitle", "auth_otp_edit_phone", "auth_otp_resend_in",
         "auth_name_title", "auth_name_subtitle",
         "logo_tune",
+        // UI refresh P6: the old paywall header, rating, FREE badge, feature rows and pending toast.
+        "auth_speaker", "auth_language",
+        "subscription_title_prefix", "subscription_free_badge", "subscription_rating",
+        "subscription_feature_auth", "subscription_feature_trial", "subscription_feature_autopay",
+        "subscription_pending",
     )
 
     private val resDir: File by lazy {

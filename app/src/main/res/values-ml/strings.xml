@@ -109,8 +109,6 @@
     <string name="ready_change_song">ഗാനം മാറ്റൂ</string>
     <string name="ready_make_another">പുതിയ പേര് പരീക്ഷിക്കൂ</string>
     <string name="ready_go_home">ഹോമിലേക്ക് പോകൂ</string>
-    <string name="auth_speaker">ഉറക്കെ വായിക്കുക</string>
-    <string name="auth_language">ഭാഷ മാറ്റുക</string>
     <!-- UI refresh: native review pending -->
     <string name="language_continue">മുന്നോട്ട് പോകുക</string>
     <!-- UI refresh: native review pending -->
@@ -127,12 +125,6 @@
     <string name="auth_name_required">ദയവായി നിങ്ങളുടെ പേര് നൽകുക</string>
     <string name="auth_generic_error">എന്തോ കുഴപ്പം സംഭവിച്ചു. ദയവായി വീണ്ടും ശ്രമിക്കുക.</string>
     <string name="subscription_logout">ലോഗൗട്ട്</string>
-    <string name="subscription_title_prefix">1-ദിവസ</string>
-    <string name="subscription_free_badge">സൗജന്യ ട്രയൽ</string>
-    <string name="subscription_rating">★★★★★ 4.6 ( 10M+ സബ്‌സ്ക്രൈബർമാർ)</string>
-    <string name="subscription_feature_auth">₹ %1$s മാത്രം നൽകി ട്രയൽ ആരംഭിക്കുക</string>
-    <string name="subscription_feature_trial">1-ദിവസം സൗജന്യം, എപ്പോൾ വേണമെങ്കിലും റദ്ദാക്കാം</string>
-    <string name="subscription_feature_autopay">ഓട്ടോപേ ₹ %1$s/1 മാസം</string>
     <string name="subscription_phonepe">PhonePe</string>
     <string name="subscription_select_payment_app">പേയ്‌മെന്റ് ആപ്പ് തിരഞ്ഞെടുക്കുക</string>
     <string name="subscription_payment_app_not_installed">ഈ ഉപകരണത്തിൽ %1$s ഇൻസ്റ്റാൾ ചെയ്തിട്ടില്ല</string>
@@ -140,7 +132,6 @@
     <string name="subscription_try_now">ഇപ്പോൾ പരീക്ഷിക്കുക</string>
     <string name="subscription_play_video">വീഡിയോ പ്ലേ ചെയ്യുക</string>
     <string name="subscription_error">പേയ്‌മെന്റ് ആരംഭിക്കാൻ കഴിഞ്ഞില്ല. ദയവായി വീണ്ടും ശ്രമിക്കുക.</string>
-    <string name="subscription_pending">പേയ്‌മെന്റ് ലഭിച്ചു. നിങ്ങളുടെ ട്രയൽ സജീവമാക്കുന്നു…</string>
 
     <!-- UI refresh: native review pending -->
     <string name="cta_loading">ലോഡ് ചെയ്യുന്നു…</string>
@@ -155,4 +146,44 @@
     <string name="auth_otp_verify">സ്ഥിരീകരിക്കുക</string>
     <string name="auth_name_headline">നിങ്ങളുടെ %1$s</string>
     <string name="auth_name_headline_highlight">പേര് നൽകുക</string>
+
+    <!-- lane A: paywall, payment states, member screen. UI refresh: native review pending -->
+    <string name="paywall_title">1 ദിവസത്തെ ആക്സസ് നേടൂ</string>
+    <string name="paywall_price_a11y">മുമ്പ് ₹%1$s, ഇപ്പോൾ വെറും ₹%2$s</string>
+    <string name="paywall_then_price">പിന്നീട് ₹%1$s/മാസം • എപ്പോൾ വേണമെങ്കിലും റദ്ദാക്കാം</string>
+    <string name="paywall_benefits_title">മെമ്പർഷിപ്പിന്റെ ഗുണങ്ങൾ</string>
+    <string name="paywall_benefit_names">നിങ്ങളുടെ പേരിൽ പരിധിയില്ലാതെ ട്യൂണുകൾ ഉണ്ടാക്കൂ</string>
+    <string name="paywall_benefit_photo">നിങ്ങൾ വിളിക്കുന്നവർക്ക് നിങ്ങളുടെ ഫോട്ടോ കാണാം</string>
+    <string name="paywall_benefit_family">കുടുംബത്തിനായി ട്യൂണുകൾ</string>
+    <string name="paywall_benefit_monthly">എല്ലാ മാസവും പുതിയ ട്യൂണുകൾ — ബോളിവുഡ്, ഭക്തി, സിനിമാറ്റിക് തുടങ്ങിയവ.</string>
+    <string name="paywall_faq_title">പതിവ് ചോദ്യങ്ങൾ</string>
+    <string name="paywall_faq_q1">MeraTune-ൽ എനിക്ക് എന്ത് ലഭിക്കും?</string>
+    <string name="paywall_faq_a1">മെമ്പർഷിപ്പിൽ നിങ്ങളുടെ പേരുള്ള വ്യക്തിഗത റിംഗ്‌ടോണുകൾ ഉണ്ടാക്കാം, കുടുംബത്തിനായി ട്യൂണുകൾ സെറ്റ് ചെയ്യാം, കോൾ വരുമ്പോൾ സ്ക്രീനിൽ ഫോട്ടോ കാണിക്കാം. എല്ലാ മാസവും പുതിയ ട്യൂണുകളും ചേർക്കപ്പെടും.</string>
+    <string name="paywall_faq_q2">₹%1$s ട്രയൽ എങ്ങനെ പ്രവർത്തിക്കുന്നു?</string>
+    <string name="paywall_faq_a2">ഇന്ന് വെറും ₹%1$s നൽകി മെമ്പർഷിപ്പ് തുടങ്ങൂ. പേയ്‌മെന്റ് സമയത്ത് നിങ്ങളുടെ UPI ആപ്പിൽ ഓട്ടോപേ സെറ്റ് ആകും, അടുത്ത ദിവസം രാവിലെ (ഏകദേശം 10 മണി) മുതൽ നിങ്ങൾ റദ്ദാക്കുന്നത് വരെ മാസം ₹%2$s സ്വയമേവ ഈടാക്കും.</string>
+    <string name="paywall_faq_q3">എനിക്ക് എപ്പോൾ വേണമെങ്കിലും റദ്ദാക്കാമോ?</string>
+    <string name="paywall_faq_a3">അതെ. നിങ്ങളുടെ UPI ആപ്പിലെ (ഉദാ. PhonePe, Google Pay, Paytm അല്ലെങ്കിൽ BHIM) Autopay / Mandates വിഭാഗത്തിൽ പോയി MeraTune ഓട്ടോപേ എപ്പോൾ വേണമെങ്കിലും റദ്ദാക്കാം. റദ്ദാക്കിയ ശേഷം ഓട്ടോപേ ചാർജ് ഒന്നും ഈടാക്കില്ല. സഹായത്തിന് Profile-ൽ Help &amp; Support കാണുക.</string>
+    <string name="paywall_faq_q4">എന്നിൽ നിന്ന് ഉടൻ പണം ഈടാക്കുമോ?</string>
+    <string name="paywall_faq_a4">അതെ, ഇപ്പോൾ വെറും ₹%1$s മാത്രം ഈടാക്കും. ഇത് ഒറ്റത്തവണ ട്രയൽ ചാർജാണ്, തിരികെ ലഭിക്കില്ല. ₹%2$s-ന്റെ ആദ്യ ഓട്ടോപേ അടുത്ത ദിവസം രാവിലെ ഏകദേശം 10 മണിക്ക് ഈടാക്കും, പിന്നെ എല്ലാ മാസവും. അതിനു മുമ്പ് റദ്ദാക്കിയാൽ ₹%2$s ഈടാക്കില്ല.</string>
+    <string name="paywall_faq_state_expanded">തുറന്നിരിക്കുന്നു</string>
+    <string name="paywall_faq_state_collapsed">അടച്ചിരിക്കുന്നു</string>
+    <string name="paywall_cta">ട്യൂൺ ഉണ്ടാക്കൂ</string>
+    <string name="paywall_pending_title">പേയ്‌മെന്റ് പെൻഡിംഗ്</string>
+    <string name="paywall_pending_body">നിങ്ങളുടെ പേയ്‌മെന്റ് പരിശോധിക്കുന്നു. സ്ഥിരീകരിക്കുന്നത് വരെ ദയവായി കാത്തിരിക്കൂ.</string>
+    <string name="paywall_pending_cta">പേയ്‌മെന്റ് സ്റ്റാറ്റസ് കാണുക</string>
+    <string name="paywall_pending_not_yet">പേയ്‌മെന്റ് ഇതുവരെ സ്ഥിരീകരിച്ചിട്ടില്ല. കുറച്ച് കഴിഞ്ഞ് വീണ്ടും നോക്കൂ.</string>
+    <string name="paywall_pending_check_failed">സ്റ്റാറ്റസ് പരിശോധിക്കാനായില്ല. ഇന്റർനെറ്റ് പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കൂ.</string>
+    <string name="paywall_failed_title">പേയ്‌മെന്റ് പരാജയപ്പെട്ടു</string>
+    <string name="paywall_failed_body">നിങ്ങളുടെ പേയ്‌മെന്റ് പൂർത്തിയാക്കാനായില്ല. വീണ്ടും ശ്രമിക്കുക അല്ലെങ്കിൽ മറ്റൊരു പേയ്‌മെന്റ് രീതി ഉപയോഗിക്കുക.</string>
+    <string name="paywall_failed_reason_bank">നിങ്ങളുടെ ബാങ്ക് പേയ്‌മെന്റ് നിരസിച്ചു</string>
+    <string name="paywall_failed_reason_funds">മതിയായ ബാലൻസ് ഇല്ല</string>
+    <string name="paywall_failed_reason_details">തെറ്റായ പേയ്‌മെന്റ് വിവരങ്ങൾ</string>
+    <string name="paywall_failed_cta">വീണ്ടും ശ്രമിക്കൂ</string>
+    <string name="member_title">നിങ്ങൾ ഇപ്പോൾ മെമ്പറാണ്!</string>
+    <string name="member_subtitle">₹%1$s-ന് 1 ദിവസം · എപ്പോൾ വേണമെങ്കിലും റദ്ദാക്കാം</string>
+    <string name="member_checklist_title">ഇന്ന് ഈ 3 കാര്യങ്ങൾ ചെയ്യൂ</string>
+    <string name="member_row_first_tune">നിങ്ങളുടെ ആദ്യ ട്യൂൺ ഉണ്ടാക്കൂ</string>
+    <string name="member_row_photo">കോളുകളിൽ ഫോട്ടോ ഓണാക്കൂ</string>
+    <string name="member_row_family">കുടുംബത്തിനായി ട്യൂണുകൾ ഉണ്ടാക്കൂ</string>
+    <string name="member_cta">നിങ്ങളുടെ ട്യൂൺ ഉണ്ടാക്കൂ</string>
 </resources>

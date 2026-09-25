@@ -26,9 +26,13 @@ object AnalyticsScreen {
     const val RINGTONE_PROCESSING = "ringtone_processing"
     const val RINGTONE_READY = "ringtone_ready"
 
+    /** The member screen shown once after the trial payment verifies. */
+    const val MEMBERSHIP_WELCOME = "membership_welcome"
+
     val ALL = setOf(
         LANGUAGE_SELECTION, PHONE_ENTRY, OTP_ENTRY, NAME_ENTRY, SUBSCRIPTION, HOME,
         PROFILE, CREATE_FORM, SONG_PICKER, RINGTONE_PROCESSING, RINGTONE_READY,
+        MEMBERSHIP_WELCOME,
     )
 }
 
@@ -42,6 +46,7 @@ object AnalyticsSource {
     const val NAME_ENTRY = AnalyticsScreen.NAME_ENTRY
     const val SUBSCRIPTION = AnalyticsScreen.SUBSCRIPTION
     const val RINGTONE_PROCESSING = AnalyticsScreen.RINGTONE_PROCESSING
+    const val MEMBERSHIP_WELCOME = AnalyticsScreen.MEMBERSHIP_WELCOME
 
     /** The Ready screen (legacy name kept for `ringtone_set` and the server `ringtone_created`). */
     const val CREATION_FLOW = "creation_flow"
@@ -59,6 +64,9 @@ object CreationEntryPoint {
     const val SEARCH_BAR = "search_bar"
     const val READY_SCREEN = "ready_screen"
     const val PROCESSING = "processing"
+
+    /** The member screen's CTA and checklist rows, right after the trial payment. */
+    const val POST_PURCHASE = "post_purchase"
 }
 
 /** `subscription_screen_viewed` / `paywall_dismissed` `entry_point`. */
@@ -94,6 +102,9 @@ object PaywallEntryPoint {
 
 object PaywallDismissMethod {
     const val SYSTEM_BACK = "system_back"
+
+    /** The paywall header's close X. */
+    const val CLOSE_BUTTON = "close_button"
 }
 
 /** `user_state` super property, from the AuthStore status. */

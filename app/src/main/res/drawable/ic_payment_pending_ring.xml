@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Payment Pending: 8 round-cap yellow dashes (rotated by SubscriptionActivity while Pending shows). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="64dp"
+    android:height="64dp"
+    android:viewportWidth="64"
+    android:viewportHeight="64">
+    <path
+        android:pathData="M36.86,4.43A28,28 0,0 1,48.06,9.06M54.94,15.94A28,28 0,0 1,59.57,27.14M59.57,36.86A28,28 0,0 1,54.94,48.06M48.06,54.94A28,28 0,0 1,36.86,59.57M27.14,59.57A28,28 0,0 1,15.94,54.94M9.06,48.06A28,28 0,0 1,4.43,36.86M4.43,27.14A28,28 0,0 1,9.06,15.94M15.94,9.06A28,28 0,0 1,27.14,4.43"
+        android:strokeWidth="4"
+        android:strokeColor="@color/status_pending"
+        android:strokeLineCap="round" />
+</vector>

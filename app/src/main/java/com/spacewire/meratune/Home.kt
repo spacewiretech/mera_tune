@@ -5,15 +5,20 @@ import android.os.Bundle
 import android.util.Log
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.KeyEvent
 import android.view.View
+import android.view.inputmethod.EditorInfo
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.ProgressBar
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -27,11 +32,14 @@ import com.spacewire.meratune.calltheme.RingtoneSetController
 import com.spacewire.meratune.calltheme.SetEntryContext
 import com.spacewire.meratune.data.Tune
 import com.spacewire.meratune.ui.CategoryAdapter
+import com.spacewire.meratune.ui.HomeScreenViewGate
 import com.spacewire.meratune.ui.HomeViewModel
+import com.spacewire.meratune.ui.InsetDividerDecoration
 import com.spacewire.meratune.ui.PlaybackSessionStats
 import com.spacewire.meratune.ui.PreviewPlayerController
 import com.spacewire.meratune.ui.TuneAdapter
 import com.spacewire.meratune.util.GradientTextHelper
+import com.spacewire.meratune.util.InsetsUi
 import com.spacewire.meratune.util.StartupPermissionRequester
 import com.spacewire.meratune.util.enableLightEdgeToEdge
 import androidx.media3.common.PlaybackException
@@ -44,8 +52,16 @@ class Home : AppCompatActivity() {
     private lateinit var tuneAdapter: TuneAdapter
     private lateinit var categoryAdapter: CategoryAdapter
     private lateinit var searchInput: EditText
+    private lateinit var emptyScroll: ScrollView
+    private lateinit var emptyStateImage: ImageView
+    private lateinit var createCta: TextView
     private var suppressSearchUpdates = false
     private var isNavigating = false
+    private var imeVisible = false
+    private var emptyStateShown = false
+
+    /** Keeps `onNewIntent` from re-tracking a `screen_viewed(home)` the lifecycle already sent. */
+    private val screenViewGate = HomeScreenViewGate()
 
     /** Tunes with a `tune_played` in this visit (cleared on pause); feeds `ringtone_set_started.was_previewed`. */
     private val previewedTuneIds = mutableSetOf<String>()
@@ -95,12 +111,10 @@ class Home : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableLightEdgeToEdge()
         setContentView(R.layout.activity_home)
+        screenViewGate.onCreate(restored = savedInstanceState != null)
 
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { view, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        // The keyboard raises the bottom padding, so the empty state's CTA stays reachable.
+        InsetsUi.padForSystemBarsAndIme(findViewById(R.id.main)) { visible -> onImeChanged(visible) }
 
         setupAdapters()
         setupSearch()
@@ -117,7 +131,10 @@ class Home : AppCompatActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         // CLEAR_TOP re-entry (Ready screen "Go home") skips onCreate, so the lifecycle tracker does not see it.
-        mixpanelAnalytics().trackScreenViewed(AnalyticsScreen.HOME)
+        // A never-launched Home gets onCreate (already tracked) and then onNewIntent: skip that one.
+        if (screenViewGate.shouldTrackOnNewIntent()) {
+            mixpanelAnalytics().trackScreenViewed(AnalyticsScreen.HOME)
+        }
     }
 
     private fun setupAdapters() {
@@ -146,6 +163,7 @@ class Home : AppCompatActivity() {
         findViewById<RecyclerView>(R.id.tunesRecycler).apply {
             layoutManager = LinearLayoutManager(this@Home)
             adapter = tuneAdapter
+            addItemDecoration(InsetDividerDecoration(this@Home, R.color.divider, ROW_INSET_DP, ROW_INSET_DP))
         }
 
         findViewById<View>(R.id.profileIcon).setOnClickListener {
@@ -163,16 +181,34 @@ class Home : AppCompatActivity() {
                 viewModel.onSearchQueryChanged(s?.toString().orEmpty())
             }
         })
+        // The search key only closes the keyboard; search_performed keeps its debounce.
+        searchInput.setOnEditorActionListener { view, actionId, event ->
+            val isSearchKey = actionId == EditorInfo.IME_ACTION_SEARCH ||
+                (event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN)
+            if (isSearchKey) {
+                WindowCompat.getInsetsController(window, view).hide(WindowInsetsCompat.Type.ime())
+            }
+            isSearchKey
+        }
     }
 
     private fun setupEmptyState() {
-        GradientTextHelper.applyHorizontalGradient(
-            findViewById(R.id.emptyStateTitleLine2),
-            R.color.gradient_pink,
+        emptyScroll = findViewById(R.id.searchEmptyState)
+        emptyStateImage = findViewById(R.id.emptyStateImage)
+        createCta = findViewById(R.id.createRingtoneButton)
+
+        // One paragraph with a vertical gradient on "Sirf Aapke Liye!" (plain text if a translation drops it).
+        val highlight = getString(R.string.empty_search_title_highlight)
+        GradientTextHelper.setTextWithGradientHighlight(
+            findViewById(R.id.emptyStateTitle),
+            getString(R.string.empty_search_title, highlight),
+            highlight,
             R.color.gradient_orange,
+            R.color.gradient_pink,
+            GradientTextHelper.Direction.VERTICAL,
         )
 
-        findViewById<TextView>(R.id.createRingtoneButton).setOnClickListener {
+        createCta.setOnClickListener {
             if (isNavigating) return@setOnClickListener
             isNavigating = true
             val query = searchInput.text.toString().trim()
@@ -213,8 +249,7 @@ class Home : AppCompatActivity() {
                     tuneAdapter.submitList(state.filteredTunes, state.playingTuneId, state.activeRingtoneId)
 
                     val showEmptyState = state.showSearchEmptyState
-                    findViewById<View>(R.id.searchEmptyState).visibility =
-                        if (showEmptyState) View.VISIBLE else View.GONE
+                    emptyScroll.visibility = if (showEmptyState) View.VISIBLE else View.GONE
                     findViewById<RecyclerView>(R.id.tunesRecycler).visibility =
                         if (showEmptyState) View.GONE else View.VISIBLE
 
@@ -224,6 +259,8 @@ class Home : AppCompatActivity() {
                             state.searchQuery.trim(),
                         )
                     }
+                    if (showEmptyState && !emptyStateShown && imeVisible) ensureCreateCtaVisible()
+                    emptyStateShown = showEmptyState
 
                     if (state.playingTuneId == null && previewPlayer.isPlaying) {
                         stopPlayback()
@@ -270,6 +307,20 @@ class Home : AppCompatActivity() {
         previewPlayer.play(tune.id, playbackUrl)
     }
 
+    /** While the keyboard is open the empty state drops its logo and scrolls to the CTA. */
+    private fun onImeChanged(visible: Boolean) {
+        imeVisible = visible
+        emptyStateImage.isVisible = !visible
+        if (visible && emptyScroll.isVisible) ensureCreateCtaVisible()
+    }
+
+    private fun ensureCreateCtaVisible() {
+        emptyScroll.post {
+            val target = createCta.bottom + emptyScroll.paddingBottom - emptyScroll.height + emptyScroll.paddingTop
+            emptyScroll.smoothScrollTo(0, target.coerceAtLeast(0))
+        }
+    }
+
     private fun showPlaybackError(detail: String) {
         Toast.makeText(this, R.string.playback_error, Toast.LENGTH_SHORT).show()
         Log.e(TAG, detail)
@@ -284,6 +335,7 @@ class Home : AppCompatActivity() {
 
     companion object {
         private const val TAG = "HomePlayback"
+        private const val ROW_INSET_DP = 36f
     }
 
     override fun onPause() {
@@ -293,6 +345,7 @@ class Home : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        screenViewGate.onResume()
         isNavigating = false
         viewModel.refreshActiveRingtone()
     }

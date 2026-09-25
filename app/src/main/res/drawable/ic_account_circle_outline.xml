@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home header profile button: outlined account circle, navy. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="30dp"
+    android:height="30dp"
+    android:viewportWidth="30"
+    android:viewportHeight="30">
+    <path
+        android:pathData="M15,1a14,14 0,1 1,0 28a14,14 0,1 1,0 -28z"
+        android:strokeWidth="2"
+        android:strokeColor="@color/navy" />
+    <path
+        android:pathData="M15,7.5a4.75,4.75 0,1 1,0 9.5a4.75,4.75 0,1 1,0 -9.5z"
+        android:strokeWidth="2"
+        android:strokeColor="@color/navy" />
+    <path
+        android:pathData="M6.6,24.2C8.3,21 11.4,19.3 15,19.3s6.7,1.7 8.4,4.9"
+        android:strokeWidth="2"
+        android:strokeColor="@color/navy"
+        android:strokeLineCap="round" />
+</vector>

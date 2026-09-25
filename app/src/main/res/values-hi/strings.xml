@@ -1,6 +1,5 @@
 <resources>
     <string name="app_name">Mera Tune</string>
-    <string name="logo_mera">मेरा</string>
     <string name="search_hint">अपना नाम दर्ज करें…</string>
     <string name="set">सेट</string>
     <string name="active_ringtone">सक्रिय</string>
@@ -43,10 +42,9 @@
     <string name="playback_error">यह ट्यून चलाई नहीं जा सकी</string>
     <string name="load_error_retry">पुनः प्रयास करने के लिए टैप करें</string>
     <string name="load_error_with_retry">%1$s\n\nपुनः प्रयास करने के लिए टैप करें।</string>
-    <string name="empty_search_title_line1">चलिए, एक रिंगटोन बनाते हैं</string>
-    <string name="empty_search_title_line2">सिर्फ़ आपके लिए!</string>
     <string name="empty_search_message">हमें %1$s के लिए रिंगटोन नहीं मिली, सबसे पहले बनाने वाले बनें</string>
-    <string name="create_ringtone">रिंगटोन बनाएँ +</string>
+    <!-- UI refresh: native review pending -->
+    <string name="create_ringtone">रिंगटोन बनाएँ</string>
     <string name="back">वापस</string>
     <string name="create_form_title">%1$s, अपने नाम की रिंगटोन बनाइए!</string>
     <!-- UI refresh: native review pending -->
@@ -217,4 +215,10 @@
     <string name="song_choice_choose_a11y">%1$s चुनें</string>
     <!-- UI refresh: native review pending -->
     <string name="ready_set_done">रिंगटोन सेट हो गई</string>
+    <!-- lane C -->
+    <!-- UI refresh: native review pending -->
+    <!-- %1$s = empty_search_title_highlight (gradient span); translators may move it. -->
+    <string name="empty_search_title">चलिए, एक रिंगटोन बनाते हैं %1$s</string>
+    <string name="empty_search_title_highlight">सिर्फ़ आपके लिए!</string>
+    <string name="home_pause_tune">ट्यून रोकें</string>
 </resources>

@@ -1,6 +1,5 @@
 <resources>
     <string name="app_name">Mera Tune</string>
-    <string name="logo_mera">माझे</string>
     <string name="search_hint">तुमचे नाव प्रविष्ट करा…</string>
     <string name="set">सेट</string>
     <string name="active_ringtone">सक्रिय</string>
@@ -29,10 +28,9 @@
     <string name="playback_error">ही ट्यून वाजवता आली नाही</string>
     <string name="load_error_retry">पुन्हा प्रयत्न करण्यासाठी टॅप करा</string>
     <string name="load_error_with_retry">%1$s\n\nपुन्हा प्रयत्न करण्यासाठी टॅप करा.</string>
-    <string name="empty_search_title_line1">चला, एक रिंगटोन तयार करूया</string>
-    <string name="empty_search_title_line2">फक्त तुमच्यासाठी!</string>
     <string name="empty_search_message">आम्हाला %1$s साठी रिंगटोन सापडली नाही, तुम्ही पहिले तयार करा</string>
-    <string name="create_ringtone">रिंगटोन तयार करा +</string>
+    <!-- UI refresh: native review pending -->
+    <string name="create_ringtone">रिंगटोन तयार करा</string>
     <string name="back">मागे</string>
     <string name="create_form_title">%1$s, तुमच्या नावाची रिंगटोन तयार करा!</string>
     <!-- UI refresh: native review pending -->
@@ -223,4 +221,10 @@
     <string name="upload_photo_gallery_subtitle">तुमच्या फोटोंमधून निवडा</string>
     <!-- UI refresh: native review pending -->
     <string name="upload_photo_preview_content_description">निवडलेला फोटो</string>
+    <!-- lane C -->
+    <!-- UI refresh: native review pending -->
+    <!-- %1$s = empty_search_title_highlight (gradient span); translators may move it. -->
+    <string name="empty_search_title">चला, एक रिंगटोन तयार करूया %1$s</string>
+    <string name="empty_search_title_highlight">फक्त तुमच्यासाठी!</string>
+    <string name="home_pause_tune">ट्यून थांबवा</string>
 </resources>

@@ -26,6 +26,8 @@ class StringsParityTest {
     private val prefixes = listOf(
         "create_form_", "song_choice_", "processing_", "ready_", "cta_", "language_", "auth_",
         "paywall_", "member_",
+        // UI refresh P9 (lane C): Home and Profile.
+        "home_", "empty_search_", "profile_",
     )
     private val locales = listOf("bn", "hi", "kn", "ml", "mr", "or", "ta", "te")
     private val placeholder = Regex("%(\\d+)\\$[sd]")
@@ -52,12 +54,14 @@ class StringsParityTest {
         "language_continue", "auth_phone_headline", "auth_phone_headline_highlight", "auth_phone_helper",
         "auth_phone_cta", "auth_country_india", "auth_otp_headline", "auth_otp_headline_highlight",
         "auth_otp_verify", "auth_name_headline", "auth_name_headline_highlight",
+        // UI refresh P9 (lane C): Home empty-search title and row play button.
+        "empty_search_title", "empty_search_title_highlight", "home_pause_tune",
     )
 
     /**
      * Keys removed from every folder: plan B7's voice/category form sections, and (UI refresh P2) the
      * old auth titles/subtitles, the emoji country code, the OTP edit link and countdown label, and
-     * the language-screen `logo_tune` wordmark.
+     * the language-screen `logo_tune` wordmark. P9 (lane C) adds the Home/Profile prefixes.
      */
     private val removedKeys = listOf(
         "create_form_choose_voice",
@@ -76,6 +80,8 @@ class StringsParityTest {
         "subscription_title_prefix", "subscription_free_badge", "subscription_rating",
         "subscription_feature_auth", "subscription_feature_trial", "subscription_feature_autopay",
         "subscription_pending",
+        // UI refresh P9 (lane C): two-line empty-search title and the Home header's old wordmark text.
+        "empty_search_title_line1", "empty_search_title_line2", "logo_mera",
     )
 
     private val resDir: File by lazy {

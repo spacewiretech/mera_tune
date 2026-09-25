@@ -1,6 +1,5 @@
 <resources>
     <string name="app_name">Mera Tune</string>
-    <string name="logo_mera">मेरा</string>
     <string name="search_hint">നിങ്ങളുടെ പേര് നൽകുക…</string>
     <string name="set">സജ്ജമാക്കുക</string>
     <string name="active_ringtone">സജീവം</string>
@@ -29,10 +28,9 @@
     <string name="playback_error">ഈ ട്യൂൺ പ്ലേ ചെയ്യാൻ കഴിഞ്ഞില്ല</string>
     <string name="load_error_retry">വീണ്ടും ശ്രമിക്കാൻ ടാപ്പ് ചെയ്യുക</string>
     <string name="load_error_with_retry">%1$s\n\nവീണ്ടും ശ്രമിക്കാൻ ടാപ്പ് ചെയ്യുക.</string>
-    <string name="empty_search_title_line1">നമുക്ക് ഒരു റിംഗ്ടോൺ ഉണ്ടാക്കാം</string>
-    <string name="empty_search_title_line2">നിങ്ങൾക്ക് മാത്രം!</string>
     <string name="empty_search_message">%1$s-നായി റിംഗ്ടോൺ കണ്ടെത്താനായില്ല, ആദ്യം ഒന്ന് സൃഷ്ടിക്കൂ</string>
-    <string name="create_ringtone">റിംഗ്ടോൺ സൃഷ്ടിക്കുക +</string>
+    <!-- UI refresh: native review pending -->
+    <string name="create_ringtone">റിംഗ്ടോൺ സൃഷ്ടിക്കുക</string>
     <string name="back">പിന്നോട്ട്</string>
     <string name="create_form_title">%1$s, നിങ്ങളുടെ പേരിന്റെ റിംഗ്ടോൺ ഉണ്ടാക്കൂ!</string>
     <!-- UI refresh: native review pending -->
@@ -223,4 +221,10 @@
     <string name="upload_photo_gallery_subtitle">നിങ്ങളുടെ ഫോട്ടോകളിൽ നിന്ന് തിരഞ്ഞെടുക്കൂ</string>
     <!-- UI refresh: native review pending -->
     <string name="upload_photo_preview_content_description">തിരഞ്ഞെടുത്ത ഫോട്ടോ</string>
+    <!-- lane C -->
+    <!-- UI refresh: native review pending -->
+    <!-- %1$s = empty_search_title_highlight (gradient span); translators may move it. -->
+    <string name="empty_search_title">നമുക്ക് ഒരു റിംഗ്ടോൺ ഉണ്ടാക്കാം %1$s</string>
+    <string name="empty_search_title_highlight">നിങ്ങൾക്ക് മാത്രം!</string>
+    <string name="home_pause_tune">ട്യൂൺ നിർത്തുക</string>
 </resources>

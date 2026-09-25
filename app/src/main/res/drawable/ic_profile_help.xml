@@ -1,9 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Help & Support row: outlined circle-i. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
+        android:pathData="M12,2.8a9.2,9.2 0,1 1,0 18.4a9.2,9.2 0,1 1,0 -18.4z"
+        android:strokeWidth="1.6"
+        android:strokeColor="@color/navy" />
+    <path
+        android:pathData="M12,11v5.5"
+        android:strokeWidth="1.8"
+        android:strokeColor="@color/navy"
+        android:strokeLineCap="round" />
+    <path
         android:fillColor="@color/navy"
-        android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM13,17h-2v-6h2v6zM13,9h-2V7h2v2z" />
+        android:pathData="M12,6.9a1.1,1.1 0,1 1,0 2.2a1.1,1.1 0,1 1,0 -2.2z" />
 </vector>

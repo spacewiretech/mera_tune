@@ -59,4 +59,9 @@
     <color name="photo_icon_circle">#F5F5F8</color>
     <color name="ready_ring_track">#F1F1F1</color>
     <color name="ready_ring_glow">#66FC960C</color>
+    <!-- lane C -->
+    <color name="home_playing_ring">#F74460</color>
+    <color name="home_playing_ring_track">#66F74460</color>
+    <color name="profile_phone">#897B64</color>
+    <color name="logout_red">#EF3E0D</color>
 </resources>

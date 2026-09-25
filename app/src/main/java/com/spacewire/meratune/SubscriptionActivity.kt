@@ -546,7 +546,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         originalPrice.text = getString(R.string.price_rupee, recurringAmountLabel)
         offerPrice.text = getString(R.string.price_rupee, authAmountLabel)
         renewalText.text = getString(R.string.paywall_then_price, recurringAmountLabel)
-        priceRow.contentDescription = getString(R.string.paywall_price_a11y, recurringAmountLabel, authAmountLabel)
+        priceRow.contentDescription = getString(R.string.price_rupee, authAmountLabel)
         faq.rebind(faqItems())
     }
 

@@ -24,11 +24,10 @@
         android:id="@+id/profileScreenTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:fontFamily="sans-serif-medium"
+        android:fontFamily="@font/manrope_bold"
         android:text="@string/profile_screen_title"
         android:textColor="@color/navy"
         android:textSize="20sp"
-        android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="@id/backButton"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -100,10 +99,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
-                android:fontFamily="sans-serif-medium"
+                android:fontFamily="@font/manrope_bold"
                 android:textColor="@color/navy"
                 android:textSize="22sp"
-                android:textStyle="bold"
                 tools:text="Parvathi Devi" />
 
             <TextView
@@ -157,11 +155,10 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
-                    android:fontFamily="sans-serif-medium"
+                    android:fontFamily="@font/manrope_bold"
                     android:text="@string/profile_logout"
                     android:textColor="@color/navy"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:textSize="16sp" />
             </LinearLayout>
 
         </LinearLayout>

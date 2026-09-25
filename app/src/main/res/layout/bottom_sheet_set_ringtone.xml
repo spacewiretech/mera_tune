@@ -16,15 +16,14 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:fontFamily="sans-serif-medium"
+        android:fontFamily="@font/manrope_bold"
         android:gravity="center"
         android:paddingHorizontal="24dp"
         android:paddingTop="18dp"
         android:paddingBottom="8dp"
         android:text="@string/set_ringtone_sheet_title"
         android:textColor="@color/navy"
-        android:textSize="18sp"
-        android:textStyle="bold" />
+        android:textSize="18sp" />
 
     <LinearLayout
         android:id="@+id/setRingtoneOptionsContainer"
@@ -42,11 +41,10 @@
         android:layout_marginHorizontal="20dp"
         android:layout_marginTop="24dp"
         android:background="@drawable/bg_create_ringtone_button"
-        android:fontFamily="sans-serif-medium"
+        android:fontFamily="@font/manrope_bold"
         android:gravity="center"
         android:text="@string/create_form_continue"
         android:textColor="@color/white"
-        android:textSize="16sp"
-        android:textStyle="bold" />
+        android:textSize="16sp" />
 
 </LinearLayout>

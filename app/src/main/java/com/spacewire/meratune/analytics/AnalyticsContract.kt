@@ -38,6 +38,8 @@ object AnalyticsSource {
     const val SONG_PICKER = AnalyticsScreen.SONG_PICKER
     const val PROFILE = AnalyticsScreen.PROFILE
     const val PHONE_ENTRY = AnalyticsScreen.PHONE_ENTRY
+    const val OTP_ENTRY = AnalyticsScreen.OTP_ENTRY
+    const val NAME_ENTRY = AnalyticsScreen.NAME_ENTRY
     const val SUBSCRIPTION = AnalyticsScreen.SUBSCRIPTION
     const val RINGTONE_PROCESSING = AnalyticsScreen.RINGTONE_PROCESSING
 

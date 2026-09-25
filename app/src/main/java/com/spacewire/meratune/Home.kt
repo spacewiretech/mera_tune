@@ -10,7 +10,6 @@ import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -34,6 +33,7 @@ import com.spacewire.meratune.ui.PreviewPlayerController
 import com.spacewire.meratune.ui.TuneAdapter
 import com.spacewire.meratune.util.GradientTextHelper
 import com.spacewire.meratune.util.StartupPermissionRequester
+import com.spacewire.meratune.util.enableLightEdgeToEdge
 import androidx.media3.common.PlaybackException
 import kotlinx.coroutines.launch
 
@@ -93,7 +93,7 @@ class Home : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableLightEdgeToEdge()
         setContentView(R.layout.activity_home)
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { view, insets ->

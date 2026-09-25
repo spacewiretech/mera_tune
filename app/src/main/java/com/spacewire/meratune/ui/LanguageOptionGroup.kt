@@ -22,13 +22,16 @@ class LanguageOptionGroup(
 
         selectedIndex = index
         optionViews.forEachIndexed { optionIndex, view ->
+            val selected = optionIndex == index
             view.setBackgroundResource(
-                if (optionIndex == index) {
+                if (selected) {
                     R.drawable.bg_language_option_selected
                 } else {
                     R.drawable.bg_language_option_unselected
                 },
             )
+            // TalkBack announces "selected" on the chosen card.
+            view.isSelected = selected
         }
 
         if (notify) {

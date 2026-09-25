@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.spacewire.meratune.util.AuthNavigator
 import com.spacewire.meratune.util.AuthStore
 import com.spacewire.meratune.util.ProfileStore
@@ -11,6 +12,9 @@ import com.spacewire.meratune.util.ProfileStore
 class AuthActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Theme.MeraTune.Starting (manifest). No keep-on-screen condition: this activity routes and
+        // finishes inside onCreate, so app_opened.entry_screen stays the destination's slug.
+        installSplashScreen()
         super.onCreate(savedInstanceState)
 
         val profileStore = ProfileStore(this)

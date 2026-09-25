@@ -6,16 +6,15 @@ import android.os.Bundle
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.data.Languages
 import com.spacewire.meratune.ui.LanguageOptionGroup
-import com.spacewire.meratune.util.GradientTextHelper
 import com.spacewire.meratune.util.LocaleHelper
 import com.spacewire.meratune.util.ProfileStore
+import com.spacewire.meratune.util.enableLightEdgeToEdge
 
 class LanguageSelectionActivity : AppCompatActivity() {
 
@@ -26,7 +25,7 @@ class LanguageSelectionActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableLightEdgeToEdge()
         setContentView(R.layout.activity_language_selection)
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.languageSelectionRoot)) { view, insets ->
@@ -40,17 +39,17 @@ class LanguageSelectionActivity : AppCompatActivity() {
             insets
         }
 
-        GradientTextHelper.applyHorizontalGradient(
-            findViewById(R.id.logoTuneText),
-            R.color.gradient_pink,
-            R.color.gradient_orange,
-        )
-
-        setupLanguageOptions()
+        setupLanguageOptions(savedInstanceState?.getInt(STATE_SELECTED_INDEX, -1) ?: -1)
         setupContinueAction()
     }
 
-    private fun setupLanguageOptions() {
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt(STATE_SELECTED_INDEX, languageGroup.selectedIndex())
+    }
+
+    /** [restoredIndex] is the card picked before a configuration change, or -1. */
+    private fun setupLanguageOptions(restoredIndex: Int) {
         val listContainer = findViewById<LinearLayout>(R.id.languageListContainer)
         val profileStore = ProfileStore(this)
 
@@ -73,7 +72,8 @@ class LanguageSelectionActivity : AppCompatActivity() {
             optionView
         }
 
-        val initialIndex = Languages.indexForLocaleCode(profileStore.getLocaleCode())
+        val initialIndex = restoredIndex.takeIf { it in Languages.all.indices }
+            ?: Languages.indexForLocaleCode(profileStore.getLocaleCode())
         languageGroup = LanguageOptionGroup(optionViews, initialIndex)
     }
 
@@ -123,6 +123,7 @@ class LanguageSelectionActivity : AppCompatActivity() {
 
     companion object {
         private const val EXTRA_ONBOARDING = "extra_onboarding"
+        private const val STATE_SELECTED_INDEX = "state_selected_index"
 
         fun intent(context: Context, onboarding: Boolean = false): Intent =
             Intent(context, LanguageSelectionActivity::class.java)

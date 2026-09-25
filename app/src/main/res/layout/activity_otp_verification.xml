@@ -1,152 +1,175 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Onboarding auth skeleton (see activity_phone_auth.xml) with the OTP boxes, timer + resend, and Verify CTA. -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/otpRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background">
+    android:background="@color/surface_auth">
 
-    <include
-        android:id="@+id/authHeader"
-        layout="@layout/include_auth_header"
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/otpScroll"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="12dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <ImageView
-        android:id="@+id/logoImage"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
-        android:layout_marginTop="48dp"
-        android:contentDescription="@string/app_name"
-        android:src="@mipmap/ic_launcher"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/authHeader" />
-
-    <TextView
-        android:id="@+id/titleText"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginTop="32dp"
-        android:fontFamily="sans-serif-medium"
-        android:gravity="center"
-        android:text="@string/auth_otp_title"
-        android:textColor="@color/navy"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/logoImage" />
-
-    <TextView
-        android:id="@+id/subtitleText"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="32dp"
-        android:layout_marginTop="8dp"
-        android:gravity="center"
-        android:text="@string/auth_otp_subtitle"
-        android:textColor="@color/text_secondary"
-        android:textSize="15sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/titleText" />
-
-    <LinearLayout
-        android:id="@+id/phoneRow"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/subtitleText">
-
-        <TextView
-            android:id="@+id/phoneNumberText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-medium"
-            android:textColor="@color/navy"
-            android:textSize="16sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/editPhoneButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:paddingHorizontal="4dp"
-            android:paddingVertical="6dp"
-            android:text="@string/auth_otp_edit_phone"
-            android:textColor="@color/gradient_pink"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <com.spacewire.meratune.ui.OtpInputView
-        android:id="@+id/otpInputView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/phoneRow" />
-
-    <TextView
-        android:id="@+id/resendOtpButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:paddingHorizontal="12dp"
-        android:paddingVertical="8dp"
-        android:text="@string/auth_otp_resend"
-        android:textColor="@color/gradient_pink"
-        android:textSize="14sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/otpInputView" />
-
-    <ProgressBar
-        android:id="@+id/resendLoadingIndicator"
-        android:layout_width="20dp"
-        android:layout_height="20dp"
-        android:indeterminateTint="@color/gradient_pink"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@id/resendOtpButton"
-        app:layout_constraintEnd_toEndOf="@id/resendOtpButton"
-        app:layout_constraintStart_toStartOf="@id/resendOtpButton"
-        app:layout_constraintTop_toTopOf="@id/resendOtpButton" />
-
-    <ProgressBar
-        android:id="@+id/loadingIndicator"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:indeterminateTint="@color/gradient_pink"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@id/otpInputView"
-        app:layout_constraintEnd_toEndOf="@id/otpInputView"
-        app:layout_constraintStart_toStartOf="@id/otpInputView"
-        app:layout_constraintTop_toTopOf="@id/otpInputView" />
-
-    <include
-        android:id="@+id/authFooter"
-        layout="@layout/include_auth_footer"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
+        android:layout_height="0dp"
+        android:defaultFocusHighlightEnabled="false"
+        android:fillViewport="true"
+        android:overScrollMode="never"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/otpContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="24dp">
+
+            <com.spacewire.meratune.ui.OnboardingCarouselView
+                android:id="@+id/onboardingCarousel"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/onboarding_carousel_max_height"
+                android:layout_marginTop="34dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <ImageView
+                android:id="@+id/authLogo"
+                android:layout_width="46dp"
+                android:layout_height="36dp"
+                android:layout_marginTop="50dp"
+                android:importantForAccessibility="no"
+                android:scaleType="fitCenter"
+                android:src="@drawable/logo"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/onboardingCarousel"
+                app:layout_goneMarginTop="24dp" />
+
+            <TextView
+                android:id="@+id/authHeadline"
+                style="@style/Text.MeraTune.Headline"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="24dp"
+                android:layout_marginTop="30dp"
+                android:accessibilityHeading="true"
+                android:gravity="center"
+                android:textSize="@dimen/auth_headline_text_size"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/authLogo"
+                app:layout_constraintWidth_max="@dimen/content_max_width"
+                tools:targetApi="p"
+                tools:text="OTP Enter Karein" />
+
+            <com.spacewire.meratune.ui.OtpInputView
+                android:id="@+id/otpInputView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="36dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/authHeadline" />
+
+            <LinearLayout
+                android:id="@+id/otpResendRow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/otpInputView">
+
+                <!-- mm:ss countdown, Latin digits; hidden once Resend is available. -->
+                <TextView
+                    android:id="@+id/otpTimerText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:accessibilityLiveRegion="none"
+                    android:fontFamily="@font/manrope_regular"
+                    android:fontFeatureSettings="tnum"
+                    android:textColor="@color/navy"
+                    android:textSize="@dimen/auth_helper_text_size"
+                    android:visibility="gone"
+                    tools:text="00:28"
+                    tools:visibility="visible" />
+
+                <FrameLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content">
+
+                    <!-- Colour is a gradient set in code (AuthUi.ACCENT_COLORS); dimmed until the countdown ends. -->
+                    <TextView
+                        android:id="@+id/resendOtpButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:fontFamily="@font/manrope_medium"
+                        android:gravity="center"
+                        android:minHeight="48dp"
+                        android:paddingHorizontal="8dp"
+                        android:text="@string/auth_otp_resend"
+                        android:textColor="@color/gradient_pink"
+                        android:textSize="@dimen/auth_helper_text_size" />
+
+                    <ProgressBar
+                        android:id="@+id/resendLoadingIndicator"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="center"
+                        android:indeterminateTint="@color/gradient_pink"
+                        android:visibility="gone" />
+
+                </FrameLayout>
+
+            </LinearLayout>
+
+            <FrameLayout
+                android:id="@+id/verifyButtonContainer"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/cta_margin_horizontal"
+                android:layout_marginTop="12dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/otpResendRow"
+                app:layout_constraintWidth_max="@dimen/content_max_width">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/verifyButton"
+                    style="@style/Widget.MeraTune.Cta"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/auth_otp_verify"
+                    app:icon="@drawable/ic_arrow_next_white" />
+
+                <ProgressBar
+                    android:id="@+id/loadingIndicator"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:indeterminateTint="@color/white"
+                    android:visibility="gone" />
+
+            </FrameLayout>
+
+            <include
+                android:id="@+id/authFooter"
+                layout="@layout/include_auth_footer"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/verifyButtonContainer" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </androidx.core.widget.NestedScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

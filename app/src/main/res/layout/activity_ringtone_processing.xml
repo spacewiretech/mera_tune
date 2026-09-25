@@ -42,12 +42,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="28dp"
-                android:fontFamily="sans-serif-medium"
+                android:fontFamily="@font/manrope_bold"
                 android:gravity="center"
                 android:lineSpacingExtra="4dp"
                 android:textColor="@color/navy"
                 android:textSize="24sp"
-                android:textStyle="bold"
                 tools:text="Ram, Aapke Naam Ki Ringtone Ban Rahi Hai" />
 
             <TextView
@@ -68,7 +67,7 @@
                 android:layout_marginTop="14dp"
                 android:background="@drawable/bg_voice_badge"
                 android:ellipsize="end"
-                android:fontFamily="sans-serif-medium"
+                android:fontFamily="@font/manrope_medium"
                 android:gravity="center"
                 android:maxLines="1"
                 android:paddingHorizontal="14dp"
@@ -95,12 +94,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
-                android:fontFamily="sans-serif-medium"
+                android:fontFamily="@font/manrope_bold"
                 android:gravity="center"
                 android:text="@string/processing_footer"
                 android:textColor="@color/navy"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:textSize="16sp" />
 
             <TextView
                 android:id="@+id/processingTip"
@@ -128,12 +126,11 @@
                     android:id="@+id/errorTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:fontFamily="sans-serif-medium"
+                    android:fontFamily="@font/manrope_bold"
                     android:gravity="center"
                     android:text="@string/processing_error_title"
                     android:textColor="@color/navy"
-                    android:textSize="22sp"
-                    android:textStyle="bold" />
+                    android:textSize="22sp" />
 
                 <TextView
                     android:id="@+id/errorMessage"
@@ -152,14 +149,13 @@
                     android:layout_height="56dp"
                     android:layout_marginTop="28dp"
                     android:background="@drawable/bg_create_ringtone_button"
-                    android:fontFamily="sans-serif-medium"
+                    android:fontFamily="@font/manrope_bold"
                     android:foreground="@drawable/fg_pill_ripple"
                     android:gravity="center"
                     android:maxLines="1"
                     android:paddingHorizontal="16dp"
                     android:textColor="@color/white"
                     android:textSize="16sp"
-                    android:textStyle="bold"
                     app:autoSizeMaxTextSize="16sp"
                     app:autoSizeMinTextSize="12sp"
                     app:autoSizeTextType="uniform"
@@ -171,13 +167,12 @@
                     android:layout_height="48dp"
                     android:layout_marginTop="8dp"
                     android:background="?attr/selectableItemBackground"
-                    android:fontFamily="sans-serif-medium"
+                    android:fontFamily="@font/manrope_bold"
                     android:gravity="center"
                     android:paddingHorizontal="20dp"
                     android:text="@string/processing_choose_another"
                     android:textColor="@color/gradient_pink"
-                    android:textSize="15sp"
-                    android:textStyle="bold" />
+                    android:textSize="15sp" />
             </LinearLayout>
 
         </LinearLayout>

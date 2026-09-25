@@ -131,24 +131,22 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:fontFamily="sans-serif-medium"
+                    android:fontFamily="@font/manrope_bold"
                     android:text="@string/subscription_title_prefix"
                     android:textColor="@color/navy"
-                    android:textSize="28sp"
-                    android:textStyle="bold" />
+                    android:textSize="28sp" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
                     android:background="@drawable/bg_free_badge"
-                    android:fontFamily="sans-serif-medium"
+                    android:fontFamily="@font/manrope_bold"
                     android:paddingHorizontal="12dp"
                     android:paddingVertical="4dp"
                     android:text="@string/subscription_free_badge"
                     android:textColor="@color/white"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:textSize="16sp" />
             </LinearLayout>
 
 
@@ -275,12 +273,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:background="@drawable/bg_create_ringtone_button"
-                android:fontFamily="sans-serif-medium"
+                android:fontFamily="@font/manrope_bold"
                 android:gravity="center"
                 android:text="@string/subscription_try_now"
                 android:textColor="@color/white"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:textSize="16sp" />
 
             <ProgressBar
                 android:id="@+id/loadingIndicator"

@@ -1,7 +1,6 @@
 <resources>
     <string name="app_name">Mera Tune</string>
     <string name="logo_mera">मेरा</string>
-    <string name="logo_tune"> Tune</string>
     <string name="search_hint">Apna Naam Enter Karein…</string>
     <string name="set">Set</string>
     <string name="active_ringtone">Active</string>
@@ -151,32 +150,22 @@
     <string name="ready_go_home">Home Par Jaayein</string>
     <string name="auth_speaker">Read aloud</string>
     <string name="auth_language">Change language</string>
-    <string name="language_continue">Continue &gt;</string>
-    <string name="language_subtitle_english">English</string>
-    <string name="language_subtitle_hindi">Hindi</string>
-    <string name="language_subtitle_telugu">Telugu</string>
-    <string name="language_subtitle_tamil">Tamil</string>
-    <string name="language_subtitle_kannada">Kannada</string>
-    <string name="language_subtitle_malayalam">Malayalam</string>
-    <string name="language_subtitle_marathi">Marathi</string>
-    <string name="language_subtitle_odia">Odia</string>
-    <string name="language_subtitle_bengali">Bangla</string>
-    <string name="auth_phone_title">Apna Mobile Number Enter Karein</string>
-    <string name="auth_phone_subtitle">We\u2019ll send you a code for secure access.</string>
-    <string name="auth_country_code">\uD83C\uDDEE\uD83C\uDDF3 +91</string>
-    <string name="auth_phone_hint">Mobile number</string>
-    <string name="auth_next">Next</string>
-    <string name="auth_otp_title">Verification Code Enter Karein</string>
-    <string name="auth_otp_subtitle">Enter the code sent to your mobile number</string>
-    <string name="auth_otp_edit_phone">Edit</string>
+    <string name="language_continue">Aage badhein</string>
+    <string name="language_subtitle_english" translatable="false">English</string>
+    <string name="language_subtitle_hindi" translatable="false">Hindi</string>
+    <string name="language_subtitle_telugu" translatable="false">Telugu</string>
+    <string name="language_subtitle_tamil" translatable="false">Tamil</string>
+    <string name="language_subtitle_kannada" translatable="false">Kannada</string>
+    <string name="language_subtitle_malayalam" translatable="false">Malayalam</string>
+    <string name="language_subtitle_marathi" translatable="false">Marathi</string>
+    <string name="language_subtitle_odia" translatable="false">Odia</string>
+    <string name="language_subtitle_bengali" translatable="false">Bangla</string>
+    <string name="auth_phone_hint">Enter mobile number</string>
     <string name="auth_otp_resend">Resend OTP</string>
-    <string name="auth_otp_resend_in">Resend OTP in %1$d sec</string>
     <string name="auth_otp_resent">OTP sent again to %1$s</string>
-    <string name="auth_name_title">Apna naam dale</string>
-    <string name="auth_name_subtitle">Apna naam dale jise aap ringtone banan chate hai</string>
-    <string name="auth_name_hint">Apna naam likhein</string>
-    <string name="auth_continue">Continue &gt;</string>
-    <string name="auth_terms">By continuing you agree to our %1$s and %2$s.</string>
+    <string name="auth_name_hint">Enter your name</string>
+    <string name="auth_continue">Aage badhein</string>
+    <string name="auth_terms">By continuing you agree to our %1$s and %2$s</string>
     <string name="auth_terms_link">Terms of Service</string>
     <string name="auth_privacy_link">Privacy Policy</string>
     <string name="auth_invalid_phone">Enter a valid 10-digit mobile number</string>
@@ -201,4 +190,23 @@
     <string name="subscription_auth_failed">Payment authentication failed. Check Cashfree App ID and Secret Key match production in Supabase app_config.</string>
     <string name="subscription_integrity_failed">Production payments require the app to be installed from Google Play internal testing. Debug installs are blocked by Cashfree.</string>
     <string name="subscription_pending">Payment received. Activating your trial…</string>
+
+    <!-- UI refresh: shared CTA / close (cta_loading = state description while a CTA shows its spinner) -->
+    <string name="cta_loading">Load ho raha hai…</string>
+    <string name="close">Band karein</string>
+
+    <!--
+        UI refresh: onboarding auth. Each headline is getString(<key>_headline, getString(<key>_headline_highlight));
+        the highlight gets the gradient, so a translation must contain the highlight verbatim (else plain text).
+    -->
+    <string name="auth_phone_headline">Aapka %1$s</string>
+    <string name="auth_phone_headline_highlight">Ringtone Ready Hai</string>
+    <string name="auth_phone_helper">Aapka number safe hai.</string>
+    <string name="auth_phone_cta">OTP bhejein</string>
+    <string name="auth_country_india">India (+91)</string>
+    <string name="auth_otp_headline">%1$s Enter Karein</string>
+    <string name="auth_otp_headline_highlight">OTP</string>
+    <string name="auth_otp_verify">Verify karein</string>
+    <string name="auth_name_headline">Aapka %1$s</string>
+    <string name="auth_name_headline_highlight">naam dale</string>
 </resources>

@@ -10,7 +10,6 @@ import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -38,6 +37,7 @@ import com.spacewire.meratune.ui.PreviewPlayerController
 import com.spacewire.meratune.ui.SongChoiceAdapter
 import com.spacewire.meratune.util.Haptics
 import com.spacewire.meratune.util.LoadErrorMapper
+import com.spacewire.meratune.util.enableLightEdgeToEdge
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -156,7 +156,7 @@ class ChooseSongActivity : AppCompatActivity() {
             reportedLoadState = state.getString(STATE_REPORTED_LOAD_STATE)
         }
 
-        enableEdgeToEdge()
+        enableLightEdgeToEdge()
         setContentView(R.layout.activity_choose_song)
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.chooseSongRoot)) { view, insets ->
@@ -426,7 +426,6 @@ class ChooseSongActivity : AppCompatActivity() {
     private fun renderContinueButton(forceDisabled: Boolean = false) {
         val selected = selectedTuneId?.takeIf { !forceDisabled }
         continueButton.isEnabled = selected != null
-        continueButton.alpha = if (selected != null) 1f else DISABLED_ALPHA
         continueButton.text = if (selected != null) {
             getString(R.string.song_choice_cta, userName)
         } else {
@@ -630,7 +629,6 @@ class ChooseSongActivity : AppCompatActivity() {
         private const val STATE_PENDING_LOAD_TRIGGER = "state_pending_load_trigger"
         private const val STATE_REPORTED_LOAD_STATE = "state_reported_load_state"
         private const val MIN_CATEGORIES_FOR_CHIPS = 2
-        private const val DISABLED_ALPHA = 0.45f
         private const val SKELETON_MIN_ALPHA = 0.4f
         private const val SKELETON_PULSE_MS = 700L
 

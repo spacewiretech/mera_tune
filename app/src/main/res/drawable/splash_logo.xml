@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Splash icon (Theme.MeraTune.Starting). Both the system splash (API 31+) and core-splashscreen's
+    compat window background (API 26-30) stretch this drawable to a 288dp square and show the
+    centre 192dp circle, so the lockup is placed with fractional insets rather than fixed sizes:
+    128x112dp of 288dp = 44.44% x 38.89%. Its ~170dp diagonal stays inside the 192dp circle.
+-->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/logo_lockup"
+    android:insetLeft="27.78%"
+    android:insetTop="30.56%"
+    android:insetRight="27.78%"
+    android:insetBottom="30.56%" />

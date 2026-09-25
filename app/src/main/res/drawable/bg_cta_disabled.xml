@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Grey CTA pill: disabled state of bg_create_ringtone_button and CtaButtons.setLooksDisabled. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/cta_disabled" />
+    <corners android:radius="100dp" />
+</shape>

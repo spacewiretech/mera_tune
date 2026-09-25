@@ -1,134 +1,193 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Onboarding auth skeleton (shared with OTP and name): carousel, M logo, gradient headline, the
+    screen's form, then the terms footer, stacked top-down in a scroll view. The carousel height is
+    set in code (OnboardingCarouselView.fitHeightTo) from the room the rest leaves; it hides while
+    the keyboard is open.
+-->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/phoneAuthRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background">
+    android:background="@color/surface_auth">
 
-    <include
-        android:id="@+id/authHeader"
-        layout="@layout/include_auth_header"
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/phoneAuthScroll"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="12dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <ImageView
-        android:id="@+id/logoImage"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
-        android:layout_marginTop="48dp"
-        android:contentDescription="@string/app_name"
-        android:src="@mipmap/ic_launcher"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/authHeader" />
-
-    <TextView
-        android:id="@+id/titleText"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginTop="32dp"
-        android:fontFamily="sans-serif-medium"
-        android:gravity="center"
-        android:text="@string/auth_phone_title"
-        android:textColor="@color/navy"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/logoImage" />
-
-    <TextView
-        android:id="@+id/subtitleText"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="32dp"
-        android:layout_marginTop="8dp"
-        android:gravity="center"
-        android:text="@string/auth_phone_subtitle"
-        android:textColor="@color/text_secondary"
-        android:textSize="15sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/titleText" />
-
-    <LinearLayout
-        android:id="@+id/phoneInputContainer"
-        android:layout_width="0dp"
-        android:layout_height="56dp"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginTop="40dp"
-        android:background="@drawable/bg_search_bar"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="16dp"
-        android:paddingEnd="8dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/subtitleText">
-
-        <TextView
-            android:id="@+id/countryCodeText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/auth_country_code"
-            android:textColor="@color/navy"
-            android:textSize="16sp" />
-
-        <EditText
-            android:id="@+id/phoneInput"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="12dp"
-            android:layout_weight="1"
-            android:background="@android:color/transparent"
-            android:hint="@string/auth_phone_hint"
-            android:imeOptions="actionDone"
-            android:inputType="phone"
-            android:maxLength="10"
-            android:textColor="@color/navy"
-            android:textColorHint="@color/text_secondary"
-            android:textSize="16sp"
-            tools:text="7645789764" />
-
-        <ImageView
-            android:id="@+id/nextButton"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="@drawable/bg_auth_next_button"
-            android:contentDescription="@string/auth_next"
-            android:padding="10dp"
-            android:src="@drawable/ic_arrow_next_white" />
-
-    </LinearLayout>
-
-    <ProgressBar
-        android:id="@+id/loadingIndicator"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:indeterminateTint="@color/gradient_pink"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@id/phoneInputContainer"
-        app:layout_constraintEnd_toEndOf="@id/phoneInputContainer"
-        app:layout_constraintStart_toStartOf="@id/phoneInputContainer"
-        app:layout_constraintTop_toTopOf="@id/phoneInputContainer"
-        tools:visibility="visible" />
-
-    <include
-        android:id="@+id/authFooter"
-        layout="@layout/include_auth_footer"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
+        android:layout_height="0dp"
+        android:defaultFocusHighlightEnabled="false"
+        android:fillViewport="true"
+        android:overScrollMode="never"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/phoneAuthContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="24dp">
+
+            <com.spacewire.meratune.ui.OnboardingCarouselView
+                android:id="@+id/onboardingCarousel"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/onboarding_carousel_max_height"
+                android:layout_marginTop="34dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <ImageView
+                android:id="@+id/authLogo"
+                android:layout_width="46dp"
+                android:layout_height="36dp"
+                android:layout_marginTop="50dp"
+                android:importantForAccessibility="no"
+                android:scaleType="fitCenter"
+                android:src="@drawable/logo"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/onboardingCarousel"
+                app:layout_goneMarginTop="24dp" />
+
+            <TextView
+                android:id="@+id/authHeadline"
+                style="@style/Text.MeraTune.Headline"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="24dp"
+                android:layout_marginTop="30dp"
+                android:accessibilityHeading="true"
+                android:gravity="center"
+                android:textSize="@dimen/auth_headline_text_size"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/authLogo"
+                app:layout_constraintWidth_max="@dimen/content_max_width"
+                tools:targetApi="p"
+                tools:text="Aapka Ringtone Ready Hai" />
+
+            <LinearLayout
+                android:id="@+id/phoneInputContainer"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="26dp"
+                android:layout_marginTop="32dp"
+                android:background="@drawable/bg_input_pill_muted"
+                android:gravity="center_vertical"
+                android:minHeight="@dimen/input_pill_min_height"
+                android:orientation="horizontal"
+                android:paddingStart="24dp"
+                android:paddingEnd="20dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/authHeadline"
+                app:layout_constraintWidth_max="@dimen/content_max_width">
+
+                <!-- Decorative: the number is always +91. TalkBack reads "India (+91)". -->
+                <LinearLayout
+                    android:id="@+id/countryIndicator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:contentDescription="@string/auth_country_india"
+                    android:gravity="center_vertical"
+                    android:importantForAccessibility="yes"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="16dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_flag_india" />
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginStart="12dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_chevron_down" />
+
+                </LinearLayout>
+
+                <EditText
+                    android:id="@+id/phoneInput"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_weight="1"
+                    android:background="@android:color/transparent"
+                    android:fontFamily="@font/manrope_medium"
+                    android:hint="@string/auth_phone_hint"
+                    android:imeOptions="actionDone"
+                    android:inputType="phone"
+                    android:maxLength="10"
+                    android:minHeight="48dp"
+                    android:textColor="@color/navy"
+                    android:textColorHint="@color/text_muted"
+                    android:textCursorDrawable="@drawable/bg_cursor_navy"
+                    android:textSize="@dimen/auth_input_text_size"
+                    tools:text="7645789764" />
+
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/phoneHelperText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="12dp"
+                android:fontFamily="@font/manrope_regular"
+                android:text="@string/auth_phone_helper"
+                android:textColor="@color/text_success"
+                android:textSize="@dimen/auth_helper_text_size"
+                app:layout_constraintStart_toStartOf="@id/phoneInputContainer"
+                app:layout_constraintTop_toBottomOf="@id/phoneInputContainer" />
+
+            <FrameLayout
+                android:id="@+id/nextButtonContainer"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/cta_margin_horizontal"
+                android:layout_marginTop="24dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/phoneHelperText"
+                app:layout_constraintWidth_max="@dimen/content_max_width">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/nextButton"
+                    style="@style/Widget.MeraTune.Cta"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/auth_phone_cta"
+                    app:icon="@drawable/ic_arrow_next_white" />
+
+                <ProgressBar
+                    android:id="@+id/loadingIndicator"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:indeterminateTint="@color/white"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+
+            </FrameLayout>
+
+            <include
+                android:id="@+id/authFooter"
+                layout="@layout/include_auth_footer"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/nextButtonContainer" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </androidx.core.widget.NestedScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

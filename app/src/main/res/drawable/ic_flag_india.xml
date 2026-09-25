@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- India flag (decorative, phone country prefix). A vector because the emoji renders as "IN" on some devices. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="16dp"
+    android:viewportWidth="30"
+    android:viewportHeight="20">
+    <path
+        android:fillColor="#FF9933"
+        android:pathData="M0,0h30v6.667h-30z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M0,6.667h30v6.666h-30z" />
+    <path
+        android:fillColor="#138808"
+        android:pathData="M0,13.333h30v6.667h-30z" />
+    <!-- Ashoka Chakra: ring of radius 2.1 plus a centre dot. -->
+    <path
+        android:pathData="M12.9,10a2.1,2.1 0,1 1,4.2 0a2.1,2.1 0,1 1,-4.2 0z"
+        android:strokeWidth="0.6"
+        android:strokeColor="#000080" />
+    <path
+        android:fillColor="#000080"
+        android:pathData="M14.5,10a0.5,0.5 0,1 1,1 0a0.5,0.5 0,1 1,-1 0z" />
+</vector>

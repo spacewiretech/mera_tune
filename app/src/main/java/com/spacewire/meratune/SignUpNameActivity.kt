@@ -3,26 +3,28 @@ package com.spacewire.meratune
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.view.View
 import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.spacewire.meratune.data.AuthException
 import com.spacewire.meratune.data.AuthFailureReason
 import com.spacewire.meratune.data.AuthRepository
 import com.spacewire.meratune.data.AuthStage
+import com.spacewire.meratune.analytics.AnalyticsSource
 import com.spacewire.meratune.analytics.firebaseAnalytics
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.analytics.metaAnalytics
+import com.spacewire.meratune.ui.AuthUi
+import com.spacewire.meratune.ui.CtaButtons
+import com.spacewire.meratune.ui.OnboardingCarouselView
 import com.spacewire.meratune.util.AuthNavigator
 import com.spacewire.meratune.util.AuthStore
+import com.spacewire.meratune.util.AuthTermsHelper
 import com.spacewire.meratune.util.ProfileStore
+import com.spacewire.meratune.util.enableLightEdgeToEdge
 import kotlinx.coroutines.launch
 
 class SignUpNameActivity : AppCompatActivity() {
@@ -31,19 +33,8 @@ class SignUpNameActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableLightEdgeToEdge()
         setContentView(R.layout.activity_sign_up_name)
-
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.signUpRoot)) { view, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.setPadding(
-                systemBars.left,
-                systemBars.top,
-                systemBars.right,
-                systemBars.bottom,
-            )
-            insets
-        }
 
         val sessionToken = intent.getStringExtra(EXTRA_SESSION_TOKEN).orEmpty()
         val phone = intent.getStringExtra(EXTRA_PHONE).orEmpty()
@@ -53,9 +44,18 @@ class SignUpNameActivity : AppCompatActivity() {
             return
         }
 
-        findViewById<View>(R.id.authHeader).findViewById<View>(R.id.languageButton).setOnClickListener {
-            startActivity(LanguageSelectionActivity.intent(this))
-        }
+        AuthUi.bindImeBehaviour(
+            root = findViewById(R.id.signUpRoot),
+            scroll = findViewById(R.id.signUpScroll),
+            carousel = findViewById<OnboardingCarouselView>(R.id.onboardingCarousel),
+            reveal = findViewById(R.id.continueButtonContainer),
+        )
+        AuthUi.bindHeadline(
+            findViewById(R.id.authHeadline),
+            R.string.auth_name_headline,
+            R.string.auth_name_headline_highlight,
+        )
+        AuthTermsHelper.bind(findViewById<TextView>(R.id.authFooter), AnalyticsSource.NAME_ENTRY)
 
         val nameInput = findViewById<EditText>(R.id.nameInput)
         val continueButton = findViewById<TextView>(R.id.continueButton)
@@ -110,9 +110,7 @@ class SignUpNameActivity : AppCompatActivity() {
         loadingIndicator: ProgressBar,
         nameInput: EditText,
     ) {
-        continueButton.isEnabled = !loading
-        continueButton.alpha = if (loading) 0.7f else 1f
-        loadingIndicator.visibility = if (loading) View.VISIBLE else View.GONE
+        CtaButtons.setLoading(continueButton, loadingIndicator, loading)
         nameInput.isEnabled = !loading
     }
 

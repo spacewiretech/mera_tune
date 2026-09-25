@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <gradient
-        android:angle="0"
-        android:endColor="@color/gradient_orange"
-        android:startColor="@color/gradient_pink"
-        android:type="linear" />
-    <corners android:radius="28dp" />
-</shape>
+<!--
+    Primary CTA background (Widget.MeraTune.Cta and legacy TextView CTAs). The disabled look
+    comes from isEnabled=false through this selector, never from alpha.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/bg_cta_disabled" android:state_enabled="false" />
+    <item android:drawable="@drawable/bg_cta_gradient" />
+</selector>

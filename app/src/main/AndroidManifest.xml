@@ -83,7 +83,8 @@
 
         <activity
             android:name=".AuthActivity"
-            android:exported="true">
+            android:exported="true"
+            android:theme="@style/Theme.MeraTune.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -96,7 +97,7 @@
         <activity
             android:name=".PhoneAuthActivity"
             android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
+            android:windowSoftInputMode="adjustResize|stateHidden" />
         <activity
             android:name=".OtpVerificationActivity"
             android:exported="false"
@@ -104,7 +105,7 @@
         <activity
             android:name=".SignUpNameActivity"
             android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
+            android:windowSoftInputMode="adjustResize|stateHidden" />
         <activity
             android:name=".SubscriptionActivity"
             android:exported="false" />

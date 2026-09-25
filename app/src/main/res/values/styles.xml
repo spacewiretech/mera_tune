@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Typography. These are VIEW styles, applied with style="@style/Text.MeraTune.Headline",
+        never through android:textAppearance: the theme sets fontFamily=@font/manrope, and a
+        theme-level fontFamily overrides the font inside a textAppearance, so a weight carried
+        only by a textAppearance would render as Manrope Regular. Each style therefore sets both
+        android:fontFamily and fontFamily explicitly (ResourceGuardTest enforces the rule).
+    -->
+    <style name="Text.MeraTune" parent="">
+        <item name="android:fontFamily">@font/manrope_regular</item>
+        <item name="fontFamily">@font/manrope_regular</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/navy</item>
+    </style>
+
+    <style name="Text.MeraTune.Headline">
+        <item name="android:fontFamily">@font/manrope_bold</item>
+        <item name="fontFamily">@font/manrope_bold</item>
+        <item name="android:textSize">26sp</item>
+        <item name="android:textColor">@color/navy</item>
+    </style>
+
+    <style name="Text.MeraTune.Headline.Large">
+        <item name="android:textSize">28sp</item>
+    </style>
+
+    <style name="Text.MeraTune.Title">
+        <item name="android:fontFamily">@font/manrope_semibold</item>
+        <item name="fontFamily">@font/manrope_semibold</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textColor">@color/navy</item>
+    </style>
+
+    <style name="Text.MeraTune.Label">
+        <item name="android:fontFamily">@font/manrope_medium</item>
+        <item name="fontFamily">@font/manrope_medium</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textColor">@color/navy</item>
+    </style>
+
+    <style name="Text.MeraTune.Body">
+        <item name="android:fontFamily">@font/manrope_regular</item>
+        <item name="fontFamily">@font/manrope_regular</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/navy</item>
+    </style>
+
+    <style name="Text.MeraTune.Body.Muted">
+        <item name="android:textColor">@color/text_muted_warm</item>
+    </style>
+
+    <style name="Text.MeraTune.Caption">
+        <item name="android:fontFamily">@font/manrope_regular</item>
+        <item name="fontFamily">@font/manrope_regular</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/text_muted</item>
+    </style>
+
+    <!-- Auth terms footer: 11sp keeps it on one line at 411dp, as in the mocks. -->
+    <style name="Text.MeraTune.Footer">
+        <item name="android:fontFamily">@font/manrope_regular</item>
+        <item name="fontFamily">@font/manrope_regular</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textColor">@color/navy</item>
+    </style>
+
+    <style name="Text.MeraTune.Input">
+        <item name="android:fontFamily">@font/manrope_medium</item>
+        <item name="fontFamily">@font/manrope_medium</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textColor">@color/navy</item>
+    </style>
+
+    <!--
+        Primary CTA: a MaterialButton (a TextView subtype, so existing TextView casts, text= and
+        isEnabled keep working) with the gradient pill. backgroundTint must stay @null or M3 tints
+        the gradient to colorPrimary; MaterialButton logs once that its background is overwritten.
+        Disabled look = isEnabled=false through the bg_create_ringtone_button selector (never
+        alpha); "grey but tappable" and loading go through ui/CtaButtons.
+    -->
+    <style name="Widget.MeraTune.Cta" parent="Widget.Material3.Button">
+        <item name="android:background">@drawable/bg_create_ringtone_button</item>
+        <item name="backgroundTint">@null</item>
+        <item name="android:foreground">@drawable/fg_pill_ripple</item>
+        <item name="android:stateListAnimator">@null</item>
+        <!-- 0dp so a sibling ProgressBar (CtaButtons.setLoading) draws on top. -->
+        <item name="android:elevation">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:minHeight">@dimen/cta_min_height</item>
+        <item name="android:paddingStart">24dp</item>
+        <item name="android:paddingEnd">24dp</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">8dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:maxLines">2</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">@font/manrope_semibold</item>
+        <item name="fontFamily">@font/manrope_semibold</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="iconGravity">textEnd</item>
+        <item name="iconPadding">8dp</item>
+        <item name="iconSize">24dp</item>
+        <item name="iconTint">@color/white</item>
+    </style>
+
+    <!-- Secondary CTA: 1dp pink-to-orange ring on white, navy label and icon. -->
+    <style name="Widget.MeraTune.Cta.Outline">
+        <item name="android:background">@drawable/bg_cta_outline_gradient</item>
+        <item name="android:textColor">@color/navy</item>
+        <item name="iconTint">@color/navy</item>
+    </style>
+
+    <!-- Pill text field (1.5dp navy ring): Create name, Home search. -->
+    <style name="Widget.MeraTune.InputPill" parent="">
+        <item name="android:background">@drawable/bg_input_pill</item>
+        <item name="android:minHeight">@dimen/input_pill_min_height</item>
+        <item name="android:paddingStart">24dp</item>
+        <item name="android:paddingEnd">24dp</item>
+        <item name="android:fontFamily">@font/manrope_medium</item>
+        <item name="fontFamily">@font/manrope_medium</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textColor">@color/navy</item>
+        <item name="android:textColorHint">@color/text_muted</item>
+        <item name="android:textCursorDrawable">@drawable/bg_cursor_navy</item>
+    </style>
+
+    <!-- Auth variant (phone, name): 1dp input_stroke ring. -->
+    <style name="Widget.MeraTune.InputPill.Muted">
+        <item name="android:background">@drawable/bg_input_pill_muted</item>
+    </style>
+</resources>

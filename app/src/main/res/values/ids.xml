@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- View tags. -->
+    <!-- util/GradientTextHelper: the per-TextView binder that recomputes gradient shaders. -->
+    <item name="tag_gradient_binder" type="id" />
+    <!-- ui/CtaButtons.setLoading: label colours and MaterialButton icon tint saved while loading. -->
+    <item name="tag_cta_saved_text_colors" type="id" />
+    <item name="tag_cta_saved_icon_tint" type="id" />
+    <!-- ui/CtaButtons.setLooksDisabled: true while an enabled CTA shows the grey pill. -->
+    <item name="tag_cta_looks_disabled" type="id" />
+</resources>

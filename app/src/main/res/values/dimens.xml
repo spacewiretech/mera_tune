@@ -1,5 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="language_option_spacing">10dp</dimen>
+    <dimen name="language_option_spacing">14dp</dimen>
+    <dimen name="language_option_min_height">75dp</dimen>
+    <dimen name="cta_min_height">56dp</dimen>
+    <dimen name="cta_margin_horizontal">28dp</dimen>
+    <dimen name="cta_narrow_max_width">300dp</dimen>
+    <dimen name="input_pill_min_height">56dp</dimen>
+    <dimen name="content_max_width">480dp</dimen>
+    <dimen name="onboarding_carousel_max_height">414dp</dimen>
+    <dimen name="onboarding_carousel_min_height">150dp</dimen>
+    <dimen name="onboarding_carousel_dot_size">8dp</dimen>
+    <!-- Each side of a dot: 6dp gap, 14dp pitch. -->
+    <dimen name="onboarding_carousel_dot_margin">3dp</dimen>
+    <!-- Auth screens (phone, OTP, name), measured from the mocks (px / 2 = dp) so the terms
+         footer (Text.MeraTune.Footer, 11sp) stays on one line at 411dp. -->
+    <dimen name="auth_headline_text_size">24sp</dimen>
+    <dimen name="auth_input_text_size">14sp</dimen>
+    <dimen name="auth_helper_text_size">12sp</dimen>
     <dimen name="call_status_top_margin">24dp</dimen>
 </resources>

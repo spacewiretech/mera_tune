@@ -1,23 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Selected language pill: 1.5dp orange (left) to pink (right) ring around a white pill. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="rectangle">
             <gradient
                 android:angle="0"
-                android:endColor="@color/gradient_orange"
-                android:startColor="@color/gradient_pink"
+                android:endColor="@color/gradient_pink"
+                android:startColor="@color/gradient_orange"
                 android:type="linear" />
-            <corners android:radius="28dp" />
+            <corners android:radius="100dp" />
         </shape>
     </item>
     <item
-        android:bottom="2dp"
-        android:left="2dp"
-        android:right="2dp"
-        android:top="2dp">
+        android:bottom="1.5dp"
+        android:left="1.5dp"
+        android:right="1.5dp"
+        android:top="1.5dp">
         <shape android:shape="rectangle">
             <solid android:color="@color/white" />
-            <corners android:radius="26dp" />
+            <corners android:radius="100dp" />
         </shape>
     </item>
 </layer-list>

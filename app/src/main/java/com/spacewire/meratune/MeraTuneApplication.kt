@@ -1,6 +1,7 @@
 package com.spacewire.meratune
 
 import android.app.Application
+import androidx.appcompat.app.AppCompatDelegate
 import com.spacewire.meratune.analytics.AnalyticsLifecycleCallbacks
 import com.spacewire.meratune.analytics.AnalyticsStateStore
 import com.spacewire.meratune.analytics.MixpanelAnalytics
@@ -20,6 +21,8 @@ class MeraTuneApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Light-only UI: also keeps library -night resources (sheets, Cashfree screens) light.
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         LocaleHelper.applyStoredLocale(this)
         mixpanelAnalytics = MixpanelAnalytics.init(this)
         registerActivityLifecycleCallbacks(AnalyticsLifecycleCallbacks(mixpanelAnalytics, AnalyticsStateStore(this)))

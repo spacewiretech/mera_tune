@@ -12,7 +12,6 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -31,6 +30,7 @@ import com.spacewire.meratune.ui.PlaybackSessionStats
 import com.spacewire.meratune.ui.PreviewPlayerController
 import com.spacewire.meratune.util.ActiveRingtoneStore
 import com.spacewire.meratune.util.Haptics
+import com.spacewire.meratune.util.enableLightEdgeToEdge
 
 /** Step 4: play the generated ringtone and set it. */
 class RingtoneReadyActivity : AppCompatActivity() {
@@ -113,7 +113,7 @@ class RingtoneReadyActivity : AppCompatActivity() {
         previewId = generationId ?: baseTune.id
         isSet = savedInstanceState?.getBoolean(STATE_IS_SET, false) ?: false
 
-        enableEdgeToEdge()
+        enableLightEdgeToEdge()
         setContentView(R.layout.activity_ringtone_ready)
 
         setRingtoneButton = findViewById(R.id.setRingtoneButton)

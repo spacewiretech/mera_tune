@@ -25,12 +25,11 @@
             android:layout_height="56dp"
             android:layout_marginTop="28dp"
             android:background="@drawable/bg_create_ringtone_button"
-            android:fontFamily="sans-serif-medium"
+            android:fontFamily="@font/manrope_bold"
             android:gravity="center"
             android:text="@string/create_ringtone"
             android:textColor="@color/white"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+            android:textSize="16sp" />
 
 
         <ImageView
@@ -47,23 +46,21 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="28dp"
-            android:fontFamily="sans-serif-medium"
+            android:fontFamily="@font/manrope_bold"
             android:gravity="center"
             android:text="@string/empty_search_title_line1"
             android:textColor="@color/navy"
-            android:textSize="22sp"
-            android:textStyle="bold" />
+            android:textSize="22sp" />
 
         <TextView
             android:id="@+id/emptyStateTitleLine2"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:fontFamily="sans-serif-medium"
+            android:fontFamily="@font/manrope_bold"
             android:gravity="center"
             android:text="@string/empty_search_title_line2"
-            android:textSize="22sp"
-            android:textStyle="bold" />
+            android:textSize="22sp" />
 
         <TextView
             android:id="@+id/emptyStateMessage"

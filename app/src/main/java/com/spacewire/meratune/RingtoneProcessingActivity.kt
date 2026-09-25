@@ -15,7 +15,6 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -39,6 +38,7 @@ import com.spacewire.meratune.ui.ProcessingStepperController
 import com.spacewire.meratune.ui.RingtoneGenerationViewModel
 import com.spacewire.meratune.util.AuthStore
 import com.spacewire.meratune.util.Haptics
+import com.spacewire.meratune.util.enableLightEdgeToEdge
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -96,7 +96,7 @@ class RingtoneProcessingActivity : AppCompatActivity() {
         language = extraLanguage
         tune = extraTune
 
-        enableEdgeToEdge()
+        enableLightEdgeToEdge()
         setContentView(R.layout.activity_ringtone_processing)
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.processingScroll)) { view, insets ->

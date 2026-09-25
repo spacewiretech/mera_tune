@@ -41,11 +41,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
-                android:fontFamily="sans-serif-medium"
+                android:fontFamily="@font/manrope_bold"
                 android:lineSpacingExtra="4dp"
                 android:textColor="@color/navy"
                 android:textSize="24sp"
-                android:textStyle="bold"
                 tools:text="Ram, Apne Naam Ki Ringtone Banaiye!" />
 
             <TextView
@@ -62,10 +61,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="28dp"
-                android:fontFamily="sans-serif-medium"
+                android:fontFamily="@font/manrope_bold"
                 android:text="@string/create_form_enter_name"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:textSize="16sp" />
 
             <EditText
                 android:id="@+id/nameInput"
@@ -102,10 +100,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="28dp"
-                android:fontFamily="sans-serif-medium"
+                android:fontFamily="@font/manrope_bold"
                 android:text="@string/create_form_choose_language"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:textSize="16sp" />
 
             <TextView
                 android:id="@+id/languageHint"
@@ -195,14 +192,13 @@
         android:layout_marginHorizontal="20dp"
         android:layout_marginBottom="24dp"
         android:background="@drawable/bg_create_ringtone_button"
-        android:fontFamily="sans-serif-medium"
+        android:fontFamily="@font/manrope_bold"
         android:gravity="center"
         android:maxLines="1"
         android:paddingHorizontal="16dp"
         android:text="@string/create_form_continue"
         android:textColor="@color/white"
         android:textSize="16sp"
-        android:textStyle="bold"
         app:autoSizeMaxTextSize="16sp"
         app:autoSizeMinTextSize="12sp"
         app:autoSizeTextType="uniform"

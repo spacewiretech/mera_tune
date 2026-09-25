@@ -20,13 +20,18 @@ class OtpInputView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
 ) : LinearLayout(context, attrs) {
 
-    private val digitCount = 4
+    private val digitCount = DIGIT_COUNT
     private val fields = Array(digitCount) { index ->
         EditText(context).apply {
-            layoutParams = LayoutParams(dp(56), dp(56)).apply {
-                if (index > 0) marginStart = dp(12)
+            // Wrap height with a 42dp floor, so large font scales grow the box instead of clipping.
+            layoutParams = LayoutParams(dp(42), LayoutParams.WRAP_CONTENT).apply {
+                if (index > 0) marginStart = dp(10)
             }
+            minimumHeight = dp(42)
+            // Selector: gradient ring while focused or filled (isActivated), grey when empty.
             background = context.getDrawable(R.drawable.bg_otp_box)
+            setPadding(0, 0, 0, 0)
+            includeFontPadding = false
             gravity = Gravity.CENTER
             inputType = InputType.TYPE_CLASS_NUMBER
             filters = arrayOf(InputFilter.LengthFilter(1))
@@ -35,7 +40,8 @@ class OtpInputView @JvmOverloads constructor(
             } else {
                 EditorInfo.IME_ACTION_NEXT
             }
-            textSize = 22f
+            textSize = 20f
+            typeface = AppFonts.semibold(context)
             setTextColor(context.getColor(R.color.navy))
             if (index == 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 importantForAutofill = IMPORTANT_FOR_AUTOFILL_YES
@@ -45,6 +51,9 @@ class OtpInputView @JvmOverloads constructor(
     }
 
     var onCompleteListener: ((String) -> Unit)? = null
+
+    /** Called with the current digits after every change (fewer than [DIGIT_COUNT] while typing). */
+    var onOtpChangedListener: ((String) -> Unit)? = null
 
     init {
         orientation = HORIZONTAL
@@ -90,6 +99,8 @@ class OtpInputView @JvmOverloads constructor(
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
 
             override fun afterTextChanged(s: Editable?) {
+                field.isActivated = field.text.isNotEmpty()
+                onOtpChangedListener?.invoke(getOtp())
                 if ((s?.length ?: 0) == 1 && index < digitCount - 1) {
                     fields[index + 1].requestFocus()
                 }
@@ -119,4 +130,8 @@ class OtpInputView @JvmOverloads constructor(
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
+
+    companion object {
+        const val DIGIT_COUNT = 4
+    }
 }

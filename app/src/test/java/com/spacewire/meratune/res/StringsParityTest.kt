@@ -13,10 +13,16 @@ import javax.xml.parsers.DocumentBuilderFactory
  * Expected to FAIL until the UI work for the personalized-ringtone flow (plan section B7) lands:
  * every `create_form_*`, `song_choice_*`, `processing_*` and `ready_*` key must exist in the default
  * `values/strings.xml` and in each locale folder with matching `%1$s` / `%2$s` placeholders.
+ *
+ * UI refresh: the shared `cta_*` keys (P1) and the onboarding `language_*` / `auth_*` keys (P2) are
+ * guarded the same way. Keys marked `translatable="false"` in the default file (the English
+ * `language_subtitle_*` names) are skipped by the parity checks and must not appear in any locale.
  */
 class StringsParityTest {
 
-    private val prefixes = listOf("create_form_", "song_choice_", "processing_", "ready_")
+    private val prefixes = listOf(
+        "create_form_", "song_choice_", "processing_", "ready_", "cta_", "language_", "auth_",
+    )
     private val locales = listOf("bn", "hi", "kn", "ml", "mr", "or", "ta", "te")
     private val placeholder = Regex("%(\\d+)\\$[sd]")
 
@@ -37,9 +43,18 @@ class StringsParityTest {
         "processing_error_session", "processing_error_subscription", "processing_retry", "processing_login_again",
         "processing_change_language", "processing_choose_another", "processing_cancel_toast",
         "ready_based_on", "ready_default_title", "ready_change_song", "ready_make_another", "ready_go_home",
+        "cta_loading",
+        // UI refresh P2: language screen and onboarding auth.
+        "language_continue", "auth_phone_headline", "auth_phone_headline_highlight", "auth_phone_helper",
+        "auth_phone_cta", "auth_country_india", "auth_otp_headline", "auth_otp_headline_highlight",
+        "auth_otp_verify", "auth_name_headline", "auth_name_headline_highlight",
     )
 
-    /** Keys plan B7 removes from every folder (voice/category sections are gone from the form). */
+    /**
+     * Keys removed from every folder: plan B7's voice/category form sections, and (UI refresh P2) the
+     * old auth titles/subtitles, the emoji country code, the OTP edit link and countdown label, and
+     * the language-screen `logo_tune` wordmark.
+     */
     private val removedKeys = listOf(
         "create_form_choose_voice",
         "create_form_choose_category",
@@ -48,6 +63,10 @@ class StringsParityTest {
         "create_form_category_family",
         "create_form_category_cinematic",
         "create_form_continue_toast",
+        "auth_phone_title", "auth_phone_subtitle", "auth_country_code", "auth_next",
+        "auth_otp_title", "auth_otp_subtitle", "auth_otp_edit_phone", "auth_otp_resend_in",
+        "auth_name_title", "auth_name_subtitle",
+        "logo_tune",
     )
 
     private val resDir: File by lazy {
@@ -61,21 +80,32 @@ class StringsParityTest {
             ?: error("Could not locate app/src/main/res from ${System.getProperty("user.dir")}")
     }
 
-    private fun readStrings(folder: String): Map<String, String> {
+    private fun stringElements(folder: String): List<Element> {
         val file = File(resDir, "$folder/strings.xml")
         assertTrue("missing $file", file.isFile)
         val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file)
         val nodes = document.getElementsByTagName("string")
+        return (0 until nodes.length).map { nodes.item(it) as Element }
+    }
+
+    private fun readStrings(folder: String): Map<String, String> {
         val result = LinkedHashMap<String, String>()
-        for (index in 0 until nodes.length) {
-            val element = nodes.item(index) as Element
+        for (element in stringElements(folder)) {
             result[element.getAttribute("name")] = element.textContent
         }
         return result
     }
 
+    /** Default keys marked `translatable="false"`: they must exist only in `values/`. */
+    private val nonTranslatableKeys: Set<String> by lazy {
+        stringElements("values")
+            .filter { it.getAttribute("translatable") == "false" }
+            .map { it.getAttribute("name") }
+            .toSet()
+    }
+
     private fun flowKeys(strings: Map<String, String>): List<String> =
-        strings.keys.filter { key -> prefixes.any { key.startsWith(it) } }
+        strings.keys.filter { key -> key !in nonTranslatableKeys && prefixes.any { key.startsWith(it) } }
 
     private fun placeholders(value: String): List<String> =
         placeholder.findAll(value).map { it.value }.sorted().toList()
@@ -144,7 +174,28 @@ class StringsParityTest {
             }
         }
         if (failures.isNotEmpty()) {
-            fail("Voice/category form strings should be removed in all 9 folders (plan B7):\n" + failures.joinToString("\n"))
+            fail("Removed strings (plan B7, UI refresh) must be gone from all 9 folders:\n" + failures.joinToString("\n"))
+        }
+    }
+
+    @Test
+    fun nonTranslatableKeysAreNotTranslated() {
+        assertTrue(
+            "expected the language_subtitle_* keys to be translatable=\"false\" in values/strings.xml",
+            nonTranslatableKeys.any { it.startsWith("language_subtitle_") },
+        )
+        val failures = mutableListOf<String>()
+        for (locale in locales) {
+            val present = nonTranslatableKeys.filter { it in readStrings("values-$locale") }
+            if (present.isNotEmpty()) {
+                failures += "values-$locale/strings.xml defines non-translatable key(s) $present"
+            }
+        }
+        if (failures.isNotEmpty()) {
+            fail(
+                "Keys marked translatable=\"false\" in values/strings.xml must not be redefined in a locale " +
+                    "(for example language_subtitle_* stay English in every app language):\n" + failures.joinToString("\n"),
+            )
         }
     }
 }

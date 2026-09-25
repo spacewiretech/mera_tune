@@ -1,117 +1,129 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Onboarding auth skeleton (see activity_phone_auth.xml) with the name field and "Aage badhein" CTA. -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/signUpRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background">
+    android:background="@color/surface_auth">
 
-    <include
-        android:id="@+id/authHeader"
-        layout="@layout/include_auth_header"
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/signUpScroll"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="12dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <ImageView
-        android:id="@+id/logoImage"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
-        android:layout_marginTop="48dp"
-        android:contentDescription="@string/app_name"
-        android:src="@mipmap/ic_launcher"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/authHeader" />
-
-    <TextView
-        android:id="@+id/titleText"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginTop="32dp"
-        android:fontFamily="sans-serif-medium"
-        android:gravity="center"
-        android:text="@string/auth_name_title"
-        android:textColor="@color/navy"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/logoImage" />
-
-    <TextView
-        android:id="@+id/subtitleText"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="32dp"
-        android:layout_marginTop="8dp"
-        android:gravity="center"
-        android:text="@string/auth_name_subtitle"
-        android:textColor="@color/text_secondary"
-        android:textSize="15sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/titleText" />
-
-    <EditText
-        android:id="@+id/nameInput"
-        android:layout_width="0dp"
-        android:layout_height="56dp"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginTop="40dp"
-        android:background="@drawable/bg_search_bar"
-        android:hint="@string/auth_name_hint"
-        android:imeOptions="actionDone"
-        android:inputType="textPersonName|textCapWords"
-        android:paddingHorizontal="20dp"
-        android:textColor="@color/navy"
-        android:textColorHint="@color/text_secondary"
-        android:textSize="16sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/subtitleText" />
-
-    <TextView
-        android:id="@+id/continueButton"
-        android:layout_width="0dp"
-        android:layout_height="56dp"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginTop="32dp"
-        android:background="@drawable/bg_create_ringtone_button"
-        android:fontFamily="sans-serif-medium"
-        android:gravity="center"
-        android:text="@string/auth_continue"
-        android:textColor="@color/white"
-        android:textSize="17sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/nameInput" />
-
-    <ProgressBar
-        android:id="@+id/loadingIndicator"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:indeterminateTint="@color/white"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@id/continueButton"
-        app:layout_constraintEnd_toEndOf="@id/continueButton"
-        app:layout_constraintStart_toStartOf="@id/continueButton"
-        app:layout_constraintTop_toTopOf="@id/continueButton" />
-
-    <include
-        android:id="@+id/authFooter"
-        layout="@layout/include_auth_footer"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
+        android:layout_height="0dp"
+        android:defaultFocusHighlightEnabled="false"
+        android:fillViewport="true"
+        android:overScrollMode="never"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/signUpContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="24dp">
+
+            <com.spacewire.meratune.ui.OnboardingCarouselView
+                android:id="@+id/onboardingCarousel"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/onboarding_carousel_max_height"
+                android:layout_marginTop="34dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <ImageView
+                android:id="@+id/authLogo"
+                android:layout_width="46dp"
+                android:layout_height="36dp"
+                android:layout_marginTop="50dp"
+                android:importantForAccessibility="no"
+                android:scaleType="fitCenter"
+                android:src="@drawable/logo"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/onboardingCarousel"
+                app:layout_goneMarginTop="24dp" />
+
+            <TextView
+                android:id="@+id/authHeadline"
+                style="@style/Text.MeraTune.Headline"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="24dp"
+                android:layout_marginTop="30dp"
+                android:accessibilityHeading="true"
+                android:gravity="center"
+                android:textSize="@dimen/auth_headline_text_size"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/authLogo"
+                app:layout_constraintWidth_max="@dimen/content_max_width"
+                tools:targetApi="p"
+                tools:text="Aapka naam dale" />
+
+            <EditText
+                android:id="@+id/nameInput"
+                style="@style/Widget.MeraTune.InputPill.Muted"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="26dp"
+                android:layout_marginTop="36dp"
+                android:hint="@string/auth_name_hint"
+                android:imeOptions="actionDone"
+                android:inputType="textPersonName|textCapWords"
+                android:paddingStart="30dp"
+                android:paddingEnd="24dp"
+                android:textSize="@dimen/auth_input_text_size"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/authHeadline"
+                app:layout_constraintWidth_max="@dimen/content_max_width" />
+
+            <FrameLayout
+                android:id="@+id/continueButtonContainer"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/cta_margin_horizontal"
+                android:layout_marginTop="28dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/nameInput"
+                app:layout_constraintWidth_max="@dimen/content_max_width">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/continueButton"
+                    style="@style/Widget.MeraTune.Cta"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/auth_continue"
+                    app:icon="@drawable/ic_arrow_next_white" />
+
+                <ProgressBar
+                    android:id="@+id/loadingIndicator"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:indeterminateTint="@color/white"
+                    android:visibility="gone" />
+
+            </FrameLayout>
+
+            <include
+                android:id="@+id/authFooter"
+                layout="@layout/include_auth_footer"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/continueButtonContainer" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </androidx.core.widget.NestedScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

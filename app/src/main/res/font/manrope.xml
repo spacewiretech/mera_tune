@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Manrope (SIL Open Font License 1.1, see docs/licenses/Manrope-OFL.txt): static 400-800
+    instances of the Google Fonts variable font. The theme sets this family as the regular
+    default, so textStyle="bold" resolves to the real 700 face. Other weights are picked with an
+    explicit fontFamily (@font/manrope_medium etc.) in view styles, never through textAppearance.
+    Indic scripts fall back per glyph to the system Noto fonts.
+-->
+<font-family xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <font
+        android:font="@font/manrope_regular"
+        android:fontStyle="normal"
+        android:fontWeight="400"
+        app:font="@font/manrope_regular"
+        app:fontStyle="normal"
+        app:fontWeight="400" />
+    <font
+        android:font="@font/manrope_medium"
+        android:fontStyle="normal"
+        android:fontWeight="500"
+        app:font="@font/manrope_medium"
+        app:fontStyle="normal"
+        app:fontWeight="500" />
+    <font
+        android:font="@font/manrope_semibold"
+        android:fontStyle="normal"
+        android:fontWeight="600"
+        app:font="@font/manrope_semibold"
+        app:fontStyle="normal"
+        app:fontWeight="600" />
+    <font
+        android:font="@font/manrope_bold"
+        android:fontStyle="normal"
+        android:fontWeight="700"
+        app:font="@font/manrope_bold"
+        app:fontStyle="normal"
+        app:fontWeight="700" />
+    <font
+        android:font="@font/manrope_extrabold"
+        android:fontStyle="normal"
+        android:fontWeight="800"
+        app:font="@font/manrope_extrabold"
+        app:fontStyle="normal"
+        app:fontWeight="800" />
+</font-family>

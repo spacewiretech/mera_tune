@@ -10,7 +10,6 @@ import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -28,6 +27,7 @@ import com.spacewire.meratune.util.NameInvalidReason
 import com.spacewire.meratune.util.NameNormalizer
 import com.spacewire.meratune.util.NameValidation
 import com.spacewire.meratune.util.ProfileStore
+import com.spacewire.meratune.util.enableLightEdgeToEdge
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -59,7 +59,7 @@ class CreateRingtoneActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         restoreAnalyticsState(savedInstanceState)
-        enableEdgeToEdge()
+        enableLightEdgeToEdge()
         setContentView(R.layout.activity_create_ringtone)
 
         nameInput = findViewById(R.id.nameInput)
@@ -221,7 +221,6 @@ class CreateRingtoneActivity : AppCompatActivity() {
 
         val canContinue = validation is NameValidation.Valid
         continueButton.isEnabled = canContinue
-        continueButton.alpha = if (canContinue) 1f else DISABLED_ALPHA
     }
 
     private fun onContinue() {
@@ -335,7 +334,6 @@ class CreateRingtoneActivity : AppCompatActivity() {
         private const val STATE_ENTRY_POINT = "state_entry_point"
         private const val STATE_REPORTED_UNAVAILABLE = "state_reported_unavailable_languages"
         private const val HINDI = "Hindi"
-        private const val DISABLED_ALPHA = 0.45f
 
         // `prefill_source`: where the name field's starting text came from.
         private const val PREFILL_SEARCH_QUERY = "search_query"

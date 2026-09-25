@@ -10,7 +10,6 @@ import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
 import android.view.View
 import android.widget.TextView
-import androidx.core.content.ContextCompat
 import com.spacewire.meratune.R
 import com.spacewire.meratune.analytics.ExternalLink
 import com.spacewire.meratune.analytics.mixpanelAnalytics
@@ -26,14 +25,14 @@ object AuthTermsHelper {
         val termsLabel = context.getString(R.string.auth_terms_link)
         val privacyLabel = context.getString(R.string.auth_privacy_link)
         val fullText = context.getString(R.string.auth_terms, termsLabel, privacyLabel)
-        val linkColor = ContextCompat.getColor(context, R.color.gradient_pink)
 
         val spannable = SpannableString(fullText)
-        addLink(spannable, fullText, termsLabel, TERMS_URL, ExternalLink.TERMS, source, linkColor, textView)
-        addLink(spannable, fullText, privacyLabel, PRIVACY_URL, ExternalLink.PRIVACY_POLICY, source, linkColor, textView)
+        addLink(spannable, fullText, termsLabel, TERMS_URL, ExternalLink.TERMS, source, textView)
+        addLink(spannable, fullText, privacyLabel, PRIVACY_URL, ExternalLink.PRIVACY_POLICY, source, textView)
 
         textView.text = spannable
         textView.movementMethod = LinkMovementMethod.getInstance()
+        GradientTextHelper.bindSpans(textView)
     }
 
     private fun addLink(
@@ -43,7 +42,6 @@ object AuthTermsHelper {
         url: String,
         link: String,
         source: String,
-        linkColor: Int,
         textView: TextView,
     ) {
         val start = fullText.indexOf(label)
@@ -61,12 +59,20 @@ object AuthTermsHelper {
                     context.mixpanelAnalytics().trackExternalLinkOpened(link, source)
                 }
 
+                // Colour comes from the gradient span below; ClickableSpan's default would paint linkColor.
                 override fun updateDrawState(textPaint: TextPaint) {
-                    super.updateDrawState(textPaint)
-                    textPaint.color = linkColor
                     textPaint.isUnderlineText = true
                 }
             },
+            start,
+            start + label.length,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+        )
+        spannable.setSpan(
+            GradientTextHelper.gradientSpan(
+                textView.context,
+                intArrayOf(R.color.gradient_pink, R.color.gradient_orange),
+            ),
             start,
             start + label.length,
             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,

@@ -4,7 +4,6 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.TimeInterpolator
 import android.animation.ValueAnimator
-import android.graphics.Typeface
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 import android.widget.TextView
@@ -27,6 +26,9 @@ class ProcessingStepperController(root: View) {
         root.findViewById(R.id.stepTwoLabel),
         root.findViewById(R.id.stepThreeLabel),
     )
+
+    private val boldTypeface = AppFonts.bold(root.context)
+    private val regularTypeface = AppFonts.regular(root.context)
 
     private var animator: ValueAnimator? = null
     private var activeStep = 0
@@ -110,14 +112,12 @@ class ProcessingStepperController(root: View) {
         if (step != activeStep) {
             activeStep = step
             stepLabels.forEachIndexed { index, label ->
-                label.typeface = if (index + 1 == step) BOLD else REGULAR
+                label.typeface = if (index + 1 == step) boldTypeface else regularTypeface
             }
         }
     }
 
     private companion object {
         const val STEP_TWO_START = 0.45f
-        val BOLD: Typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-        val REGULAR: Typeface = Typeface.create("sans-serif", Typeface.NORMAL)
     }
 }

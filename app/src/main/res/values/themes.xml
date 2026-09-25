@@ -1,11 +1,52 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.MeraTune" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+    <!--
+        Base application theme. The app is light-only: there is no values-night override and
+        MeraTuneApplication forces MODE_NIGHT_NO, so the retuned tokens always apply.
+        android:fontFamily here is only the regular default; weights come from explicit fontFamily
+        attributes in view styles (styles.xml) or on the view, because a theme-level fontFamily
+        overrides the font inside any android:textAppearance.
+        Only android:fontFamily is set, never the app-namespace fontFamily: AppCompat prefers app
+        fontFamily whenever it resolves, and a theme value would then override every layout's
+        android:fontFamily="@font/manrope_bold" and render it Regular (ResourceGuardTest).
+    -->
+    <style name="Base.Theme.MeraTune" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/gradient_pink</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSecondary">@color/gradient_orange</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="colorAccent">@color/gradient_pink</item>
+        <item name="colorControlActivated">@color/gradient_pink</item>
+        <item name="colorControlNormal">@color/text_muted</item>
+        <item name="colorSurface">@color/white</item>
+        <item name="colorOnSurface">@color/navy</item>
+        <item name="colorOnSurfaceVariant">@color/text_muted</item>
+        <item name="colorOutline">@color/card_stroke</item>
+        <item name="android:colorBackground">@color/background</item>
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:textColorPrimary">@color/navy</item>
+        <item name="android:textColorSecondary">@color/text_muted_warm</item>
+        <item name="android:textColorHint">@color/text_muted</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
+        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
     </style>
 
     <style name="Theme.MeraTune" parent="Base.Theme.MeraTune" />
+
+    <!--
+        Launcher (AuthActivity) splash: the "मेरा Tune" lockup on white, in light and dark
+        system modes (the background is explicit). AuthActivity calls installSplashScreen() and
+        routes + finishes inside onCreate, so the splash lasts only until the destination's first
+        frame (no keep-on-screen condition).
+    -->
+    <style name="Theme.MeraTune.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/white</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.MeraTune</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
+    </style>
 
     <style name="ShapeAppearance.MeraTune.IncomingCallPhoto" parent="">
         <item name="cornerFamily">rounded</item>

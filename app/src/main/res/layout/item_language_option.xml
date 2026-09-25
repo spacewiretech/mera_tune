@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Language pill card. LanguageOptionGroup swaps the background (orange-to-pink ring when
+    selected) and sets isSelected. Every pill is language_option_min_height tall: the labels drop
+    the font padding and the vertical padding is small, so even the tallest script (Kannada, with
+    fallback line spacing) fits inside it; a larger font scale still grows the pill, never clips.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/languageOptionRoot"
@@ -7,25 +13,32 @@
     android:background="@drawable/bg_language_option_unselected"
     android:clickable="true"
     android:focusable="true"
+    android:foreground="@drawable/fg_pill_ripple"
     android:gravity="center"
+    android:minHeight="@dimen/language_option_min_height"
     android:orientation="vertical"
-    android:paddingVertical="14dp">
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="6dp">
 
     <TextView
         android:id="@+id/nativeLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:fontFamily="sans-serif-medium"
+        android:fontFamily="@font/manrope_bold"
+        android:gravity="center"
+        android:includeFontPadding="false"
         android:textColor="@color/navy"
-        android:textSize="16sp"
-        android:textStyle="bold"
+        android:textSize="20sp"
         tools:text="हिंदी" />
 
     <TextView
         android:id="@+id/englishLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
+        android:layout_marginTop="4dp"
+        android:fontFamily="@font/manrope_regular"
+        android:gravity="center"
+        android:includeFontPadding="false"
         android:textColor="@color/navy"
         android:textSize="14sp"
         tools:text="Hindi" />

@@ -1,6 +1,5 @@
 package com.spacewire.meratune.ui
 
-import android.graphics.Typeface
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -61,9 +60,9 @@ class CategoryAdapter(
                 ),
             )
             label.typeface = if (isSelected) {
-                Typeface.create("sans-serif-medium", Typeface.NORMAL)
+                AppFonts.medium(itemView.context)
             } else {
-                Typeface.create("sans-serif", Typeface.NORMAL)
+                AppFonts.regular(itemView.context)
             }
 
             itemView.setOnClickListener {

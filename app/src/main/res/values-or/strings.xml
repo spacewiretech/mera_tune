@@ -1,7 +1,6 @@
 <resources>
     <string name="app_name">Mera Tune</string>
     <string name="logo_mera">मेरा</string>
-    <string name="logo_tune"> Tune</string>
     <string name="search_hint">ଆପଣଙ୍କ ନାମ ଲେଖନ୍ତୁ…</string>
     <string name="set">ସେଟ୍</string>
     <string name="active_ringtone">ସକ୍ରିୟ</string>
@@ -112,32 +111,16 @@
     <string name="ready_go_home">ହୋମ୍‌କୁ ଯାଆନ୍ତୁ</string>
     <string name="auth_speaker">ଜୋରରେ ପଢ଼ନ୍ତୁ</string>
     <string name="auth_language">ଭାଷା ବଦଳାନ୍ତୁ</string>
-    <string name="language_continue">ଜାରି ରଖନ୍ତୁ &gt;</string>
-    <string name="language_subtitle_english">English</string>
-    <string name="language_subtitle_hindi">हिंदी</string>
-    <string name="language_subtitle_telugu">తెలుగు</string>
-    <string name="language_subtitle_tamil">தமிழ்</string>
-    <string name="language_subtitle_kannada">ಕನ್ನಡ</string>
-    <string name="language_subtitle_malayalam">മലയാളം</string>
-    <string name="language_subtitle_marathi">मराठी</string>
-    <string name="language_subtitle_odia">ଓଡ଼ିଆ</string>
-    <string name="language_subtitle_bengali">বাংলা</string>
-    <string name="auth_phone_title">ଆପଣଙ୍କ ମୋବାଇଲ୍ ନମ୍ବର ଲେଖନ୍ତୁ</string>
-    <string name="auth_phone_subtitle">ଆମେ ଆପଣଙ୍କୁ ନିରାପଦ ପ୍ରବେଶ ପାଇଁ ଏକ କୋଡ୍ ପଠାଇବୁ।</string>
-    <string name="auth_country_code">\uD83C\uDDEE\uD83C\uDDF3 +91</string>
-    <string name="auth_phone_hint">ମୋବାଇଲ୍ ନମ୍ବର</string>
-    <string name="auth_next">ପରବର୍ତ୍ତୀ</string>
-    <string name="auth_otp_title">ଯାଞ୍ଚ କୋଡ୍ ଲେଖନ୍ତୁ</string>
-    <string name="auth_otp_subtitle">ଆପଣଙ୍କ ମୋବାଇଲ୍ ନମ୍ବରକୁ ପଠାଯାଇଥିବା କୋଡ୍ ଲେଖନ୍ତୁ</string>
-    <string name="auth_otp_edit_phone">ସମ୍ପାଦନା</string>
+    <!-- UI refresh: native review pending -->
+    <string name="language_continue">ଆଗକୁ ବଢ଼ନ୍ତୁ</string>
+    <!-- UI refresh: native review pending -->
+    <string name="auth_phone_hint">ମୋବାଇଲ୍ ନମ୍ବର ଲେଖନ୍ତୁ</string>
     <string name="auth_otp_resend">OTP ପୁଣି ପଠାନ୍ତୁ</string>
-    <string name="auth_otp_resend_in">%1$d ସେକେଣ୍ଡ୍‌ରେ OTP ପୁଣି ପଠାନ୍ତୁ</string>
     <string name="auth_otp_resent">%1$s କୁ OTP ପୁଣି ପଠାଯାଇଛି</string>
-    <string name="auth_name_title">ଆପଣଙ୍କ ନାମ ଲେଖନ୍ତୁ</string>
-    <string name="auth_name_subtitle">ଯେଉଁ ନାମର ରିଙ୍ଗଟୋନ୍ ବନାଇବାକୁ ଚାହୁଁଛନ୍ତି ସେହି ନାମ ଲେଖନ୍ତୁ</string>
     <string name="auth_name_hint">ଆପଣଙ୍କ ନାମ ଲେଖନ୍ତୁ</string>
-    <string name="auth_continue">ଜାରି ରଖନ୍ତୁ &gt;</string>
-    <string name="auth_terms">ଜାରି ରଖି ଆପଣ ଆମର %1$s ଓ %2$s ସହିତ ସହମତ ହେଉଛନ୍ତି।</string>
+    <!-- UI refresh: native review pending -->
+    <string name="auth_continue">ଆଗକୁ ବଢ଼ନ୍ତୁ</string>
+    <string name="auth_terms">ଜାରି ରଖି ଆପଣ ଆମର %1$s ଓ %2$s ସହିତ ସହମତ ହେଉଛନ୍ତି</string>
     <string name="auth_terms_link">ସେବା ନିୟମ</string>
     <string name="auth_privacy_link">ଗୋପନୀୟତା ନୀତି</string>
     <string name="auth_invalid_phone">ସଠିକ୍ 10-ଅଙ୍କର ମୋବାଇଲ୍ ନମ୍ବର ଲେଖନ୍ତୁ</string>
@@ -158,4 +141,18 @@
     <string name="subscription_play_video">ଭିଡିଓ ଚଲାନ୍ତୁ</string>
     <string name="subscription_error">ପେମେଣ୍ଟ୍ ଆରମ୍ଭ ହୋଇପାରିଲା ନାହିଁ। ଦୟାକରି ପୁନର୍ବାର ଚେଷ୍ଟା କରନ୍ତୁ।</string>
     <string name="subscription_pending">ପେମେଣ୍ଟ୍ ଗ୍ରହଣ ହେଲା। ଆପଣଙ୍କ ଟ୍ରାୟାଲ୍ ସକ୍ରିୟ ହେଉଛି…</string>
+
+    <!-- UI refresh: native review pending -->
+    <string name="cta_loading">ଲୋଡ୍ ହେଉଛି…</string>
+    <string name="close">ବନ୍ଦ କରନ୍ତୁ</string>
+    <string name="auth_phone_headline">ଆପଣଙ୍କ %1$s</string>
+    <string name="auth_phone_headline_highlight">ରିଙ୍ଗଟୋନ୍ ପ୍ରସ୍ତୁତ</string>
+    <string name="auth_phone_helper">ଆପଣଙ୍କ ନମ୍ବର ସୁରକ୍ଷିତ।</string>
+    <string name="auth_phone_cta">OTP ପଠାନ୍ତୁ</string>
+    <string name="auth_country_india">ଭାରତ (+91)</string>
+    <string name="auth_otp_headline">%1$s ଲେଖନ୍ତୁ</string>
+    <string name="auth_otp_headline_highlight">OTP</string>
+    <string name="auth_otp_verify">ଯାଞ୍ଚ କରନ୍ତୁ</string>
+    <string name="auth_name_headline">ଆପଣଙ୍କ %1$s</string>
+    <string name="auth_name_headline_highlight">ନାମ ଲେଖନ୍ତୁ</string>
 </resources>

@@ -11,7 +11,6 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -46,6 +45,7 @@ import com.spacewire.meratune.ui.PaymentAppBottomSheet
 import com.spacewire.meratune.util.AuthNavigator
 import com.spacewire.meratune.util.AuthStore
 import com.spacewire.meratune.util.ProfileStore
+import com.spacewire.meratune.util.enableLightEdgeToEdge
 import kotlinx.coroutines.launch
 
 class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback {
@@ -82,7 +82,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableLightEdgeToEdge()
         setContentView(R.layout.activity_subscription)
         onBackPressedDispatcher.addCallback(this, verifyBackBlocker)
 
@@ -617,7 +617,6 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         findViewById<ProgressBar>(R.id.loadingIndicator).visibility =
             if (loading) View.VISIBLE else View.GONE
         findViewById<TextView>(R.id.tryNowButton).isEnabled = !loading
-        findViewById<TextView>(R.id.tryNowButton).alpha = if (loading) 0.7f else 1f
         findViewById<View>(R.id.paymentAppSelector).isEnabled = !loading
         findViewById<View>(R.id.paymentAppSelector).alpha = if (loading) 0.7f else 1f
     }

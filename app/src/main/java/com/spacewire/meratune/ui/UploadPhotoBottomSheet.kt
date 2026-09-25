@@ -61,7 +61,6 @@ class UploadPhotoBottomSheet(
         crossfade(true)
     }
         continueButton?.isEnabled = true
-        continueButton?.alpha = 1f
     }
 
     fun isShowing(): Boolean = dialog?.isShowing == true

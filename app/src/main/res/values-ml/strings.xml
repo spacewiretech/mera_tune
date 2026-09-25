@@ -227,4 +227,11 @@
     <string name="empty_search_title">നമുക്ക് ഒരു റിംഗ്ടോൺ ഉണ്ടാക്കാം %1$s</string>
     <string name="empty_search_title_highlight">നിങ്ങൾക്ക് മാത്രം!</string>
     <string name="home_pause_tune">ട്യൂൺ നിർത്തുക</string>
+    <!-- Set flow: permanently denied permission dialog. UI refresh: native review pending -->
+    <string name="permission_blocked_title">അനുമതി ഓഫാണ്</string>
+    <string name="permission_blocked_phone_message">ഫോൺ അനുമതി ഓഫാണ്, അതിനാൽ കോളിൽ ഫോട്ടോ കാണിക്കില്ല. ക്രമീകരണങ്ങളിൽ അനുമതി നൽകുക അല്ലെങ്കിൽ റിംഗ്ടോൺ മാത്രം സജ്ജമാക്കുക.</string>
+    <string name="permission_blocked_contacts_message">കോൺടാക്റ്റ് അനുമതി ഓഫാണ്, അതിനാൽ കോൺടാക്റ്റിന് ഫോട്ടോ സജ്ജമാക്കാൻ കഴിയില്ല. ക്രമീകരണങ്ങളിൽ അനുമതി നൽകുക അല്ലെങ്കിൽ റിംഗ്ടോൺ മാത്രം സജ്ജമാക്കുക.</string>
+    <string name="permission_blocked_storage_message">സ്റ്റോറേജ് അനുമതി ഓഫാണ്, അതിനാൽ റിംഗ്ടോൺ സേവ് ചെയ്യാൻ കഴിയില്ല. ക്രമീകരണങ്ങളിൽ അനുമതി നൽകി വീണ്ടും ശ്രമിക്കുക.</string>
+    <string name="permission_open_settings">ക്രമീകരണങ്ങൾ തുറക്കുക</string>
+    <string name="permission_set_audio_only">റിംഗ്ടോൺ മാത്രം സജ്ജമാക്കുക</string>
 </resources>

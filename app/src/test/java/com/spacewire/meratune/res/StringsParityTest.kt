@@ -28,6 +28,8 @@ class StringsParityTest {
         "paywall_", "member_",
         // UI refresh P9 (lane C): Home and Profile.
         "home_", "empty_search_", "profile_",
+        // Set flow: permanently denied permission dialog.
+        "permission_",
     )
     private val locales = listOf("bn", "hi", "kn", "ml", "mr", "or", "ta", "te")
     private val placeholder = Regex("%(\\d+)\\$[sd]")

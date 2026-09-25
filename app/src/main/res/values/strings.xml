@@ -250,4 +250,11 @@
     <string name="empty_search_title">Chaliye, Ek Ringtone Banate Hain %1$s</string>
     <string name="empty_search_title_highlight">Sirf Aapke Liye!</string>
     <string name="home_pause_tune">Pause tune</string>
+    <!-- Set flow: permanently denied permission dialog (RingtoneSetController); dismiss reuses "close" -->
+    <string name="permission_blocked_title">Permission band hai</string>
+    <string name="permission_blocked_phone_message">Phone permission band hai, isliye call par photo nahi dikhegi. Settings mein allow karein ya sirf ringtone set karein.</string>
+    <string name="permission_blocked_contacts_message">Contacts permission band hai, isliye contact ke liye photo set nahi ho sakti. Settings mein allow karein ya sirf ringtone set karein.</string>
+    <string name="permission_blocked_storage_message">Storage permission band hai, isliye ringtone save nahi ho sakti. Settings mein allow karein, phir dobara try karein.</string>
+    <string name="permission_open_settings">Settings kholein</string>
+    <string name="permission_set_audio_only">Sirf ringtone set karein</string>
 </resources>

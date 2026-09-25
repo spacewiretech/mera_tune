@@ -221,4 +221,11 @@
     <string name="empty_search_title">चलिए, एक रिंगटोन बनाते हैं %1$s</string>
     <string name="empty_search_title_highlight">सिर्फ़ आपके लिए!</string>
     <string name="home_pause_tune">ट्यून रोकें</string>
+    <!-- Set flow: permanently denied permission dialog. UI refresh: native review pending -->
+    <string name="permission_blocked_title">अनुमति बंद है</string>
+    <string name="permission_blocked_phone_message">फ़ोन की अनुमति बंद है, इसलिए कॉल पर फ़ोटो नहीं दिखेगी। सेटिंग्स में अनुमति दें या सिर्फ़ रिंगटोन सेट करें।</string>
+    <string name="permission_blocked_contacts_message">कॉन्टैक्ट्स की अनुमति बंद है, इसलिए कॉन्टैक्ट के लिए फ़ोटो सेट नहीं हो सकती। सेटिंग्स में अनुमति दें या सिर्फ़ रिंगटोन सेट करें।</string>
+    <string name="permission_blocked_storage_message">स्टोरेज की अनुमति बंद है, इसलिए रिंगटोन सेव नहीं हो सकती। सेटिंग्स में अनुमति दें, फिर दोबारा कोशिश करें।</string>
+    <string name="permission_open_settings">सेटिंग्स खोलें</string>
+    <string name="permission_set_audio_only">सिर्फ़ रिंगटोन सेट करें</string>
 </resources>

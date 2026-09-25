@@ -227,4 +227,11 @@
     <string name="empty_search_title">चला, एक रिंगटोन तयार करूया %1$s</string>
     <string name="empty_search_title_highlight">फक्त तुमच्यासाठी!</string>
     <string name="home_pause_tune">ट्यून थांबवा</string>
+    <!-- Set flow: permanently denied permission dialog. UI refresh: native review pending -->
+    <string name="permission_blocked_title">परवानगी बंद आहे</string>
+    <string name="permission_blocked_phone_message">फोनची परवानगी बंद आहे, त्यामुळे कॉलवर फोटो दिसणार नाही. सेटिंग्जमध्ये परवानगी द्या किंवा फक्त रिंगटोन सेट करा.</string>
+    <string name="permission_blocked_contacts_message">कॉन्टॅक्ट्सची परवानगी बंद आहे, त्यामुळे कॉन्टॅक्टसाठी फोटो सेट करता येणार नाही. सेटिंग्जमध्ये परवानगी द्या किंवा फक्त रिंगटोन सेट करा.</string>
+    <string name="permission_blocked_storage_message">स्टोरेजची परवानगी बंद आहे, त्यामुळे रिंगटोन सेव्ह करता येणार नाही. सेटिंग्जमध्ये परवानगी द्या, मग पुन्हा प्रयत्न करा.</string>
+    <string name="permission_open_settings">सेटिंग्ज उघडा</string>
+    <string name="permission_set_audio_only">फक्त रिंगटोन सेट करा</string>
 </resources>

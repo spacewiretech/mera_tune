@@ -227,4 +227,11 @@
     <string name="empty_search_title">ଚାଲନ୍ତୁ, ଏକ ରିଙ୍ଗଟୋନ୍ ବନାନ୍ତୁ %1$s</string>
     <string name="empty_search_title_highlight">କେବଳ ଆପଣଙ୍କ ପାଇଁ!</string>
     <string name="home_pause_tune">ଟ୍ୟୁନ୍ ବନ୍ଦ କରନ୍ତୁ</string>
+    <!-- Set flow: permanently denied permission dialog. UI refresh: native review pending -->
+    <string name="permission_blocked_title">ଅନୁମତି ବନ୍ଦ ଅଛି</string>
+    <string name="permission_blocked_phone_message">ଫୋନ୍ ଅନୁମତି ବନ୍ଦ ଅଛି, ତେଣୁ କଲ୍‌ରେ ଫଟୋ ଦେଖାଯିବ ନାହିଁ। ସେଟିଂସରେ ଅନୁମତି ଦିଅନ୍ତୁ କିମ୍ବା କେବଳ ରିଙ୍ଗଟୋନ୍ ସେଟ୍ କରନ୍ତୁ।</string>
+    <string name="permission_blocked_contacts_message">କଣ୍ଟାକ୍ଟ ଅନୁମତି ବନ୍ଦ ଅଛି, ତେଣୁ କଣ୍ଟାକ୍ଟ ପାଇଁ ଫଟୋ ସେଟ୍ ହୋଇପାରିବ ନାହିଁ। ସେଟିଂସରେ ଅନୁମତି ଦିଅନ୍ତୁ କିମ୍ବା କେବଳ ରିଙ୍ଗଟୋନ୍ ସେଟ୍ କରନ୍ତୁ।</string>
+    <string name="permission_blocked_storage_message">ଷ୍ଟୋରେଜ୍ ଅନୁମତି ବନ୍ଦ ଅଛି, ତେଣୁ ରିଙ୍ଗଟୋନ୍ ସେଭ୍ ହୋଇପାରିବ ନାହିଁ। ସେଟିଂସରେ ଅନୁମତି ଦେଇ ପୁନର୍ବାର ଚେଷ୍ଟା କରନ୍ତୁ।</string>
+    <string name="permission_open_settings">ସେଟିଂସ ଖୋଲନ୍ତୁ</string>
+    <string name="permission_set_audio_only">କେବଳ ରିଙ୍ଗଟୋନ୍ ସେଟ୍ କରନ୍ତୁ</string>
 </resources>

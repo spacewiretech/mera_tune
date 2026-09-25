@@ -227,4 +227,11 @@
     <string name="empty_search_title">வாருங்கள், ஒரு ரிங்டோன் உருவாக்குவோம் %1$s</string>
     <string name="empty_search_title_highlight">உங்களுக்காக மட்டும்!</string>
     <string name="home_pause_tune">டியூனை நிறுத்து</string>
+    <!-- Set flow: permanently denied permission dialog. UI refresh: native review pending -->
+    <string name="permission_blocked_title">அனுமதி முடக்கப்பட்டுள்ளது</string>
+    <string name="permission_blocked_phone_message">ஃபோன் அனுமதி முடக்கப்பட்டுள்ளது, எனவே அழைப்பில் புகைப்படம் தெரியாது. அமைப்புகளில் அனுமதிக்கவும் அல்லது ரிங்டோனை மட்டும் அமைக்கவும்.</string>
+    <string name="permission_blocked_contacts_message">தொடர்புகள் அனுமதி முடக்கப்பட்டுள்ளது, எனவே தொடர்புக்குப் புகைப்படத்தை அமைக்க முடியாது. அமைப்புகளில் அனுமதிக்கவும் அல்லது ரிங்டோனை மட்டும் அமைக்கவும்.</string>
+    <string name="permission_blocked_storage_message">சேமிப்பக அனுமதி முடக்கப்பட்டுள்ளது, எனவே ரிங்டோனைச் சேமிக்க முடியாது. அமைப்புகளில் அனுமதித்து, மீண்டும் முயற்சிக்கவும்.</string>
+    <string name="permission_open_settings">அமைப்புகளைத் திற</string>
+    <string name="permission_set_audio_only">ரிங்டோனை மட்டும் அமை</string>
 </resources>

@@ -227,4 +227,11 @@
     <string name="empty_search_title">రండి, ఒక రింగ్‌టోన్ తయారు చేద్దాం %1$s</string>
     <string name="empty_search_title_highlight">కేవలం మీ కోసం!</string>
     <string name="home_pause_tune">ట్యూన్ ఆపండి</string>
+    <!-- Set flow: permanently denied permission dialog. UI refresh: native review pending -->
+    <string name="permission_blocked_title">అనుమతి ఆఫ్‌లో ఉంది</string>
+    <string name="permission_blocked_phone_message">ఫోన్ అనుమతి ఆఫ్‌లో ఉంది, కాబట్టి కాల్‌లో ఫోటో కనిపించదు. సెట్టింగ్‌లలో అనుమతించండి లేదా కేవలం రింగ్‌టోన్ సెట్ చేయండి.</string>
+    <string name="permission_blocked_contacts_message">కాంటాక్ట్‌ల అనుమతి ఆఫ్‌లో ఉంది, కాబట్టి కాంటాక్ట్‌కు ఫోటో సెట్ చేయలేము. సెట్టింగ్‌లలో అనుమతించండి లేదా కేవలం రింగ్‌టోన్ సెట్ చేయండి.</string>
+    <string name="permission_blocked_storage_message">స్టోరేజ్ అనుమతి ఆఫ్‌లో ఉంది, కాబట్టి రింగ్‌టోన్ సేవ్ చేయలేము. సెట్టింగ్‌లలో అనుమతించి, మళ్ళీ ప్రయత్నించండి.</string>
+    <string name="permission_open_settings">సెట్టింగ్‌లను తెరవండి</string>
+    <string name="permission_set_audio_only">కేవలం రింగ్‌టోన్ సెట్ చేయండి</string>
 </resources>

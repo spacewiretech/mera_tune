@@ -1,22 +1,27 @@
 package com.spacewire.meratune.calltheme
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
+import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.spacewire.meratune.R
 import com.spacewire.meratune.analytics.AnalyticsPermissionKey
 import com.spacewire.meratune.analytics.AnalyticsPermissions
@@ -93,6 +98,20 @@ class RingtoneSetController(
     private var photoSheet: UploadPhotoBottomSheet? = null
     private var cameraOutputUri: Uri? = null
 
+    /** Open while a permanently denied permission blocks this flow; transient (never saved). */
+    private var blockedDialog: AlertDialog? = null
+    private var blockedPermission: BlockedPermission? = null
+
+    /**
+     * The pending request's permissions that were denied with no rationale just before it (never
+     * asked, or permanently denied). One still like that in the result got no prompt from the
+     * system, so it is not reported as answered.
+     */
+    private var deniedWithoutRationale: Set<String> = emptySet()
+
+    /** Create path, audio-only fallback: the staged photo this flow no longer uses, deleted on success. */
+    private var unusedStagedPath: String? = null
+
     /** No flow is open: a new [start], [choose] or [apply] would be accepted. */
     val isIdle: Boolean
         get() = pendingTune == null
@@ -109,6 +128,14 @@ class RingtoneSetController(
                 }
             },
         )
+        activity.lifecycle.addObserver(
+            object : LifecycleEventObserver {
+                override fun onStateChanged(source: androidx.lifecycle.LifecycleOwner, event: Lifecycle.Event) {
+                    // The blocked-permission dialog is not restored: going away counts as a dismiss.
+                    if (event == Lifecycle.Event.ON_DESTROY) closeBlockedDialog()
+                }
+            },
+        )
     }
 
     private val storagePermissionLauncher = activity.registerForActivityResult(
@@ -116,6 +143,7 @@ class RingtoneSetController(
     ) { granted ->
         awaitingLaunchResult = false
         trackPermissionAnswered(Manifest.permission.WRITE_EXTERNAL_STORAGE, granted)
+        deniedWithoutRationale = emptySet()
         val tune = pendingTune
         if (tune == null) {
             reportStateLost(SetFailureStage.STORAGE_PERMISSION)
@@ -123,6 +151,8 @@ class RingtoneSetController(
             // APPLY continues with the saved mode; Home now shows the mode sheet (it used to set
             // audio-only silently on Android 8/9).
             if (phase == Phase.APPLY) applyAfterStorage(tune) else showModeSheet(tune)
+        } else if (AnalyticsPermissions.isPermanentlyDenied(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+            showPermissionBlockedDialog(tune, BlockedPermission.STORAGE)
         } else {
             Toast.makeText(activity, R.string.ringtone_set_error, Toast.LENGTH_SHORT).show()
             failFlow(SetFailureStage.STORAGE_PERMISSION, FailureReason.PERMISSION_DENIED)
@@ -160,6 +190,7 @@ class RingtoneSetController(
     ) { result ->
         awaitingLaunchResult = false
         result.forEach { (permission, granted) -> trackPermissionAnswered(permission, granted) }
+        deniedWithoutRationale = emptySet()
         val step = permissionStep.takeUnless { it == PermissionStep.NONE }
             ?: PermissionStep.forRequest(result.keys)
         permissionStep = PermissionStep.NONE
@@ -173,7 +204,13 @@ class RingtoneSetController(
             PermissionStep.CONTACTS -> {
                 val missingContacts = Manifest.permission.READ_CONTACTS in denied ||
                     Manifest.permission.WRITE_CONTACTS in denied
-                if (missingContacts) {
+                val contactsBlocked = missingContacts &&
+                    listOf(Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS).any {
+                        it in denied && AnalyticsPermissions.isPermanentlyDenied(activity, it)
+                    }
+                if (contactsBlocked) {
+                    showPermissionBlockedDialog(tune, BlockedPermission.CONTACTS)
+                } else if (missingContacts) {
                     Toast.makeText(activity, R.string.call_theme_contacts_permission_required, Toast.LENGTH_LONG).show()
                     failFlow(SetFailureStage.CONTACTS_PERMISSION, FailureReason.PERMISSION_DENIED)
                 } else {
@@ -183,7 +220,11 @@ class RingtoneSetController(
 
             PermissionStep.CALL_DISPLAY -> {
                 val criticalDenied = Manifest.permission.READ_PHONE_STATE in denied
-                if (criticalDenied) {
+                if (criticalDenied &&
+                    AnalyticsPermissions.isPermanentlyDenied(activity, Manifest.permission.READ_PHONE_STATE)
+                ) {
+                    showPermissionBlockedDialog(tune, BlockedPermission.PHONE)
+                } else if (criticalDenied) {
                     Toast.makeText(activity, R.string.call_theme_phone_permission_required, Toast.LENGTH_LONG).show()
                     failFlow(SetFailureStage.PHONE_PERMISSION, FailureReason.PERMISSION_DENIED)
                 } else {
@@ -349,6 +390,7 @@ class RingtoneSetController(
 
     private fun launchStoragePermission() {
         awaitingLaunchResult = true
+        noteDeniedWithoutRationale(listOf(Manifest.permission.WRITE_EXTERNAL_STORAGE))
         storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
     }
 
@@ -521,12 +563,9 @@ class RingtoneSetController(
         }
         permissionStep = PermissionStep.CONTACTS
         awaitingLaunchResult = true
-        runtimePermissionsLauncher.launch(
-            arrayOf(
-                Manifest.permission.READ_CONTACTS,
-                Manifest.permission.WRITE_CONTACTS,
-            ),
-        )
+        val contacts = arrayOf(Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS)
+        noteDeniedWithoutRationale(contacts.asList())
+        runtimePermissionsLauncher.launch(contacts)
     }
 
     private fun launchContactPicker() {
@@ -593,6 +632,7 @@ class RingtoneSetController(
 
         permissionStep = PermissionStep.CALL_DISPLAY
         awaitingLaunchResult = true
+        noteDeniedWithoutRationale(needed)
         runtimePermissionsLauncher.launch(needed.toTypedArray())
     }
 
@@ -605,7 +645,10 @@ class RingtoneSetController(
         activity.lifecycleScope.launch {
             val result = RingtoneHelper.setRingtone(activity, tune)
             result.onSuccess { uri ->
+                val unusedPhoto = unusedStagedPath
                 finishSuccess(tune, uri, RingtoneSetMode.AUDIO_ONLY)
+                // A failed set keeps it: a retry on Ready applies the saved photo choice again.
+                unusedPhoto?.let { CallThemeImageHelper.discardStaged(activity, it) }
             }.onFailure { error ->
                 handleSetFailure(tune, RingtoneSetMode.AUDIO_ONLY, error)
             }
@@ -796,6 +839,76 @@ class RingtoneSetController(
         }
     }
 
+    /**
+     * [blocked] is permanently denied ("don't ask again"), so the system no longer shows its dialog.
+     * "Settings kholein" or a dismiss ends the flow with the same `ringtone_set_failed` as a first
+     * denial; phone / contacts can instead continue this flow as audio-only (no failure event).
+     */
+    private fun showPermissionBlockedDialog(tune: Tune, blocked: BlockedPermission) {
+        val builder = MaterialAlertDialogBuilder(activity)
+            .setTitle(R.string.permission_blocked_title)
+            .setMessage(blocked.messageRes)
+            .setPositiveButton(R.string.permission_open_settings) { _, _ ->
+                if (closeBlockedDialog()) openAppSettings()
+            }
+        if (blocked.allowsAudioOnly) {
+            builder
+                .setNegativeButton(R.string.permission_set_audio_only) { clicked, _ ->
+                    // A second tap after another button already resolved the dialog does nothing.
+                    if (clicked !== blockedDialog || pendingTune == null) return@setNegativeButton
+                    blockedDialog = null
+                    blockedPermission = null
+                    continueAsAudioOnly(tune)
+                }
+                .setNeutralButton(R.string.close, null)
+        } else {
+            builder.setNegativeButton(R.string.close, null)
+        }
+        val dialog = builder.create()
+        // Close, back, outside tap. Buttons that resolved the dialog already cleared blockedDialog.
+        dialog.setOnDismissListener { closed -> if (closed === blockedDialog) closeBlockedDialog() }
+        blockedDialog = dialog
+        blockedPermission = blocked
+        dialog.show()
+    }
+
+    /**
+     * Ends a blocked flow as denied (Settings, close, back, or the activity going away). Returns
+     * false (and does nothing) when no blocked dialog is open.
+     */
+    private fun closeBlockedDialog(): Boolean {
+        val dialog = blockedDialog ?: return false
+        val blocked = blockedPermission
+        blockedDialog = null
+        blockedPermission = null
+        dialog.dismiss()
+        if (blocked != null) failFlow(blocked.failureStage, FailureReason.PERMISSION_DENIED)
+        return true
+    }
+
+    /** The blocked dialog's audio-only option: this flow drops its photo / contact and sets audio only. */
+    private fun continueAsAudioOnly(tune: Tune) {
+        unusedStagedPath = pendingImagePath
+        pendingMode = RingtoneSetMode.AUDIO_ONLY
+        pendingContact = null
+        pendingImageUri = null
+        pendingImagePath = null
+        pendingPhotoSource = null
+        setRingtoneOnly(tune)
+    }
+
+    private fun openAppSettings() {
+        val intent = Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", activity.packageName, null),
+        )
+        try {
+            activity.startActivity(intent)
+        } catch (error: ActivityNotFoundException) {
+            Log.w(TAG, "No app settings screen", error)
+        }
+    }
+
     /** Terminal non-success exit: `ringtone_set_failed` (once per flow), then the flow is cleared. */
     private fun failFlow(stage: String, failureReason: String, errorType: String? = null) {
         val tune = pendingTune
@@ -832,17 +945,29 @@ class RingtoneSetController(
         )
     }
 
+    /** Right before a runtime permission request: see [deniedWithoutRationale]. */
+    private fun noteDeniedWithoutRationale(permissions: Collection<String>) {
+        // Before a request the helper reads "denied, no rationale": never asked, or permanently denied.
+        deniedWithoutRationale = permissions.filterTo(HashSet()) {
+            AnalyticsPermissions.isPermanentlyDenied(activity, it)
+        }
+    }
+
     private fun trackPermissionAnswered(manifestPermission: String, granted: Boolean) {
         val permission = AnalyticsPermissionKey.fromManifest(manifestPermission) ?: return
+        val permanentlyDenied = if (granted) {
+            null
+        } else {
+            AnalyticsPermissions.isPermanentlyDenied(activity, manifestPermission)
+        }
+        // No rationale before and after: the system denied it without a prompt (already permanently
+        // denied), or a first prompt was dismissed without an answer (Android 11+). Nothing to report.
+        if (permanentlyDenied == true && manifestPermission in deniedWithoutRationale) return
         activity.mixpanelAnalytics().trackPermissionPromptAnswered(
             permission = permission,
             granted = granted,
             promptContext = PromptContext.SET_RINGTONE,
-            permanentlyDenied = if (granted) {
-                null
-            } else {
-                AnalyticsPermissions.isPermanentlyDenied(activity, manifestPermission)
-            },
+            permanentlyDenied = permanentlyDenied,
         )
     }
 
@@ -862,6 +987,8 @@ class RingtoneSetController(
         flowPersonalized = false
         writeSettingsPreflight = false
         awaitingLaunchResult = false
+        deniedWithoutRationale = emptySet()
+        unusedStagedPath = null
         photoSheet?.dismiss()
         photoSheet = null
     }
@@ -890,6 +1017,8 @@ class RingtoneSetController(
             putBoolean(STATE_WRITE_SETTINGS_PREFLIGHT, writeSettingsPreflight)
             putBoolean(STATE_FLOW_PERSONALIZED, flowPersonalized)
             putString(STATE_PERMISSION_STEP, permissionStep.name)
+            putStringArrayList(STATE_DENIED_WITHOUT_RATIONALE, ArrayList(deniedWithoutRationale))
+            putString(STATE_UNUSED_STAGED_PATH, unusedStagedPath)
         }
     }
 
@@ -915,6 +1044,8 @@ class RingtoneSetController(
         flowPersonalized = state.getBoolean(STATE_FLOW_PERSONALIZED, false)
         permissionStep = PermissionStep.entries.firstOrNull { it.name == state.getString(STATE_PERMISSION_STEP) }
             ?: PermissionStep.NONE
+        deniedWithoutRationale = state.getStringArrayList(STATE_DENIED_WITHOUT_RATIONALE)?.toSet().orEmpty()
+        unusedStagedPath = state.getString(STATE_UNUSED_STAGED_PATH)
         awaitingLaunchResult = true
     }
 
@@ -926,6 +1057,17 @@ class RingtoneSetController(
         val contactPhotoSaved: Boolean? = null,
         val contactRingtoneSaved: Boolean? = null,
     )
+
+    /** A permanently denied permission the flow needs. Storage has no audio-only option: audio needs it too. */
+    private enum class BlockedPermission(
+        @StringRes val messageRes: Int,
+        val failureStage: String,
+        val allowsAudioOnly: Boolean,
+    ) {
+        PHONE(R.string.permission_blocked_phone_message, SetFailureStage.PHONE_PERMISSION, true),
+        CONTACTS(R.string.permission_blocked_contacts_message, SetFailureStage.CONTACTS_PERMISSION, true),
+        STORAGE(R.string.permission_blocked_storage_message, SetFailureStage.STORAGE_PERMISSION, false),
+    }
 
     private enum class PermissionStep(val failureStage: String?) {
         NONE(null),
@@ -965,6 +1107,8 @@ class RingtoneSetController(
         const val STATE_WRITE_SETTINGS_PREFLIGHT = "write_settings_preflight"
         const val STATE_FLOW_PERSONALIZED = "flow_personalized"
         const val STATE_PERMISSION_STEP = "permission_step"
+        const val STATE_DENIED_WITHOUT_RATIONALE = "denied_without_rationale"
+        const val STATE_UNUSED_STAGED_PATH = "unused_staged_path"
     }
 }
 

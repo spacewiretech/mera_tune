@@ -227,4 +227,11 @@
     <string name="empty_search_title">ಬನ್ನಿ, ಒಂದು ರಿಂಗ್‌ಟೋನ್ ತಯಾರಿಸೋಣ %1$s</string>
     <string name="empty_search_title_highlight">ಕೇವಲ ನಿಮಗಾಗಿ!</string>
     <string name="home_pause_tune">ಟ್ಯೂನ್ ನಿಲ್ಲಿಸಿ</string>
+    <!-- Set flow: permanently denied permission dialog. UI refresh: native review pending -->
+    <string name="permission_blocked_title">ಅನುಮತಿ ಆಫ್ ಆಗಿದೆ</string>
+    <string name="permission_blocked_phone_message">ಫೋನ್ ಅನುಮತಿ ಆಫ್ ಆಗಿದೆ, ಆದ್ದರಿಂದ ಕರೆಯಲ್ಲಿ ಫೋಟೋ ಕಾಣಿಸುವುದಿಲ್ಲ. ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಅನುಮತಿಸಿ ಅಥವಾ ಕೇವಲ ರಿಂಗ್‌ಟೋನ್ ಹೊಂದಿಸಿ.</string>
+    <string name="permission_blocked_contacts_message">ಸಂಪರ್ಕಗಳ ಅನುಮತಿ ಆಫ್ ಆಗಿದೆ, ಆದ್ದರಿಂದ ಸಂಪರ್ಕಕ್ಕೆ ಫೋಟೋ ಹೊಂದಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ. ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಅನುಮತಿಸಿ ಅಥವಾ ಕೇವಲ ರಿಂಗ್‌ಟೋನ್ ಹೊಂದಿಸಿ.</string>
+    <string name="permission_blocked_storage_message">ಸ್ಟೋರೇಜ್ ಅನುಮತಿ ಆಫ್ ಆಗಿದೆ, ಆದ್ದರಿಂದ ರಿಂಗ್‌ಟೋನ್ ಉಳಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ. ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಅನುಮತಿಸಿ, ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</string>
+    <string name="permission_open_settings">ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ</string>
+    <string name="permission_set_audio_only">ಕೇವಲ ರಿಂಗ್‌ಟೋನ್ ಹೊಂದಿಸಿ</string>
 </resources>

@@ -227,4 +227,11 @@
     <string name="empty_search_title">চলুন, একটি রিংটোন বানাই %1$s</string>
     <string name="empty_search_title_highlight">শুধু আপনার জন্য!</string>
     <string name="home_pause_tune">টিউন থামান</string>
+    <!-- Set flow: permanently denied permission dialog. UI refresh: native review pending -->
+    <string name="permission_blocked_title">অনুমতি বন্ধ আছে</string>
+    <string name="permission_blocked_phone_message">ফোনের অনুমতি বন্ধ আছে, তাই কলে ফটো দেখা যাবে না। সেটিংসে অনুমতি দিন অথবা শুধু রিংটোন সেট করুন।</string>
+    <string name="permission_blocked_contacts_message">কন্ট্যাক্টের অনুমতি বন্ধ আছে, তাই কন্ট্যাক্টের জন্য ফটো সেট করা যাবে না। সেটিংসে অনুমতি দিন অথবা শুধু রিংটোন সেট করুন।</string>
+    <string name="permission_blocked_storage_message">স্টোরেজের অনুমতি বন্ধ আছে, তাই রিংটোন সেভ করা যাবে না। সেটিংসে অনুমতি দিন, তারপর আবার চেষ্টা করুন।</string>
+    <string name="permission_open_settings">সেটিংস খুলুন</string>
+    <string name="permission_set_audio_only">শুধু রিংটোন সেট করুন</string>
 </resources>

@@ -36,8 +36,7 @@ object CallThemeImageHelper {
      */
     suspend fun promoteStaged(context: Context, path: String): String = withContext(Dispatchers.IO) {
         val source = File(path)
-        val stagingDir = File(context.filesDir, STAGING_DIR_NAME)
-        if (source.parentFile?.canonicalPath != stagingDir.canonicalPath) return@withContext path
+        if (!isStaged(context, source)) return@withContext path
         val directory = ensureDir(context, DIR_NAME)
         val destination = File(directory, source.name)
         if (!source.renameTo(destination)) {
@@ -47,6 +46,21 @@ object CallThemeImageHelper {
         if (destination.length() == 0L) throw IOException("Promoted image is empty")
         destination.absolutePath
     }
+
+    /**
+     * Deletes a staged photo the flow no longer needs (audio-only was set instead). A path outside
+     * the staging folder is left alone. Best effort: a failure only leaves it for [pruneStaged].
+     */
+    suspend fun discardStaged(context: Context, path: String) = withContext(Dispatchers.IO) {
+        runCatching {
+            val file = File(path)
+            if (isStaged(context, file)) file.delete()
+        }
+        Unit
+    }
+
+    private fun isStaged(context: Context, file: File): Boolean =
+        file.parentFile?.canonicalPath == File(context.filesDir, STAGING_DIR_NAME).canonicalPath
 
     /** True when [path] names an existing, non-empty file. */
     fun isUsableImage(path: String?): Boolean {

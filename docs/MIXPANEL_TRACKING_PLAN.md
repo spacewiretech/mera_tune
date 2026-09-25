@@ -2,7 +2,7 @@
 
 Product analytics for the MeraTune Android app. This document covers every Mixpanel event that is implemented today: app SDK events, SDK automatic events, server events from the Cashfree webhook, `verify-subscription` and `generate-ringtone`, identity, user profiles, conversion funnels, how Mixpanel relates to Meta and Firebase, and the events to wire when planned features ship.
 
-**Last updated:** September 2026 (matches current codebase)
+**Last updated:** 25 September 2026 (matches current codebase, including the UI refresh; see [UI refresh changes](#ui-refresh-changes))
 
 | Item | Value |
 |------|--------|
@@ -93,7 +93,19 @@ If the token is missing, track calls log a warning and return `{ ok: false, erro
    | `app_config.cashfree_webhook_signature_mode = log_only` | Signature rollout switch (see [Webhook signature](#webhook-signature)) |
    | `idx_ringtone_renders_name_lang_ready` | `name_lookup_completed.match_count`. If `ringtone_renders` has grown, build it `CONCURRENTLY` in the SQL editor first (see the migration header) |
 
-3. Deploy `cashfree-webhook`, `verify-subscription`, `create-subscription`, `send-otp`, `verify-otp`, `complete-signup` and `generate-ringtone` (the last one before or with the app release: the app no longer sends `ringtone_created`). No secrets change: `MIXPANEL_TOKEN` is already project-wide.
+3. Deploy `cashfree-webhook`, `verify-subscription`, `create-subscription`, `send-otp`, `verify-otp`, `complete-signup` and `generate-ringtone` (the last one before or with the app release: the app no longer sends `ringtone_created`). No Mixpanel secret changes: `MIXPANEL_TOKEN` is already project-wide. The Meta `Subscribe` side effect of `subscription_paid` separately needs `META_DATASET_ID` and `META_CONVERSIONS_API_ACCESS_TOKEN` (fallback `app_config.meta_dataset_id` / `meta_conversions_api_access_token`). They are currently unset in the project secrets. Without them the webhook skips `Subscribe` with a "credentials missing" warning.
+
+### Prices (`app_config`)
+
+Amounts are server config in `app_config`, read by `create-subscription`, `verify-subscription` and `cashfree-webhook`:
+
+| Key | Function default | Note |
+|-----|------------------|------|
+| `subscription_auth_amount` | `3` | Trial / mandate auth amount |
+| `subscription_recurring_amount` | `299` | Seeded as `249`, raised to `299` by `20260813140000_add_cashfree_plan_id.sql` |
+| `subscription_interval_months` | `1` | Seeded as `3`. Confirm prod is `1`: the paywall's "/month" copy assumes it |
+
+`create-subscription` returns the auth and recurring amounts. They feed `subscription_started.auth_amount` / `recurring_amount`, `trial_payment_completed.amount` (fallback `3.0`), the Meta and Firebase purchase value, and the paywall and member-screen price labels (the defaults 3 / 299 show until that response).
 
 ### Cashfree Dashboard → Webhooks
 
@@ -169,7 +181,7 @@ Attached automatically to every **app** event. Passed to the SDK constructor (it
 |--------|----------|----------------|
 | Sign up | `SignUpNameActivity` | `identifyUser(user)` (`identify` → `people.set` / `set_once`) → `track("sign_up_completed")` |
 | Login | `OtpVerificationActivity.completeLogin()` | `identifyUser(user)` → `track("login_completed")` |
-| Trial payment | `SubscriptionActivity.onSubscriptionVerify()` → `verifySubscription()` | `identifyUser(user)` → `track("trial_payment_completed")` → `people.set(subscription_status = "trial")` |
+| Trial payment | `SubscriptionActivity.verifySubscription()`: from `onSubscriptionVerify()`, its re-run after a recreation, or the Pending state's "Payment Status Dekhein" re-check | `identifyUser(user)` → `track("trial_payment_completed")` → `people.set(subscription_status = "trial")` |
 | Trial payment succeeded | `cashfree-webhook` `SUBSCRIPTION_AUTH_STATUS`, or `verify-subscription` | HTTP `/track` + `/engage` with `distinct_id = user.id` |
 | Charges, notices, status, refunds, cancel, trial expiry | `cashfree-webhook` | HTTP `/track` (+ `/engage`) with `distinct_id = user.id` |
 | Generation outcomes | `generate-ringtone` | HTTP `/track` (+ `/engage` on `ringtone_created`) with `distinct_id` = the user of the request's session token (or legacy `user_id` when allowed); nothing is sent for a request that cannot be attributed |
@@ -227,29 +239,33 @@ otp_sent
           → subscription_started
               → trial_payment_completed (app)          ← attribution; Meta Purchase / Firebase purchase
                 trial_payment_succeeded (server)       ← same moment; count trials here
-                  → ringtone_creation_started          ← name + language form; entry_point
+                  → create_ringtone_cta_tapped         ← member screen: source = membership_welcome
+                    → ringtone_creation_started        ← name + language form; entry_point = post_purchase
                       → sample_list_viewed
-                          → sample_previewed
-                              → sample_selected
-                                  → ringtone_generation_started   (app)
-                                      → name_lookup_completed     (server)
-                                          → ringtone_created | ringtone_generation_failed   (server; app-side failures from the app)
-                                              → ringtone_set
-                                                  → subscription_paid            ← recurring autopay (webhook)
+                          → sample_previewed           ← row tap (optional)
+                              → sample_selected        ← first "chuno"
+                                  → ringtone_set_started → set_mode_selected   ← chuno sheets (source = creation_flow)
+                                      → ringtone_generation_started   (app)
+                                          → name_lookup_completed     (server)
+                                              → ringtone_created | ringtone_generation_failed   (server; app-side failures from the app)
+                                                  → ringtone_set            ← "Ringtone set karein" on the Ready screen
+                                                      → subscription_paid  ← recurring autopay (webhook)
 ```
+
+After the trial verifies, the paywall opens the member screen ("Aap ab member hain!", `screen_viewed` `membership_welcome`) instead of Home. Its CTA and its 3 checklist rows all send `create_ringtone_cta_tapped` and open the create form on top of a fresh Home, so the form's `previous_screen` is `membership_welcome`. Back from the member screen goes to Home.
 
 Server steps carry `platform = "server"` and none of the app super properties, so do not filter this funnel on `platform`, `build_type` or `user_state`. Both sides share `distinct_id = users.id`.
 
-Finer steps between those: `app_opened` / `install_attributed` before `otp_sent`; `subscription_cta_tapped` before `subscription_started`; `create_ringtone_cta_tapped` before `ringtone_creation_started`; `ringtone_set_started → set_mode_selected` before `ringtone_set`; `subscription_renewal_notified` before `subscription_paid`.
+Finer steps between those: `app_opened` / `install_attributed` before `otp_sent`; `subscription_cta_tapped` before `subscription_started`; on Home Set, `ringtone_set_started → set_mode_selected` right before `ringtone_set`; `subscription_renewal_notified` before `subscription_paid`.
 
 Exits and failures:
 
 - `otp_sent` → `otp_verification_failed` (`failure_reason`, `otp_entry_method`, `attempt`); other auth stages → `auth_failed` (`stage`, `failure_reason`)
-- `subscription_screen_viewed` → `paywall_dismissed` (`entry_point`, `attempt`, `video_completed`)
-- `subscription_cta_tapped` / `subscription_started` → `subscription_failed` (`stage` = `precheck` | `create` | `checkout` | `verify`) and `mandate_auth_failed` (server)
+- `subscription_screen_viewed` → `paywall_dismissed` (`entry_point`, `dismiss_method`, `attempt`, `video_completed`)
+- `subscription_cta_tapped` / `subscription_started` → `subscription_failed` (`stage` = `precheck` | `create` | `checkout` | `verify`; one more `verify` per manual Pending re-check) and `mandate_auth_failed` (server)
 - `trial_payment_succeeded` → `trial_expired` (`reason`, `ringtones_created`) or `subscription_cancelled` (`cancelled_during_trial`)
 - `ringtone_generation_started` → `ringtone_generation_failed` (`failure_reason` = lower-cased `error_code` / `GenerationErrorCode`, or `user_cancelled`) → `generation_error_action_taken`; `quota_exceeded` also sends `creation_limit_reached`
-- `ringtone_set_started` → `ringtone_set_failed` (`stage`, `failure_reason`)
+- `ringtone_set_started` → `ringtone_set_failed` (`stage`, `failure_reason`). On the create path a flow can also stay open (see [Create-path split](#create-path-split))
 - `subscription_renewal_notified` → `subscription_renewal_failed` (`failure_reason`, `retry_attempts`); a later `subscription_paid` with `is_retry_recovery = true` means the retry succeeded
 - `subscription_paid` → `subscription_cancelled` (churn)
 
@@ -257,10 +273,10 @@ Exits and failures:
 
 | Event | Who sends it | Typical amount | Meaning |
 |-------|----------------|----------------|---------|
-| `trial_payment_succeeded` | Server (webhook or verify), once per subscription row | Auth amount from Cashfree, else `app_config.subscription_auth_amount` | Mandate authorised, trial started. **Trial counts** |
+| `trial_payment_succeeded` | Server (webhook or verify), once per subscription row | Auth amount from Cashfree, else `app_config.subscription_auth_amount` (default `3`) | Mandate authorised, trial started. **Trial counts** |
 | `trial_expired` | Webhook only, once per subscription row | — | Trial ended with no recurring charge. **Unconverted trials** |
-| `trial_payment_completed` | Android app after verify | Auth amount (fallback `3.0` INR) | Same moment, app-side; kept for attribution parity with Meta `Purchase` / Firebase `purchase` |
-| `subscription_paid` | Webhook only | The recurring charge | Autopay charge succeeded |
+| `trial_payment_completed` | Android app after verify (checkout verify or a manual Pending re-check) | Auth amount from `create-subscription` (fallback `3.0` INR) | Same moment, app-side; kept for attribution parity with Meta `Purchase` / Firebase `purchase` |
+| `subscription_paid` | Webhook only | The recurring charge (`app_config.subscription_recurring_amount`, default `299`) | Autopay charge succeeded |
 
 `subscription_paid` has **no amount threshold**. The webhook **skips** it when:
 
@@ -276,10 +292,10 @@ Exits and failures:
 ### Suggested Mixpanel Insights funnels
 
 1. **OTP → account:** `otp_sent` → `sign_up_completed` or `login_completed` (break down `otp_verification_failed` by `failure_reason`, `otp_entry_method`; `auth_failed` by `stage`, `failure_reason`)
-2. **Trial conversion:** `subscription_screen_viewed` → `subscription_cta_tapped` → `subscription_started` → `trial_payment_succeeded` (break down by `entry_point`, `payment_app`); drop-off: `paywall_dismissed`
-3. **Checkout drop-off:** `subscription_started` → `subscription_failed` (break down by `stage`, `failure_reason`, `payment_app`) and `mandate_auth_failed` (`failure_reason`, `upi_handle`)
-4. **Activation:** `trial_payment_succeeded` → `ringtone_created` → `ringtone_set`
-5. **Create flow:** `ringtone_creation_started` → `sample_list_viewed` → `sample_selected` → `ringtone_generation_started` → `ringtone_created` → `ringtone_set` (break down by `entry_point`, `language`, `fallback_level`, `cached`)
+2. **Trial conversion:** `subscription_screen_viewed` → `subscription_cta_tapped` → `subscription_started` → `trial_payment_succeeded` (break down by `entry_point`, `payment_app`); drop-off: `paywall_dismissed` (by `dismiss_method`)
+3. **Checkout drop-off:** `subscription_started` → `subscription_failed` (break down by `stage`, `failure_reason`, `payment_app`) and `mandate_auth_failed` (`failure_reason`, `upi_handle`). Count users, not events: each manual Pending re-check adds a `verify` failure
+4. **Activation:** `trial_payment_succeeded` → `create_ringtone_cta_tapped` (`source = membership_welcome`) → `ringtone_created` → `ringtone_set`
+5. **Create flow:** `ringtone_creation_started` → `sample_list_viewed` → `sample_selected` → `set_mode_selected` → `ringtone_generation_started` → `ringtone_created` → `ringtone_set` (break down by `entry_point`, `language`, `fallback_level`, `cached`, `set_mode`)
 6. **Generation health:** `ringtone_generation_started` → `ringtone_generation_failed` (break down by `failure_reason`, `retryable`, `http_status`, `platform`; watch `latency_ms` / `duration_minutes` on `ringtone_created`)
 7. **Name coverage:** `name_lookup_completed` by `has_match`, `exact_match`, `language`
 8. **Renewal health:** `subscription_renewal_notified` → `subscription_paid` vs `subscription_renewal_failed` (break down by `failure_reason`, `upi_handle`)
@@ -299,13 +315,13 @@ Tracked by `AnalyticsLifecycleCallbacks` unless noted. `IncomingCallThemeActivit
 | Event | Trigger | Properties |
 |-------|---------|------------|
 | `app_opened` | Coming to the foreground: first foreground in the process (`cold`), or back after ≥ 5 min in the background (`warm`). Decided inside the entry screen's `super.onCreate()`, so that screen's own `onCreate` events (for example `subscription_screen_viewed`) come after it. Shorter trips (UPI app, Settings, contact picker, camera) and config changes are not opens. When the process died during such a trip, the restored screen compares against the background time saved in `analytics_state`: under 5 min is no open, otherwise `warm` | `start_type` (`cold` / `warm`), `entry_screen` (screen slug) |
-| `screen_viewed` | `onActivityCreated` with no saved state for the 11 slugged screens, so rotation doesn't re-fire. Also called from `Home.onNewIntent` and `CreateRingtoneActivity.onNewIntent` (CLEAR_TOP re-entry) | `screen_name`, `previous_screen` |
+| `screen_viewed` | `onActivityCreated` with no saved state for the 12 slugged screens, so rotation doesn't re-fire. Also called from `Home.onNewIntent` (CLEAR_TOP re-entry from the Ready screen's "Home par jayen") and `CreateRingtoneActivity.onNewIntent` (CLEAR_TOP re-entry from the processing screen's "Change language"). Home skips the `onNewIntent` track when it was just created and hasn't resumed yet (the never-launched Home at the bottom of the post-purchase `startActivities` stack gets `onCreate` then `onNewIntent` on "Home par jayen"), so one visit is tracked once (`HomeScreenViewGate`) | `screen_name`, `previous_screen` |
 | `install_attributed` | First foreground after a **fresh** install (not from `Application.onCreate`: the phone-state receiver can cold-start the process). Skipped, and marked done, when `lastUpdateTime > firstInstallTime`, so users upgrading to this build never send it. Once per install (prefs flag); up to 3 tries per process on `SERVICE_UNAVAILABLE` / disconnect (`InstallReferrerTracker`) | `utm_source`, `utm_medium`, `utm_campaign` (max 255 chars), `has_gclid` |
-| `permission_prompt_answered` | Startup prompts on Home (`StartupPermissionRequester`; first answer per permission, then only when it changes) and Set-flow prompts (`RingtoneSetController`) | `permission`, `granted`, `permanently_denied` (denied runtime permissions only), `prompt_context` (`startup` / `set_ringtone`) |
-| `external_link_opened` | Terms / privacy span on phone entry (`AuthTermsHelper`), Profile help / privacy / delete-account rows. Only after `startActivity` succeeded | `link` (`terms` / `privacy_policy` / `help_support` / `delete_account`), `source` (`phone_entry` / `profile`) |
+| `permission_prompt_answered` | Startup prompts on a fresh (not recreated) Home (`StartupPermissionRequester`; first answer per permission, then only when it changes; permissions already granted are neither asked nor reported). New members go from the member screen straight into the create flow, so their startup answers come on their first Home visit (back from the member screen or the create flow, or "Home par jayen"), after any Set-flow prompts. Set-flow prompts (`RingtoneSetController`): during Home Set; on the create path on the Ready screen, where the storage prompt (Android 8/9) and WRITE_SETTINGS come first, before the ringtone is downloaded, then the per-mode contacts / phone prompts | `permission`, `granted`, `permanently_denied` (denied runtime permissions only), `prompt_context` (`startup` / `set_ringtone`) |
+| `external_link_opened` | Terms / privacy span in the footer of phone entry, OTP entry and name entry (`AuthTermsHelper`), Profile help / privacy / delete-account rows. Only after `startActivity` succeeded | `link` (`terms` / `privacy_policy` / `help_support` / `delete_account`), `source` (`phone_entry` / `otp_entry` / `name_entry` / `profile`) |
 | `logged_out` | Inside `MixpanelAnalytics.logout()`, before `reset()`, only when logged in | `source` (`profile` / `subscription` / `ringtone_processing`), `reason` (`user_initiated` / `session_expired`) |
 
-Screen slugs: `language_selection`, `phone_entry`, `otp_entry`, `name_entry`, `subscription`, `home`, `profile`, `create_form`, `song_picker`, `ringtone_processing`, `ringtone_ready`. The router and third-party activities are untracked.
+Screen slugs (12): `language_selection`, `phone_entry`, `otp_entry`, `name_entry`, `subscription`, `membership_welcome` (the member screen after the trial verifies), `home`, `profile`, `create_form`, `song_picker`, `ringtone_processing`, `ringtone_ready`. The router and third-party activities are untracked. The paywall's Pending and Failed states and the bottom sheets are not screens.
 
 `previous_screen` is the slug of the last tracked screen that resumed. It resets at `app_opened`, and when a fresh activity starts in an emptied task (backed out and relaunched within 5 min), so a session's entry screen has none.
 
@@ -322,7 +338,7 @@ Screen slugs: `language_selection`, `phone_entry`, `otp_entry`, `name_entry`, `s
 | `otp_verification_failed` | OTP verify fails, or succeeds without a session (`bad_response`) (`OtpVerificationActivity`). Coroutine cancellation is not tracked | `failure_reason`, `otp_entry_method`, `attempt` (verify attempts on this screen, including this one) |
 | `sign_up_completed` | New user submits name after OTP (`SignUpNameActivity`) | `sign_up_method` (`"phone"`), `post_auth_destination` (`home` / `subscription`), `otp_entry_method` |
 | `login_completed` | Returning user OTP verify succeeds (`OtpVerificationActivity.completeLogin()`) | `sign_in_method` (`"phone"`), `otp_entry_method`, `attempt` (verify attempts on this screen), `resend_count`, `post_auth_destination` |
-| `language_selected` | Continue on the language screen (`LanguageSelectionActivity`); double taps ignored | `language`, `locale`, `context` (`onboarding` / `settings`), `previous_language`, `language_changed` (both only after an earlier choice) |
+| `language_selected` | Continue on the language screen (`LanguageSelectionActivity`); double taps ignored | `language`, `locale`, `context` (`onboarding` from the launch router (`AuthActivity`) before any language is saved; `settings` from the Profile language row, now the only other entry since the auth screens and paywall lost their language button), `previous_language`, `language_changed` (both only after an earlier choice) |
 
 `auth_failed.stage`: `phone_validation`, `send_otp`, `name_validation`, `complete_signup`. OTP verification has its own event, `otp_verification_failed`.
 
@@ -344,12 +360,12 @@ Screen slugs: `language_selection`, `phone_entry`, `otp_entry`, `name_entry`, `s
 | Event | Trigger | Properties |
 |-------|---------|------------|
 | `subscription_screen_viewed` | Paywall opens (`SubscriptionActivity`, no saved state, together with Meta `ViewContent`) | `previous_screen`, `user_status` (`AuthStore` status), `installed_app_count`, `entry_point` |
-| `paywall_dismissed` | The paywall finishes through system back without converting: `onPause` with `isFinishing`, once. Suppressed for the programmatic finishes (verify success, logout, not logged in); back is blocked while a verify runs | `entry_point`, `dismiss_method` (`system_back`), `attempt` (0 before any Try Now), `video_completed` |
-| `subscription_cta_tapped` | Try Now tapped (ignored while a payment is processing) | `payment_app`, `payment_app_installed`, `attempt`, `video_completed` |
+| `paywall_dismissed` | The paywall finishes without converting, through system back or the header close X: `onPause` with `isFinishing`, once. Back on the Pending / Failed states only returns to the paywall state and is not a dismissal. Suppressed for the programmatic finishes (verify success, logout, not logged in); back and the X are ignored while a verify runs | `entry_point`, `dismiss_method` (`system_back` / `close_button`), `attempt` (0 before any CTA tap), `video_completed` |
+| `subscription_cta_tapped` | Paywall CTA ("Tune banayein", `tryNowButton`) tapped (ignored while a payment is processing) | `payment_app`, `payment_app_installed`, `attempt`, `video_completed` |
 | `payment_app_selected` | Row picked in the payment-app sheet | `payment_app`, `previous_payment_app` |
-| `subscription_started` | Create-subscription API succeeds, **before** Cashfree UPI checkout opens | `payment_app`, `auth_amount`, `recurring_amount`, `attempt` |
-| `trial_payment_completed` | `verifySubscription` returns `active == true` with a user. Once per paywall (`verifyInFlight`), and also when the paywall was recreated during the UPI switch (id from saved state or the Cashfree response) or while the verify request ran (`verify_pending` in saved state re-runs it; Cashfree delivers the callback only once) | `payment_app`, `subscription_id`, `amount` (auth amount, default `3.0`), `currency` (`"INR"`), `attempt`, `previous_status` (`AuthStore` status when the paywall opened) |
-| `subscription_failed` | Precheck, create, checkout or verify failure | `stage`, `failure_reason`, `payment_app`, `cf_error_code` (lower-cased Cashfree SDK code), `http_status`, `cashfree_status` (verify pending only), `attempt` |
+| `subscription_started` | Create-subscription API succeeds, **before** Cashfree UPI checkout opens | `payment_app`, `auth_amount`, `recurring_amount` (both from `app_config`, see [Prices](#prices-app_config)), `attempt` |
+| `trial_payment_completed` | `verifySubscription` returns `active == true` with a user. Once per paywall (`verifyInFlight`): from the Cashfree verify callback, its re-run when the paywall was recreated during the UPI switch (id from saved state or the Cashfree response) or while the verify request ran (`verify_pending` in saved state re-runs it; Cashfree delivers the callback only once), or a manual "Payment Status Dekhein" re-check on the Pending state. The member screen opens next (`finishWithoutDismiss`); a returned user who still needs a subscription is routed as before (`AuthNavigator`) | `payment_app`, `subscription_id`, `amount` (auth amount, default `3.0`), `currency` (`"INR"`), `attempt`, `previous_status` (`AuthStore` status when the paywall opened) |
+| `subscription_failed` | Precheck, create, checkout or verify failure. See [Paywall states](#paywall-states) for what the user sees after each | `stage`, `failure_reason`, `payment_app`, `cf_error_code` (lower-cased Cashfree SDK code), `http_status`, `cashfree_status` (verify pending only), `attempt` |
 | `subscription_video_ended` | Paywall video completes or errors, each at most once per paywall | `end_reason` (`completed` / `error`), `error_code` (ExoPlayer code name without `ERROR_CODE_`), `duration_ms` |
 
 `subscription_failed.failure_reason` is bounded (anything outside `[a-z0-9_]{1,64}` is dropped):
@@ -369,7 +385,21 @@ Paywall `entry_point` (`PaywallEntryPoint.derive`), from `previous_screen` and t
 | `home` | any | `locked_home` (derived, but nothing on Home opens the paywall yet) |
 | none (app open) or an onboarding screen (`language_selection`, `phone_entry`, `otp_entry`, `name_entry`) | `cancelled` / `expired` | `win_back` |
 | same | `none` / `trial` | `onboarding` |
-| anything else, including an `active` user | | omitted |
+| anything else (including `membership_welcome`), or an `active` user | | omitted |
+
+#### Paywall states
+
+The paywall has three states inside `SubscriptionActivity` (`PaywallUiPolicy`): the paywall, Pending and Failed. Pending and Failed are not screens: they send no `screen_viewed` and no event of their own. They only change what the user sees after outcomes that were already tracked:
+
+| Outcome | Tracked | Then shows |
+|---------|---------|------------|
+| Checkout `action_cancelled` (UPI cancel) | `subscription_failed` `checkout` / `user_cancelled` | The paywall, quietly |
+| Any other checkout failure, or a Cashfree SDK exception | `subscription_failed` `checkout` / `payment_failed`, `other` or `sdk_exception` | Failed. The "bank / funds / details" reasons show only for `payment_failed`. "Dobara Try Karein" returns to the paywall |
+| Checkout verify (or its re-run after recreation) not active, no user, or a server or transport error | `subscription_failed` `verify` (`pending`, `missing_user`, `server_error`, `network`, `timeout`, `unknown`) | Pending |
+| Verify with no logged-in user or no subscription id | `subscription_failed` `verify` (`not_logged_in` / `missing_subscription_id`) | The current state stays (no request is made) |
+| "Payment Status Dekhein" on Pending: runs the same `verifySubscription` once (ignored while one is in flight) | Active: `trial_payment_completed` (+ Meta `Purchase`, Firebase `purchase`). Otherwise one `subscription_failed` `verify` per tap | Active: the member screen. Otherwise Pending stays, with a toast |
+
+There is no automatic re-check. Back on Pending or Failed returns to the paywall and is not a `paywall_dismissed`; only back and the close X on the paywall state are dismissals.
 
 ### Home and catalog
 
@@ -381,7 +411,7 @@ Paywall `entry_point` (`PaywallEntryPoint.derive`), from `previous_screen` and t
 | `tune_play_ended` | A preview session ends at completion, stop/release or error (`PreviewPlayerController`), on Home, the song picker and the Ready screen. A replay after completion (including a seek on the Ready screen) opens a new session | `source` (`home` / `search_results` (same as its `tune_played`) / `song_picker` / `creation_flow`), `tune_id` (base tune id on the Ready screen), `end_reason` (`completed` / `stopped` / `error`), `listened_ms`, `duration_ms`, `percent_listened`, `time_to_start_ms`, `error_code` |
 | `search_performed` | Search query debounced **500 ms** (`HomeViewModel`); a pending one is sent early by the create CTA and the Home reset on return | `query_length` (trimmed), `result_count` (at send time), `category_filter` |
 | `category_filtered` | Category chip selected, deselected (tapping the selected chip; Home only) or "All", on Home or in the song picker | `category_id`, `category_name` (both omitted for `all`), `source` (`"home"` / `"song_picker"`), `selection` (`selected` / `deselected` / `all`) |
-| `create_ringtone_cta_tapped` | Empty-search create CTA on Home (double taps ignored) | `source` (`"search_bar"`), `prefill_name_length` |
+| `create_ringtone_cta_tapped` | Empty-search create CTA on Home, or the member screen's CTA or any of its 3 checklist rows (`MembershipWelcomeActivity`, which then opens the create form with `entry_point = post_purchase`); double taps ignored on both | `source` (`"search_bar"` / `"membership_welcome"`), `prefill_name_length` (Home: the trimmed query; member screen: the saved profile name, which the form prefills) |
 | `ringtone_replaced_externally` | Home `onResume` finds the saved MeraTune ringtone is no longer the system default (including silent). Once per saved ringtone (`ActiveRingtoneStore`) | `tune_id`, `personalized`, `days_since_set` |
 
 Raw query text is never sent.
@@ -416,31 +446,48 @@ The app does not send `ringtone_created`, and sends `ringtone_generation_failed`
 | `ringtone_creation_started` | Continue on the create form after the name passes `NameNormalizer.validate` (`CreateRingtoneActivity`); double taps ignored | `language`, `name_length`, `entry_point`, `language_source`, `prefill_source`, `name_edited`, `time_on_form_ms` |
 | `unavailable_language_tapped` | Tap on a "coming soon" language (once per language per form) | `language` |
 | `sample_list_viewed` | Song picker reaches a terminal load state: content, empty (`sample_count` = 0) or error (`ChooseSongActivity`). After recreation the reload is silent if it lands on the state already reported, else it fires with `trigger = restored` | `language`, `sample_count`, `category_count`, `fallback_level` (`none` / `hindi` / `any`; omitted on error), `voice_filter` (`male` / `female`; omitted for "all"), `load_state` (`content` / `empty` / `error`), `trigger` (`initial` / `retry` / `hindi_fallback` / `restored`), `failure_reason` (error only, `LoadErrorMapper` values), `requested_language` |
-| `sample_previewed` | Preview playback starts for a card in the picker, including a replay after the preview finished; fires before `sample_selected` on the same tap | `sample_id`, `category`, `language`, `voice`, `rank` |
-| `sample_selected` | First selection of a card in the picker (re-selecting a card does not fire again) | `sample_id`, `category`, `language`, `voice`, `rank`, `voice_filter` (omitted for all), `category_filter` (category **name**; omitted for all) |
+| `sample_previewed` | A row (or its art) tap in the picker starts preview playback, including a replay after the preview finished. A row tap only previews; it no longer selects | `sample_id`, `category`, `language`, `voice`, `rank` |
+| `sample_selected` | First "chuno" tap on a song in the picker (`trackedSelections`, kept in saved state: a repeat chuno on the same song does not fire again). Ignored while a set flow is open (a sheet showing or a photo being staged) or the picker is navigating. It fires before the chuno `ringtone_set_started` and stops any preview; a song can be chosen without a `sample_previewed` | `sample_id`, `category`, `language`, `voice`, `rank`, `voice_filter` (omitted for all), `category_filter` (category **name**; omitted for all) |
 | `voice_filtered` | Voice chip changed in the picker | `voice_filter` (`all` / `male` / `female`), `result_count` |
-| `ringtone_generation_started` | A `generate-ringtone` request is posted (`RingtoneGenerationViewModel`); once per attempt, so manual retries fire again with `is_retry = true`. Automatic 409/503 back-off re-posts do **not** fire again. Continue on the picker ignores double taps | `tune_id`, `sample_id`, `category`, `language`, `voice`, `name_length`, `is_retry`, `attempt`, `trigger` (`initial` / `retry` / `restored`), `client_request_id`, `previewed_count` (distinct songs previewed in the picker) |
+| `ringtone_generation_started` | A `generate-ringtone` request is posted (`RingtoneGenerationViewModel`); once per attempt, so manual retries fire again with `is_retry = true`. Automatic 409/503 back-off re-posts do **not** fire again. Processing opens once the chuno sheets complete (`isNavigating` guards double launches) | `tune_id`, `sample_id`, `category`, `language`, `voice`, `name_length`, `is_retry`, `attempt`, `trigger` (`initial` / `retry` / `restored`), `client_request_id`, `previewed_count` (distinct songs previewed in the picker) |
 | `ringtone_generation_failed` (app) | An attempt ends without a ringtone **and without a server `error_code`** (`GenerationErrorCode.appReportsFailure`): the user backs out (`user_cancelled`), transport failure (`network`, `timeout` incl. HTTP 408 / 504), unreadable response (`invalid_response`, `unknown`), the 90 s busy budget used up (`timeout`). Also `unauthorized` (not logged in, or a 401 / 403 the server could not attribute) | `tune_id`, `sample_id`, `category`, `language`, `voice`, `failure_reason`, `http_status` (omitted without a response), `retryable`, `can_retry` (the error screen offers Retry), `client_ms`, `total_client_ms`, `attempt`, `quota_used_today`, `quota_daily_limit` (when the last response had them), `client_request_id` |
 | `creation_limit_reached` | The processing screen gets `QUOTA_EXCEEDED` (shown as the limit screen); once per failed attempt. The server also sends `ringtone_generation_failed` (`quota_exceeded`) | `limit_type` (`daily`), `quota_used_today`, `quota_daily_limit` |
 | `generation_error_action_taken` | Button on the processing error screen; first tap per error | `action` (`retry` / `login_again` / `subscribe` / `change_language` / `choose_another`), `failure_reason`, `attempt`, `tune_id`, `language` |
-| `ringtone_ready_action_tapped` | Ready-screen button; first tap only (every action leaves the screen) | `action` (`change_song` / `make_another` / `go_home` / `back_button`), `tune_id`, `generation_id`, `is_set` |
+| `ringtone_ready_action_tapped` | Ready-screen "Home par jayen" button or the header back arrow (system back is not tracked); first tap only (both leave the screen). "Ringtone set karein" is not an action here (it runs the set flow and, after success, turns into a disabled "Ringtone set ho gayi") | `action` (`go_home` / `back_button`), `tune_id`, `generation_id`, `is_set` ("Home par jayen" is always shown, so `go_home` can have `is_set = false`) |
 
-`fallback_level` = `hindi` when the requested language had no songs and Hindi songs were shown; `any` when neither existed.
+`fallback_level` = `hindi` when the requested language has no songs but Hindi does: the picker shows the empty state (`load_state = empty`, `sample_count` = 0) with a Hindi offer, and the content load after the user accepts it (`trigger = hindi_fallback`) also sends `hindi`. `any` when neither has songs (empty state).
 
-`entry_point` (`CreationEntryPoint`, kept in saved state): `search_bar` (Home empty-search CTA), `ready_screen` ("Make another"), `processing` ("Change language" on the processing error screen); omitted for other entries.
+`entry_point` (`CreationEntryPoint`, kept in saved state): `search_bar` (Home empty-search CTA), `post_purchase` (the member screen's CTA and checklist rows), `processing` ("Change language" on the processing error screen); omitted for other entries. `ready_screen` ("Make another") is no longer sent from 1.3.0: the Ready screen's "Gaana Badlein" and "Naya Naam Try Karein" buttons were removed, so `ringtone_ready_action_tapped` no longer sends `change_song` / `make_another` either.
 
 `language_source`: `user_picked`, `profile_default`, `hindi_default`, `first_enabled`. `prefill_source`: `search_query`, `profile_name`, `retained` (CLEAR_TOP re-entry kept the name), `none`.
 
 ### Set flow
 
-`source` values: `"home"` (Home), `"creation_flow"` (Ready screen).
+`source` values: `"home"` (Home Set), `"creation_flow"` (the create path: song picker chuno and the Ready screen).
+
+`RingtoneSetController` has three entry points: `start` (Home Set, single shot; also the Ready screen if it has no saved choice), `choose` (song picker chuno) and `apply` (Ready "Ringtone set karein" with the chuno choice).
 
 | Event | Trigger | Properties |
 |-------|---------|------------|
-| `ringtone_set_started` | `RingtoneSetController.start`; ignored while a flow is in flight (double tap, second row) | `source`, `tune_id`, `category`, `personalized`, `generation_id`, `rank`, `was_previewed` (`rank` / `was_previewed` from Home only) |
-| `set_mode_selected` | Continue on `SetRingtoneBottomSheet` | `set_mode`, `source`, `tune_id`, `personalized` |
-| `ringtone_set_failed` | Every terminal non-success exit, once per flow; also a launcher result that arrives after the flow was lost (`state_lost`, `tune_id` omitted) | `stage`, `failure_reason`, `set_mode` (omitted for `mode_sheet`), `error_type` (exception class simple name), `source`, `tune_id`, `personalized` |
-| `ringtone_set` | Ringtone successfully set as default (`RingtoneSetController.finishSuccess`) | `source`, `category`, `tune_id`, `tune_name`, `set_mode`, `generation_id` (omitted for catalog tunes), `personalized`, `photo_source` (`camera` / `gallery`; image modes), `contact_photo_saved`, `contact_ringtone_saved` (contact mode), `flow_duration_ms` |
+| `ringtone_set_started` | `start`, `choose`, or an `apply` retry after a failed apply; ignored while a flow is in flight (double tap, second row, a sheet still open) | `source`, `tune_id`, `category`, `personalized`, `generation_id`, `rank`, `was_previewed` (`rank` / `was_previewed` from Home and chuno; `generation_id` omitted at chuno) |
+| `set_mode_selected` | Continue on `SetRingtoneBottomSheet` (Home Set or chuno). On Android 8/9 Home Set now shows the sheet after the storage grant (it used to set audio-only without one), so this fires there too | `set_mode`, `source`, `tune_id`, `personalized` |
+| `ringtone_set_failed` | Every terminal non-success exit, once per flow; also a launcher result that arrives after the flow was lost (`state_lost`, `tune_id` omitted). While a system screen (permission dialog, Settings, camera, gallery, contact picker) is on top the flow is kept in saved state, so it survives process death | `stage`, `failure_reason`, `set_mode` (omitted for `mode_sheet`), `error_type` (exception class simple name), `source`, `tune_id`, `personalized` |
+| `ringtone_set` | Ringtone successfully set as default (`RingtoneSetController.finishSuccess`): Home Set, or "Ringtone set karein" on the Ready screen | `source`, `category`, `tune_id`, `tune_name`, `set_mode`, `generation_id` (omitted for catalog tunes), `personalized`, `photo_source` (`camera` / `gallery`; image modes), `contact_photo_saved`, `contact_ringtone_saved` (contact mode), `flow_duration_ms` |
+
+`personalized` is `true` for every create-path event (chuno included, before anything is generated); on Home it is whether the tune has a `generation_id`.
+
+#### Create-path split
+
+On Home one flow runs from `ringtone_set_started` to `ringtone_set` / `ringtone_set_failed`. On the create path it is split across two screens:
+
+| Where | Events |
+|-------|--------|
+| Song picker, chuno (`choose`) | `sample_selected` (first chuno per song) → `ringtone_set_started` (`rank`, `was_previewed`, no `generation_id`) → `set_mode_selected` → photo sheet for image modes. Cancels: `ringtone_set_failed` `mode_sheet` / `photo_sheet` (`user_cancelled`), or `photo_sheet` when the photo cannot be staged. No permission prompt and no download here. The choice (mode, staged photo, photo source, time on the sheets) travels to Processing and Ready as intent extras, with no event |
+| Ready, "Ringtone set karein" (`apply`) | The saved choice is applied without a sheet: storage prompt (Android 8/9), then WRITE_SETTINGS **before** the ringtone is downloaded, then per mode: the phone / call-display prompts (everyone), or the contacts prompt, the contact picker and the phone / call-display prompts (contact); then `ringtone_set` or `ringtone_set_failed` (`storage_permission`, `write_settings_permission`, `contacts_permission`, `phone_permission`, `contact_picker`, `download`, `save`, `set_default`, `theme_save`). If the staged photo is gone the photo sheet opens again (`photo_sheet` on cancel). The staged photo moves into the call-theme store only after the set succeeds |
+
+- The first apply continues the chuno flow: no second `ringtone_set_started` and no second `set_mode_selected`. A retry after a failed apply starts a new flow: `ringtone_set_started` with `generation_id` and without `rank` / `was_previewed`, and no `set_mode_selected` (the choice is reused).
+- `flow_duration_ms` on the create path = time on the chuno sheets + time from the "Ringtone set karein" tap to success. It **excludes** generation and the time on Ready before the tap. A retry flow counts only from its own tap. On Home it is the whole single-shot flow.
+- **Open flows:** the chuno flow closes with no event when the choice completes. If the user never taps "Ringtone set karein" (generation fails, they back out, or leave with "Home par jayen"), that `ringtone_set_started` has neither `ringtone_set` nor `ringtone_set_failed`. Coming back to the picker and choosing again starts another flow. So on `source = creation_flow`, `ringtone_set_started → ringtone_set` drop-off includes generation drop-off; use `ringtone_created → ringtone_set` for set conversion after a ringtone exists.
 
 `tune_name` for a personalized tune is the base song as authored (`title_template` with `sample_name` substituted) so the user's name never leaves the device; it is omitted when the tune has no `title_template`.
 
@@ -596,7 +643,7 @@ Mixpanel is the product analytics source of truth. Ads conversions use other too
 | `subscription_started` | `InitiatedCheckout` | — |
 | `trial_payment_completed` | `Purchase` | `purchase` (Ads conversion) |
 | `trial_payment_succeeded` | — (Meta `Purchase` comes from the app) | — |
-| `subscription_paid` | `Subscribe` (Conversions API, webhook) | — |
+| `subscription_paid` | `Subscribe` (Conversions API, webhook; only when `META_DATASET_ID` / `META_CONVERSIONS_API_ACCESS_TOKEN` are set, currently unset) | — |
 | `subscription_cancelled`, `subscription_renewal_failed`, `trial_expired`, other server events | — | — |
 | `subscription_failed`, `paywall_dismissed` | — | — |
 | `logged_out` | `clearUserId()` | `clearUserId()` |
@@ -627,7 +674,7 @@ Consent is not gated yet. If EU/California users are added, initialize the SDK o
 - Event names: `snake_case`, past tense (`ringtone_created`, not `create_ringtone`)
 - Property names: `snake_case`
 - Enum-like values: lowercase snake_case (`phonepe`, `audio_only`). `putEnum` lower-cases and drops anything outside `[a-z0-9_]{1,64}`
-- `source` = where the action happened (`home`, `search_results` = Home with a search query, `search_bar` = the Home empty-search CTA, `song_picker`, `creation_flow` = the Ready screen and the server `ringtone_created`, `profile`, `phone_entry`, `subscription`, `ringtone_processing`). `previous_screen` = where the user came from, computed by the lifecycle tracker (no intent extras). `entry_point` = how a funnel screen was reached (paywall, create form)
+- `source` = where the action happened (`home`, `search_results` = Home with a search query, `search_bar` = the Home empty-search CTA, `membership_welcome` = the member screen, `song_picker`, `creation_flow` = the create path (the set flow at chuno and on the Ready screen, Ready-screen playback) and the server `ringtone_created`, `profile`, `phone_entry`, `otp_entry`, `name_entry`, `subscription`, `ringtone_processing`). `previous_screen` = where the user came from, computed by the lifecycle tracker (no intent extras). `entry_point` = how a funnel screen was reached (paywall, create form)
 - `sample_id` = the picked sample's tune id (spec name; equals `tune_id` in the create flow)
 - `failure_reason`: always bounded, never exception or server text. `network` and `timeout` are separate; `user_cancelled` for backing out
 - Shared names: `attempt` (not `attempt_number`), `trigger` (`initial` / `retry` / `restored` / …), `error_type` (exception class simple name)
@@ -648,7 +695,6 @@ Names and values from the name-ringtone spec for features that are not built yet
 | `locked_sample_tapped` (new) | `sample_id` |
 | `ringtone_ready_notification_tapped` (new) | `ringtone_id` |
 | `ringtone_downloaded` (new) | `ringtone_id` |
-| `paywall_dismissed` `dismiss_method = close_button` | A close button on the paywall (today only `system_back` exists) |
 | `create_ringtone_cta_tapped` `source`, `ringtone_creation_started` `entry_point` = `home_button` / `trial_nudge` | A Home create button and a trial nudge |
 | `tune_played` `source = name_lookup` | Playing a name-lookup result |
 | `creation_limit_reached` `limit_type = trial` / `cycle` | Once trial and billing-cycle tiers exist (today only `daily`) |
@@ -673,17 +719,19 @@ Names and values from the name-ringtone spec for features that are not built yet
 | Signup | `SignUpNameActivity.kt` |
 | Post-auth destination | `util/AuthNavigator.kt` |
 | Language | `LanguageSelectionActivity.kt` |
-| Paywall / trial / failures / video / logout | `SubscriptionActivity.kt`, `ui/PaymentAppBottomSheet.kt` |
+| Paywall / trial / failures / video / logout / close X | `SubscriptionActivity.kt`, `ui/PaymentAppBottomSheet.kt` |
+| Paywall Pending / Failed rules | `ui/PaywallUiPolicy.kt` (`PaywallUiState`, `VerifyTrigger`) |
+| Member screen (`membership_welcome`, post-purchase CTA) | `MembershipWelcomeActivity.kt` |
 | Subscription failure mapping | `data/SubscriptionRepository.kt` (`SubscriptionFailureReason`) |
 | Create form | `CreateRingtoneActivity.kt`, `ui/FormOptionGroup.kt` |
-| Song picker | `ChooseSongActivity.kt` (`data/SongRanker.kt` for `rank` / `fallback_level`) |
+| Song picker (preview, chuno) | `ChooseSongActivity.kt` (`data/SongRanker.kt` for `rank` / `fallback_level`; chuno → `RingtoneSetController.choose`) |
 | Generation | `RingtoneProcessingActivity.kt` (error actions, session-expired logout), `ui/RingtoneGenerationViewModel.kt`, `data/RingtoneGenerationRepository.kt` (`GenerationErrorCode` → `failure_reason`) |
 | Ready screen | `RingtoneReadyActivity.kt` |
 | Preview sessions (`tune_play_ended`) | `ui/PreviewPlayerController.kt` |
-| Set ringtone | `calltheme/RingtoneSetController.kt`, `calltheme/SetEntryContext.kt`, `calltheme/RingtoneSetMode.kt`, `ui/SetRingtoneBottomSheet.kt` |
+| Set ringtone | `calltheme/RingtoneSetController.kt` (`start` / `choose` / `apply`), `calltheme/SetChoice.kt`, `calltheme/SetEntryContext.kt`, `calltheme/RingtoneSetMode.kt`, `calltheme/CallThemeImageHelper.kt` (photo staging), `ui/SetRingtoneBottomSheet.kt`, `ui/UploadPhotoBottomSheet.kt` |
 | Incoming call | `calltheme/IncomingCallEvents.kt`, `calltheme/IncomingCallThemeActivity.kt`, `calltheme/IncomingCallActionReceiver.kt` |
 | Startup permissions | `util/StartupPermissionRequester.kt` |
-| Home / play / empty CTA / set entry | `Home.kt` |
+| Home / play / empty CTA / set entry | `Home.kt`, `ui/HomeScreenViewGate.kt` (`onNewIntent` screen-view de-dup) |
 | Home load / search / category / replaced ringtone | `ui/HomeViewModel.kt`, `util/LoadErrorMapper.kt`, `util/ActiveRingtoneStore.kt` |
 | Profile logout / links | `ProfileActivity.kt` |
 | Webhook | `supabase/functions/cashfree-webhook/index.ts`, `cashfree-webhook/signature.ts` |
@@ -694,7 +742,7 @@ Names and values from the name-ringtone spec for features that are not built yet
 | Payment dedup table | `subscription_payments` (`20260728160000_add_subscription_payments.sql`) |
 | Cashfree status, trial expiry guard, signature mode, name-lookup index | `20260924120000_add_subscription_cashfree_status.sql` |
 | Backup exclusions | `app/src/main/res/xml/backup_rules.xml`, `data_extraction_rules.xml` |
-| Tests | `app/src/test/…` (`DailyCapPolicyTest`, `AnalyticsDerivationTest` (`user_state`, paywall `entry_point`), `LoadErrorMapperTest`, `AuthFailureReasonTest`, `SubscriptionFailureReasonTest`, `SetFailureClassifierTest`, `GenerationErrorCodeTest`), `supabase/functions/tests/mixpanel_test.ts`, `cashfree_webhook_test.ts`, `generate_analytics_test.ts` |
+| Tests | `app/src/test/…` (`DailyCapPolicyTest`, `AnalyticsDerivationTest` (`user_state`, paywall `entry_point`, including `membership_welcome` → omitted), `LoadErrorMapperTest`, `AuthFailureReasonTest`, `SubscriptionFailureReasonTest`, `SetFailureClassifierTest`, `GenerationErrorCodeTest`, `PaywallUiPolicyTest`, `HomeScreenViewGateTest`, `SetChoiceTest`), `supabase/functions/tests/mixpanel_test.ts`, `cashfree_webhook_test.ts`, `generate_analytics_test.ts` |
 
 ---
 
@@ -715,17 +763,40 @@ Names and values from the name-ringtone spec for features that are not built yet
 
 Renamed on this branch before release (no history to migrate): `song_picker_viewed` → `sample_list_viewed` (`song_count` → `sample_count`), `sample_song_played` → `sample_previewed` and `sample_song_selected` → `sample_selected` (`tune_id` → `sample_id`), `auth_failed` with `stage = verify_otp` → `otp_verification_failed`, `trial_activated` → `trial_payment_succeeded`, `subscription_payment_failed` → `subscription_renewal_failed`, `create_ringtone_cta_tapped.source` `empty_search` → `search_bar`. The app's `ringtone_created` moved to `generate-ringtone`.
 
+### UI refresh changes
+
+The UI refresh adds and removes no events (still 57) and changes no server code. What changed in values and timing:
+
+| Area | Change |
+|------|--------|
+| `screen_viewed` | New slug `membership_welcome` (12 screens). The create form after a purchase has `previous_screen = membership_welcome`. Home `onNewIntent` no longer double-tracks a just-created Home |
+| `create_ringtone_cta_tapped` | New `source = membership_welcome` (member screen CTA and its 3 rows) |
+| `ringtone_creation_started` | New `entry_point = post_purchase`; `ready_screen` is no longer sent. No new properties |
+| `paywall_dismissed` | New `dismiss_method = close_button`. Back on Pending / Failed is not a dismissal |
+| `subscription_failed` | Same values. There is no automatic re-check; each manual "Payment Status Dekhein" re-check that doesn't activate sends one `verify` failure |
+| `trial_payment_completed` (+ Meta `Purchase`, Firebase `purchase`) | Same handler, once per paywall; now also reachable from the Pending re-check. The member screen opens next instead of Home |
+| `sample_previewed` / `sample_selected` | A row tap only previews; `sample_selected` moves to the first "chuno" tap |
+| `voice_filtered`, `category_filtered` (`song_picker`) | Unchanged (the picker keeps its voice and category chips) |
+| Set flow, create path | `ringtone_set_started`, `set_mode_selected` and the `mode_sheet` / `photo_sheet` cancels fire at chuno; the apply stages, `ringtone_set` and the Set-flow permission prompts fire on Ready. `flow_duration_ms` excludes generation. Open flows are possible ([Create-path split](#create-path-split)) |
+| Set flow, Home path | Unchanged, except that Android 8/9 now shows the mode sheet (and sends `set_mode_selected`) after the storage grant |
+| `ringtone_ready_action_tapped` | `change_song` / `make_another` are no longer sent. `go_home` ("Home par jayen", always shown) can have `is_set = false` |
+| `external_link_opened` | New sources `otp_entry` and `name_entry` (terms footer on all 3 auth screens) |
+| `permission_prompt_answered` | New members answer the `startup` prompts on their first Home visit (usually after the create flow), only for permissions still missing. On the create path, WRITE_SETTINGS (`set_ringtone`) is asked up front on Ready, before the download |
+| `language_selected` | `context = settings` now comes only from Profile (the auth screens and paywall lost their language button) |
+
 ---
 
 ## Verification
 
 1. **Unit tests:** `./gradlew :app:testDebugUnitTest` and `deno test --allow-read supabase/functions/tests` (insert id format, IST month boundaries, token fallback, fetch failures, signature matrix, failure buckets, transitions, fixtures with allowlisted keys only and no phone, email or `@`; generation props, reporting rules and insert ids).
 2. **Debug app:** trigger each flow; confirm events in Mixpanel Live View (filter `build_type = debug`) and Logcat. Server events have no `build_type`: find them with `platform = server` and the test user's `distinct_id`.
-3. **Recreation and double taps:** rotate on each screen and double-tap each Continue; no event fires twice.
+3. **Recreation and double taps:** rotate on each screen and double-tap each Continue, chuno and the member-screen CTA; no event fires twice.
 4. **Identity:** signup/login events share the same `distinct_id` as later subscription and webhook events for that user.
 5. **Logout:** `logged_out` arrives under the user's id; next events use a new anonymous ID until login.
 6. **Trial vs paid:** `trial_payment_succeeded` once per subscription row (server); `trial_payment_completed` only from the app; `subscription_paid` only from the webhook; `trial_expired` at most once per row.
 7. **Webhook retries:** re-posting the same payload gives one event (`$insert_id` + `event_time`, and the DB guards).
 8. **Lexicon:** add descriptions for all 57 events in Mixpanel Data Management.
 9. **Funnels:** build the Insights funnels listed in [Conversion funnel](#conversion-funnel).
-10. **Create flow:** run one generation end to end (with `generate-ringtone` deployed) and confirm Live View shows `create_ringtone_cta_tapped (source=search_bar) → ringtone_creation_started (entry_point=search_bar) → sample_list_viewed → sample_previewed → sample_selected → ringtone_generation_started → name_lookup_completed → ringtone_created (platform=server, cached=false) → ringtone_set_started → set_mode_selected → ringtone_set (generation_id, personalized=true)`, that `ringtone_created` appears once and only from the server, and that no property contains the typed name.
+10. **Create flow:** run one generation end to end (with `generate-ringtone` deployed) and confirm Live View shows `create_ringtone_cta_tapped (source=search_bar) → ringtone_creation_started (entry_point=search_bar) → sample_list_viewed → sample_previewed → sample_selected → ringtone_set_started (source=creation_flow, no generation_id) → set_mode_selected → ringtone_generation_started → name_lookup_completed → ringtone_created (platform=server, cached=false) → ringtone_set (generation_id, personalized=true)`, with no second `ringtone_set_started` on Ready, that `ringtone_created` appears once and only from the server, and that no property contains the typed name.
+11. **Post-purchase:** pay the trial and confirm `trial_payment_completed → screen_viewed (membership_welcome) → create_ringtone_cta_tapped (source=membership_welcome) → screen_viewed (create_form, previous_screen=membership_welcome) → ringtone_creation_started (entry_point=post_purchase)`. After "Home par jayen", exactly one `screen_viewed (home)`.
+12. **Paywall states:** UPI cancel → one `subscription_failed (checkout, user_cancelled)` and back on the paywall. A checkout whose verify is not active yet → one `subscription_failed (verify, pending)` and Pending; each "Payment Status Dekhein" tap → one `subscription_failed (verify)` or `trial_payment_completed`. Back on Pending / Failed → no `paywall_dismissed`. Close X → `paywall_dismissed (dismiss_method=close_button)`.

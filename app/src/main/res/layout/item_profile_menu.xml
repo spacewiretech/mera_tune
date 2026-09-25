@@ -5,20 +5,25 @@
     android:layout_height="wrap_content"
     android:background="?attr/selectableItemBackground"
     android:gravity="center_vertical"
+    android:minHeight="80dp"
     android:orientation="horizontal"
-    android:paddingVertical="16dp">
+    android:paddingStart="20dp"
+    android:paddingTop="18dp"
+    android:paddingEnd="19dp"
+    android:paddingBottom="18dp">
 
     <ImageView
         android:id="@+id/menuIcon"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="22dp"
+        android:layout_height="22dp"
         android:contentDescription="@null"
         tools:src="@drawable/ic_profile_language" />
 
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
+        android:layout_marginStart="22dp"
+        android:layout_marginEnd="12dp"
         android:layout_weight="1"
         android:orientation="vertical">
 
@@ -26,7 +31,7 @@
             android:id="@+id/menuTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:fontFamily="@font/manrope_bold"
+            android:fontFamily="@font/manrope_medium"
             android:textColor="@color/navy"
             android:textSize="16sp"
             tools:text="Selected Language" />
@@ -36,8 +41,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:textColor="@color/text_secondary"
-            android:textSize="14sp"
+            android:fontFamily="@font/manrope_regular"
+            android:textColor="@color/text_muted_warm"
+            android:textSize="13sp"
             tools:text="English" />
     </LinearLayout>
 
@@ -45,6 +51,6 @@
         android:layout_width="20dp"
         android:layout_height="20dp"
         android:contentDescription="@null"
-        android:src="@drawable/ic_chevron_right" />
+        android:src="@drawable/ic_chevron_right_thin" />
 
 </LinearLayout>

@@ -33,4 +33,9 @@
     <!-- P3 shared list rows -->
     <color name="home_play_overlay_disc">#EBFFFFFF</color>
     <color name="home_play_overlay_glyph">#73120938</color>
+    <!-- lane C -->
+    <color name="home_playing_ring">#F74460</color>
+    <color name="home_playing_ring_track">#66F74460</color>
+    <color name="profile_phone">#897B64</color>
+    <color name="logout_red">#EF3E0D</color>
 </resources>

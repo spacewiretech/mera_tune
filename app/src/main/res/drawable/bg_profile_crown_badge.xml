@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Crown badge: orange (top) to pink (bottom) disc. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    <solid android:color="@color/gradient_pink" />
+    <gradient
+        android:angle="270"
+        android:endColor="@color/gradient_pink"
+        android:startColor="@color/gradient_orange"
+        android:type="linear" />
 </shape>

@@ -19,6 +19,7 @@ import com.spacewire.meratune.analytics.LogoutReason
 import com.spacewire.meratune.analytics.firebaseAnalytics
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.analytics.metaAnalytics
+import com.spacewire.meratune.util.GradientTextHelper
 import com.spacewire.meratune.util.ProfileStore
 import com.spacewire.meratune.util.enableLightEdgeToEdge
 
@@ -72,8 +73,9 @@ class ProfileActivity : AppCompatActivity() {
 
         findViewById<TextView>(R.id.profileName).text = profile.name
         findViewById<TextView>(R.id.profilePhone).text = profile.phone
-        findViewById<TextView>(R.id.versionText).text =
-            getString(R.string.profile_version, BuildConfig.VERSION_NAME)
+        val versionText = findViewById<TextView>(R.id.versionText)
+        versionText.text = getString(R.string.profile_version, BuildConfig.VERSION_NAME)
+        GradientTextHelper.applyHorizontalGradient(versionText, R.color.gradient_pink, R.color.gradient_orange)
     }
 
     private fun setupMenuItems() {

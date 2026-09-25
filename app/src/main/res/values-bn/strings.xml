@@ -1,6 +1,5 @@
 <resources>
     <string name="app_name">Mera Tune</string>
-    <string name="logo_mera">মেরা</string>
     <string name="search_hint">আপনার নাম লিখুন…</string>
     <string name="set">সেট</string>
     <string name="active_ringtone">সক্রিয়</string>
@@ -29,10 +28,9 @@
     <string name="playback_error">এই টিউন চালানো যাচ্ছে না</string>
     <string name="load_error_retry">আবার চেষ্টা করতে ট্যাপ করুন</string>
     <string name="load_error_with_retry">%1$s\n\nআবার চেষ্টা করতে ট্যাপ করুন।</string>
-    <string name="empty_search_title_line1">চলুন, একটি রিংটোন বানাই</string>
-    <string name="empty_search_title_line2">শুধু আপনার জন্য!</string>
     <string name="empty_search_message">%1$s-এর জন্য রিংটোন পাওয়া যায়নি, প্রথমে তৈরি করুন</string>
-    <string name="create_ringtone">রিংটোন তৈরি করুন +</string>
+    <!-- UI refresh: native review pending -->
+    <string name="create_ringtone">রিংটোন তৈরি করুন</string>
     <string name="back">ফিরে যান</string>
     <string name="create_form_title">%1$s, আপনার নামের রিংটোন তৈরি করুন!</string>
     <string name="create_form_subtitle">নাম আর ভাষা বেছে নিন, তারপর আপনার প্রিয় গান বাছুন</string>
@@ -160,4 +158,10 @@
     <string name="category_all_tunes">সব টিউন</string>
     <!-- UI refresh: native review pending -->
     <string name="category_your_name">আপনার নাম</string>
+    <!-- lane C -->
+    <!-- UI refresh: native review pending -->
+    <!-- %1$s = empty_search_title_highlight (gradient span); translators may move it. -->
+    <string name="empty_search_title">চলুন, একটি রিংটোন বানাই %1$s</string>
+    <string name="empty_search_title_highlight">শুধু আপনার জন্য!</string>
+    <string name="home_pause_tune">টিউন থামান</string>
 </resources>

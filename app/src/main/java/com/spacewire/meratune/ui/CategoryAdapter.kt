@@ -5,7 +5,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.spacewire.meratune.R
 import com.spacewire.meratune.data.Category
@@ -42,8 +41,9 @@ class CategoryAdapter(
         private val label: TextView = itemView.findViewById(R.id.categoryLabel)
 
         fun bind(category: Category) {
-            label.text = category.name
-            CategoryUiHelper.bindIcon(iconContainer, icon, category)
+            // Localized label only; the click and analytics keep the DB id/name.
+            label.text = CategoryUiHelper.displayName(itemView.context, category)
+            CategoryUiHelper.bindArt(iconContainer, icon, category)
 
             val isSelected = when {
                 category.id == Category.ALL_CATEGORY_ID ->
@@ -52,18 +52,8 @@ class CategoryAdapter(
             }
 
             selectionRing.visibility = if (isSelected) View.VISIBLE else View.GONE
-            iconContainer.alpha = if (isSelected) 1f else 0.65f
-            label.setTextColor(
-                ContextCompat.getColor(
-                    itemView.context,
-                    if (isSelected) R.color.navy else R.color.text_secondary,
-                ),
-            )
-            label.typeface = if (isSelected) {
-                AppFonts.medium(itemView.context)
-            } else {
-                AppFonts.regular(itemView.context)
-            }
+            // TalkBack announces "selected"; no dimming or weight swap in the refreshed chips.
+            itemView.isSelected = isSelected
 
             itemView.setOnClickListener {
                 onCategoryClick(category.id)

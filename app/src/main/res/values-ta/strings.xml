@@ -1,6 +1,5 @@
 <resources>
     <string name="app_name">Mera Tune</string>
-    <string name="logo_mera">मेरा</string>
     <string name="search_hint">உங்கள் பெயரை உள்ளிடவும்…</string>
     <string name="set">அமை</string>
     <string name="active_ringtone">செயலில்</string>
@@ -29,10 +28,9 @@
     <string name="playback_error">இந்த டியூனை இயக்க முடியவில்லை</string>
     <string name="load_error_retry">மீண்டும் முயற்சிக்க தட்டவும்</string>
     <string name="load_error_with_retry">%1$s\n\nமீண்டும் முயற்சிக்க தட்டவும்.</string>
-    <string name="empty_search_title_line1">வாருங்கள், ஒரு ரிங்டோன் உருவாக்குவோம்</string>
-    <string name="empty_search_title_line2">உங்களுக்காக மட்டும்!</string>
     <string name="empty_search_message">%1$s க்கான ரிங்டோனை கண்டுபிடிக்க முடியவில்லை, முதலில் உருவாக்குபவராக இருங்கள்</string>
-    <string name="create_ringtone">ரிங்டோன் உருவாக்கு +</string>
+    <!-- UI refresh: native review pending -->
+    <string name="create_ringtone">ரிங்டோன் உருவாக்கு</string>
     <string name="back">பின்செல்</string>
     <string name="create_form_title">%1$s, உங்கள் பெயரின் ரிங்டோனை உருவாக்குங்கள்!</string>
     <string name="create_form_subtitle">பெயரையும் மொழியையும் தேர்ந்தெடுங்கள், பிறகு உங்களுக்குப் பிடித்த பாடலைத் தேர்ந்தெடுங்கள்</string>
@@ -160,4 +158,10 @@
     <string name="category_all_tunes">அனைத்து டியூன்கள்</string>
     <!-- UI refresh: native review pending -->
     <string name="category_your_name">உங்கள் பெயர்</string>
+    <!-- lane C -->
+    <!-- UI refresh: native review pending -->
+    <!-- %1$s = empty_search_title_highlight (gradient span); translators may move it. -->
+    <string name="empty_search_title">வாருங்கள், ஒரு ரிங்டோன் உருவாக்குவோம் %1$s</string>
+    <string name="empty_search_title_highlight">உங்களுக்காக மட்டும்!</string>
+    <string name="home_pause_tune">டியூனை நிறுத்து</string>
 </resources>

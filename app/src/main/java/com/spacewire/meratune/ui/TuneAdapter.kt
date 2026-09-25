@@ -79,18 +79,14 @@ class TuneAdapter(
             likesCount.text = FormatUtils.formatCount(tune.likesCount)
             viewsCount.text = FormatUtils.formatCount(tune.viewsCount)
 
-            val category = tune.category
-            if (category != null) {
-                CategoryUiHelper.bindIcon(thumbnailContainer, thumbnailIcon, category)
-            } else {
-                val fallback = CategoryUiHelper.styleFor("")
-                thumbnailContainer.setBackgroundResource(fallback.circleBg)
-                thumbnailIcon.setImageResource(fallback.iconRes)
-            }
+            CategoryUiHelper.bindArt(thumbnailContainer, thumbnailIcon, tune.category)
 
             val isPlaying = playingTuneId == tune.id
             playButton.setImageResource(
                 if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play,
+            )
+            playButton.contentDescription = itemView.context.getString(
+                if (isPlaying) R.string.home_pause_tune else R.string.play_tune,
             )
             updateProgress(isPlaying, if (isPlaying) progress else 0f)
             bindSetButton(tune)
@@ -109,7 +105,7 @@ class TuneAdapter(
             } else {
                 setButton.text = itemView.context.getString(R.string.set)
                 setButton.setTextColor(ContextCompat.getColor(itemView.context, R.color.navy))
-                setButton.setBackgroundResource(R.drawable.bg_set_button)
+                setButton.setBackgroundResource(R.drawable.bg_row_pill)
                 setButton.isEnabled = true
                 setButton.setOnClickListener { onSetClick(tune) }
             }

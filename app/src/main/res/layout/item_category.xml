@@ -4,29 +4,23 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:gravity="center_horizontal"
+    android:minWidth="96dp"
     android:orientation="vertical"
-    android:paddingHorizontal="10dp"
-    android:paddingVertical="4dp">
+    android:paddingHorizontal="6dp"
+    android:paddingBottom="4dp">
 
     <FrameLayout
         android:id="@+id/categoryIconWrapper"
-        android:layout_width="80dp"
-        android:layout_height="80dp">
-
-        <View
-            android:id="@+id/categorySelectionRing"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@drawable/bg_category_selected_ring"
-            android:visibility="gone"
-            tools:visibility="visible" />
+        android:layout_width="60dp"
+        android:layout_height="60dp">
 
         <FrameLayout
             android:id="@+id/categoryIconContainer"
-            android:layout_width="72dp"
-            android:layout_height="72dp"
-            android:layout_gravity="center"
-            android:background="@drawable/bg_category_devotional">
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_category_art_circle"
+            android:clipToOutline="true"
+            android:outlineProvider="background">
 
             <ImageView
                 android:id="@+id/categoryIcon"
@@ -35,16 +29,29 @@
                 android:contentDescription="@null"
                 tools:src="@drawable/ic_category_devotional" />
         </FrameLayout>
+
+        <!-- Drawn over the art (transparent centre). -->
+        <View
+            android:id="@+id/categorySelectionRing"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_category_selected_ring"
+            android:visibility="gone"
+            tools:visibility="visible" />
     </FrameLayout>
 
     <TextView
         android:id="@+id/categoryLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="10dp"
+        android:ellipsize="end"
         android:fontFamily="@font/manrope_medium"
+        android:gravity="center"
+        android:maxWidth="112dp"
+        android:maxLines="1"
         android:textColor="@color/navy"
-        android:textSize="13sp"
+        android:textSize="14sp"
         tools:text="Devotional" />
 
 </LinearLayout>

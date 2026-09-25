@@ -1,8 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="oval">
-    <solid android:color="@android:color/transparent" />
-    <stroke
-        android:width="3dp"
-        android:color="@color/gradient_pink" />
-</shape>
+<!-- Selected category chip: 1dp orange (bottom-left) to pink (top-right) ring drawn on the art edge. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="60dp"
+    android:height="60dp"
+    android:viewportWidth="60"
+    android:viewportHeight="60">
+    <path
+        android:pathData="M30,0.5a29.5,29.5 0,1 1,0 59a29.5,29.5 0,1 1,0 -59z"
+        android:strokeWidth="1">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:endColor="@color/gradient_pink"
+                android:endX="60"
+                android:endY="0"
+                android:startColor="@color/gradient_orange"
+                android:startX="0"
+                android:startY="60"
+                android:type="linear" />
+        </aapt:attr>
+    </path>
+</vector>

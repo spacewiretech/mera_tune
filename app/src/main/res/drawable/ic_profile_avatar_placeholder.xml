@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Profile silhouette placeholder, cropped by the circular bg_profile_avatar_inner outline. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="90dp"
+    android:height="90dp"
+    android:viewportWidth="90"
+    android:viewportHeight="90">
+    <path
+        android:fillAlpha="0.9"
+        android:fillColor="@color/navy"
+        android:pathData="M45,20a16,16 0,1 1,0 32a16,16 0,1 1,0 -32z" />
+    <path
+        android:fillAlpha="0.9"
+        android:fillColor="@color/navy"
+        android:pathData="M13,92c0,-20 14,-32 32,-32s32,12 32,32z" />
+</vector>

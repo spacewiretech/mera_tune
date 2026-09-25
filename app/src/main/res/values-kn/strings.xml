@@ -1,6 +1,5 @@
 <resources>
     <string name="app_name">Mera Tune</string>
-    <string name="logo_mera">ನನ್ನ</string>
     <string name="search_hint">ನಿಮ್ಮ ಹೆಸರನ್ನು ನಮೂದಿಸಿ…</string>
     <string name="set">ಹೊಂದಿಸಿ</string>
     <string name="active_ringtone">ಸಕ್ರಿಯ</string>
@@ -29,10 +28,9 @@
     <string name="playback_error">ಈ ಟ್ಯೂನ್ ಪ್ಲೇ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ</string>
     <string name="load_error_retry">ಮರುಪ್ರಯತ್ನಿಸಲು ಟ್ಯಾಪ್ ಮಾಡಿ</string>
     <string name="load_error_with_retry">%1$s\n\nಮರುಪ್ರಯತ್ನಿಸಲು ಟ್ಯಾಪ್ ಮಾಡಿ.</string>
-    <string name="empty_search_title_line1">ಬನ್ನಿ, ಒಂದು ರಿಂಗ್‌ಟೋನ್ ತಯಾರಿಸೋಣ</string>
-    <string name="empty_search_title_line2">ಕೇವಲ ನಿಮಗಾಗಿ!</string>
     <string name="empty_search_message">%1$s ಗಾಗಿ ರಿಂಗ್‌ಟೋನ್ ಸಿಗಲಿಲ್ಲ, ಮೊದಲು ರಚಿಸುವವರಾಗಿರಿ</string>
-    <string name="create_ringtone">ರಿಂಗ್‌ಟೋನ್ ರಚಿಸಿ +</string>
+    <!-- UI refresh: native review pending -->
+    <string name="create_ringtone">ರಿಂಗ್‌ಟೋನ್ ರಚಿಸಿ</string>
     <string name="back">ಹಿಂದೆ</string>
     <string name="create_form_title">%1$s, ನಿಮ್ಮ ಹೆಸರಿನ ರಿಂಗ್‌ಟೋನ್ ರಚಿಸಿ!</string>
     <string name="create_form_subtitle">ಹೆಸರು ಮತ್ತು ಭಾಷೆ ಆಯ್ಕೆಮಾಡಿ, ನಂತರ ನಿಮ್ಮ ನೆಚ್ಚಿನ ಹಾಡನ್ನು ಆರಿಸಿ</string>
@@ -160,4 +158,10 @@
     <string name="category_all_tunes">ಎಲ್ಲಾ ಟ್ಯೂನ್‌ಗಳು</string>
     <!-- UI refresh: native review pending -->
     <string name="category_your_name">ನಿಮ್ಮ ಹೆಸರು</string>
+    <!-- lane C -->
+    <!-- UI refresh: native review pending -->
+    <!-- %1$s = empty_search_title_highlight (gradient span); translators may move it. -->
+    <string name="empty_search_title">ಬನ್ನಿ, ಒಂದು ರಿಂಗ್‌ಟೋನ್ ತಯಾರಿಸೋಣ %1$s</string>
+    <string name="empty_search_title_highlight">ಕೇವಲ ನಿಮಗಾಗಿ!</string>
+    <string name="home_pause_tune">ಟ್ಯೂನ್ ನಿಲ್ಲಿಸಿ</string>
 </resources>

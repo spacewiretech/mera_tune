@@ -1,8 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="oval">
-    <solid android:color="@color/white" />
-    <stroke
-        android:width="3dp"
-        android:color="@color/gradient_orange" />
-</shape>
+<!-- Profile avatar: 1dp pink (bottom-left) to orange (top-right) ring around the 90dp avatar. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="90dp"
+    android:height="90dp"
+    android:viewportWidth="90"
+    android:viewportHeight="90">
+    <path
+        android:pathData="M45,0.5a44.5,44.5 0,1 1,0 89a44.5,44.5 0,1 1,0 -89z"
+        android:strokeWidth="1">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:endColor="@color/gradient_orange"
+                android:endX="90"
+                android:endY="0"
+                android:startColor="@color/gradient_pink"
+                android:startX="0"
+                android:startY="90"
+                android:type="linear" />
+        </aapt:attr>
+    </path>
+</vector>

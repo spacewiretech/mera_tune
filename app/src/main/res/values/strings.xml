@@ -1,6 +1,5 @@
 <resources>
     <string name="app_name">Mera Tune</string>
-    <string name="logo_mera">मेरा</string>
     <string name="search_hint">Apna Naam Enter Karein…</string>
     <string name="set">Set</string>
     <string name="active_ringtone">Active</string>
@@ -68,10 +67,8 @@
     <string name="playback_error">Unable to play this tune</string>
     <string name="load_error_retry">Tap to retry</string>
     <string name="load_error_with_retry">%1$s\n\nTap to retry.</string>
-    <string name="empty_search_title_line1">Chaliye, Ek Ringtone Banate Hain</string>
-    <string name="empty_search_title_line2">Sirf Aapke Liye!</string>
     <string name="empty_search_message">We couldn\u2019t find ringtone for %1$s, Be the first to create one</string>
-    <string name="create_ringtone">Create Ringtone +</string>
+    <string name="create_ringtone">Create Ringtone</string>
     <string name="back">Back</string>
     <string name="create_form_title">%1$s, Apne Naam Ki Ringtone Banaiye!</string>
     <string name="create_form_subtitle">Naam aur bhasha chuniye, phir apna favourite gaana select karein</string>
@@ -212,4 +209,9 @@
     <!-- P3 shared list rows: category display labels (analytics keep DB names) -->
     <string name="category_all_tunes">All Tunes</string>
     <string name="category_your_name">Your Name</string>
+    <!-- lane C -->
+    <!-- %1$s = empty_search_title_highlight (gradient span); translators may move it. -->
+    <string name="empty_search_title">Chaliye, Ek Ringtone Banate Hain %1$s</string>
+    <string name="empty_search_title_highlight">Sirf Aapke Liye!</string>
+    <string name="home_pause_tune">Pause tune</string>
 </resources>

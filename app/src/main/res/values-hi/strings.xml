@@ -33,9 +33,11 @@
     <string name="set_ringtone_option_contact_title">रिंगटोन + फ़ोटो चुने हुए कॉन्टैक्ट्स के लिए</string>
     <string name="upload_photo_sheet_title">अपनी फ़ोटो अपलोड करें</string>
     <string name="upload_photo_camera_title">कैमरा</string>
-    <string name="upload_photo_camera_subtitle">एक नई फ़ोटो लें।</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_camera_subtitle">एक नई फ़ोटो लें</string>
     <string name="upload_photo_gallery_title">गैलरी से अपलोड करें</string>
-    <string name="upload_photo_gallery_subtitle">अपनी फ़ोटो में से चुनें।</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_gallery_subtitle">अपनी फ़ोटो में से चुनें</string>
     <string name="upload_photo_preview_content_description">चयनित फ़ोटो</string>
     <string name="upload_photo_camera_error">कैमरा नहीं खुल सका। कृपया गैलरी से चुनें।</string>
     <string name="playback_error">यह ट्यून चलाई नहीं जा सकी</string>
@@ -47,7 +49,8 @@
     <string name="create_ringtone">रिंगटोन बनाएँ +</string>
     <string name="back">वापस</string>
     <string name="create_form_title">%1$s, अपने नाम की रिंगटोन बनाइए!</string>
-    <string name="create_form_subtitle">नाम और भाषा चुनिए, फिर अपना पसंदीदा गाना चुनें</string>
+    <!-- UI refresh: native review pending -->
+    <string name="create_form_subtitle">बताइए, कैसी रिंगटोन चाहिए?</string>
     <string name="create_form_enter_name">नाम दर्ज करें</string>
     <string name="create_form_choose_language">भाषा चुनें</string>
     <string name="create_form_voice_male">पुरुष की आवाज़</string>
@@ -61,7 +64,8 @@
     <string name="create_form_language_marathi">मराठी</string>
     <string name="create_form_language_odia">ଓଡ଼ିଆ</string>
     <string name="create_form_language_bengali">বাংলা</string>
-    <string name="create_form_continue">जारी रखें &gt;</string>
+    <!-- UI refresh: native review pending -->
+    <string name="create_form_continue">आगे बढ़ें</string>
     <string name="create_form_name_required">कृपया नाम दर्ज करें</string>
     <string name="processing_title">%1$s, आपके नाम की रिंगटोन बन रही है</string>
     <string name="processing_subtitle">बस %1$s में आपकी रिंगटोन तैयार!</string>
@@ -71,7 +75,8 @@
     <string name="processing_step_ready">रिंगटोन तैयार!</string>
     <string name="processing_footer">आपके लिए कुछ खास तैयार किया जा रहा है…</string>
     <string name="ready_title">%1$s, आपकी रिंगटोन तैयार है!</string>
-    <string name="ready_set_ringtone">रिंगटोन के रूप में सेट करें ♫</string>
+    <!-- UI refresh: native review pending -->
+    <string name="ready_set_ringtone">रिंगटोन सेट करें</string>
     <string name="ready_rewind">10 सेकंड पीछे जाएँ</string>
     <string name="ready_forward">10 सेकंड आगे जाएँ</string>
     <!-- Personalized ringtone flow (create form, song picker, processing, ready) -->
@@ -80,8 +85,10 @@
     <string name="create_form_name_invalid">नाम में सिर्फ़ अक्षर लिखें</string>
     <string name="create_form_language_hint">इसी भाषा में आपका नाम बोला जाएगा</string>
     <string name="create_form_language_coming_soon">%1$s जल्द आ रही है</string>
-    <string name="song_choice_title">%1$s, अपना गाना चुनिए</string>
-    <string name="song_choice_subtitle">सुनने के लिए टैप करें, एक गाना चुनिए — हम उसमें आपका नाम डाल देंगे</string>
+    <!-- UI refresh: native review pending -->
+    <string name="song_choice_title">%1$s के लिए कौन-सी धुन पसंद है?</string>
+    <!-- UI refresh: native review pending -->
+    <string name="song_choice_subtitle">एक रिंगटोन चुनिए, हम उसे %1$s के नाम में बना देंगे।</string>
     <string name="song_choice_filter_all">सभी</string>
     <string name="song_choice_sample">सैंपल: %1$s</string>
     <string name="song_choice_replaces">\"%1$s\" की जगह \"%2$s\" बोला जाएगा</string>
@@ -172,4 +179,11 @@
     <string name="category_all_tunes">सभी ट्यून्स</string>
     <!-- UI refresh: native review pending -->
     <string name="category_your_name">आपका नाम</string>
+    <!-- lane B -->
+    <!-- UI refresh: native review pending -->
+    <string name="song_choice_choose">चुनें</string>
+    <!-- UI refresh: native review pending -->
+    <string name="song_choice_choose_a11y">%1$s चुनें</string>
+    <!-- UI refresh: native review pending -->
+    <string name="ready_set_done">रिंगटोन सेट हो गई</string>
 </resources>

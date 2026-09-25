@@ -1,6 +1,5 @@
 package com.spacewire.meratune.ui
 
-import android.graphics.Typeface
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.TextView
@@ -16,7 +15,7 @@ data class FilterChip(
 )
 
 /**
- * Horizontal single-select pill row (`item_filter_chip`). Used by the song picker for both the
+ * Horizontal single-select pill row (`item_filter_chip`): the selected pill gets the gradient ring. Used by the song picker for both the
  * voice toggle and the category chips. Selection is owned by the caller: [onChipClick] reports a
  * tap and the caller re-submits with the new [submit] `selectedKey`.
  */
@@ -53,13 +52,9 @@ class FilterChipAdapter(
                 if (isSelected) R.drawable.bg_language_option_selected else R.drawable.bg_language_option_unselected,
             )
             chipView.setTextColor(
-                ContextCompat.getColor(chipView.context, if (isSelected) R.color.navy else R.color.text_secondary),
+                ContextCompat.getColor(chipView.context, if (isSelected) R.color.navy else R.color.text_muted),
             )
-            chipView.typeface = if (isSelected) {
-                Typeface.create("sans-serif-medium", Typeface.BOLD)
-            } else {
-                Typeface.create("sans-serif", Typeface.NORMAL)
-            }
+            chipView.typeface = if (isSelected) AppFonts.semibold(chipView.context) else AppFonts.regular(chipView.context)
             ViewCompat.setStateDescription(
                 chipView,
                 if (isSelected) chipView.context.getString(R.string.song_choice_selected_a11y, chip.label) else null,

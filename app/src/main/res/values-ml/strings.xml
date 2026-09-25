@@ -35,7 +35,8 @@
     <string name="create_ringtone">റിംഗ്ടോൺ സൃഷ്ടിക്കുക +</string>
     <string name="back">പിന്നോട്ട്</string>
     <string name="create_form_title">%1$s, നിങ്ങളുടെ പേരിന്റെ റിംഗ്ടോൺ ഉണ്ടാക്കൂ!</string>
-    <string name="create_form_subtitle">പേരും ഭാഷയും തിരഞ്ഞെടുക്കൂ, തുടർന്ന് നിങ്ങളുടെ പ്രിയപ്പെട്ട ഗാനം തിരഞ്ഞെടുക്കൂ</string>
+    <!-- UI refresh: native review pending -->
+    <string name="create_form_subtitle">പറയൂ, ഏതുതരം റിംഗ്ടോൺ വേണം?</string>
     <string name="create_form_enter_name">പേര് നൽകുക</string>
     <string name="create_form_choose_language">ഭാഷ തിരഞ്ഞെടുക്കുക</string>
     <string name="create_form_voice_male">പുരുഷ ശബ്ദം</string>
@@ -49,7 +50,8 @@
     <string name="create_form_language_marathi">मराठी</string>
     <string name="create_form_language_odia">ଓଡ଼ିଆ</string>
     <string name="create_form_language_bengali">বাংলা</string>
-    <string name="create_form_continue">തുടരുക &gt;</string>
+    <!-- UI refresh: native review pending -->
+    <string name="create_form_continue">മുന്നോട്ട് പോകുക</string>
     <string name="create_form_name_required">ദയവായി ഒരു പേര് നൽകുക</string>
     <string name="processing_title">%1$s, നിങ്ങളുടെ പേരിന്റെ റിംഗ്ടോൺ തയ്യാറാക്കുന്നു</string>
     <string name="processing_subtitle">വെറും %1$s കൊണ്ട് നിങ്ങളുടെ റിംഗ്ടോൺ തയ്യാർ!</string>
@@ -59,7 +61,8 @@
     <string name="processing_step_ready">റിംഗ്ടോൺ തയ്യാറായി!</string>
     <string name="processing_footer">നിങ്ങൾക്കായി പ്രത്യേകമായി തയ്യാറാക്കുന്നു…</string>
     <string name="ready_title">%1$s, നിങ്ങളുടെ റിംഗ്ടോൺ തയ്യാറാണ്!</string>
-    <string name="ready_set_ringtone">റിംഗ്ടോൺ ആയി സജ്ജമാക്കുക ♫</string>
+    <!-- UI refresh: native review pending -->
+    <string name="ready_set_ringtone">റിംഗ്ടോൺ സജ്ജമാക്കൂ</string>
     <string name="ready_rewind">10 സെക്കൻഡ് പിന്നോട്ട്</string>
     <string name="ready_forward">10 സെക്കൻഡ് മുന്നോട്ട്</string>
     <!-- New personalized-ringtone strings: native review pending -->
@@ -68,8 +71,10 @@
     <string name="create_form_name_invalid">പേരിൽ അക്ഷരങ്ങൾ മാത്രം എഴുതുക</string>
     <string name="create_form_language_hint">ഇതേ ഭാഷയിൽ നിങ്ങളുടെ പേര് പറയും</string>
     <string name="create_form_language_coming_soon">%1$s ഉടൻ വരുന്നു</string>
-    <string name="song_choice_title">%1$s, നിങ്ങളുടെ ഗാനം തിരഞ്ഞെടുക്കൂ</string>
-    <string name="song_choice_subtitle">കേൾക്കാൻ ടാപ്പ് ചെയ്യൂ, ഒരു ഗാനം തിരഞ്ഞെടുക്കൂ — ഞങ്ങൾ അതിൽ നിങ്ങളുടെ പേര് ചേർക്കും</string>
+    <!-- UI refresh: native review pending -->
+    <string name="song_choice_title">%1$s-ന് ഏത് ഈണമാണ് ഇഷ്ടം?</string>
+    <!-- UI refresh: native review pending -->
+    <string name="song_choice_subtitle">ഒരു റിംഗ്ടോൺ തിരഞ്ഞെടുക്കൂ, ഞങ്ങൾ അത് %1$s എന്ന പേരിൽ ഒരുക്കി തരാം.</string>
     <string name="song_choice_filter_all">എല്ലാം</string>
     <string name="song_choice_sample">സാമ്പിൾ: %1$s</string>
     <string name="song_choice_replaces">\"%1$s\" എന്നതിന് പകരം \"%2$s\" എന്ന് പറയും</string>
@@ -160,4 +165,31 @@
     <string name="category_all_tunes">എല്ലാ ട്യൂണുകളും</string>
     <!-- UI refresh: native review pending -->
     <string name="category_your_name">നിങ്ങളുടെ പേര്</string>
+    <!-- lane B -->
+    <!-- UI refresh: native review pending -->
+    <string name="song_choice_choose">എടുക്കൂ</string>
+    <!-- UI refresh: native review pending -->
+    <string name="song_choice_choose_a11y">%1$s തിരഞ്ഞെടുക്കൂ</string>
+    <!-- UI refresh: native review pending -->
+    <string name="ready_set_done">റിംഗ്ടോൺ സജ്ജമാക്കി</string>
+    <!-- UI refresh: native review pending -->
+    <string name="set_ringtone_sheet_title">ഇത് എങ്ങനെ സജ്ജമാക്കണം?</string>
+    <!-- UI refresh: native review pending -->
+    <string name="set_ringtone_option_audio_title">റിംഗ്ടോൺ മാത്രം</string>
+    <!-- UI refresh: native review pending -->
+    <string name="set_ringtone_option_everyone_title">റിംഗ്ടോണിനൊപ്പം ഫോട്ടോ</string>
+    <!-- UI refresh: native review pending -->
+    <string name="set_ringtone_option_contact_title">തിരഞ്ഞെടുത്ത കോൺടാക്റ്റുകൾക്ക് റിംഗ്ടോൺ + ഫോട്ടോ</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_sheet_title">നിങ്ങളുടെ ഫോട്ടോ അപ്‌ലോഡ് ചെയ്യൂ</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_camera_title">ക്യാമറ</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_camera_subtitle">പുതിയ ഫോട്ടോ എടുക്കൂ</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_gallery_title">ഗാലറിയിൽ നിന്ന് അപ്‌ലോഡ് ചെയ്യൂ</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_gallery_subtitle">നിങ്ങളുടെ ഫോട്ടോകളിൽ നിന്ന് തിരഞ്ഞെടുക്കൂ</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_preview_content_description">തിരഞ്ഞെടുത്ത ഫോട്ടോ</string>
 </resources>

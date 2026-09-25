@@ -13,7 +13,7 @@ import com.spacewire.meratune.calltheme.RingtoneSetMode
 class SetRingtoneBottomSheet(
     private val context: Context,
     private val onContinue: (RingtoneSetMode) -> Unit,
-    /** Dismissed without Continue (back, outside tap or swipe). */
+    /** Dismissed without Continue (close X, back, outside tap or swipe). */
     private val onDismissed: () -> Unit,
 ) {
 
@@ -28,8 +28,9 @@ class SetRingtoneBottomSheet(
         fun bindSelection() {
             optionViews.forEach { (mode, view) ->
                 val selected = mode == selectedMode
+                view.isSelected = selected
                 view.findViewById<View>(R.id.setRingtoneOptionIndicator).setBackgroundResource(
-                    if (selected) R.drawable.bg_radio_selected else R.drawable.bg_form_option_unselected,
+                    if (selected) R.drawable.bg_form_option_selected else R.drawable.bg_form_option_unselected,
                 )
                 view.findViewById<ImageView>(R.id.setRingtoneOptionCheck).visibility =
                     if (selected) View.VISIBLE else View.GONE
@@ -43,6 +44,7 @@ class SetRingtoneBottomSheet(
             optionView.findViewById<ImageView>(R.id.setRingtoneOptionIllustration)
                 .setImageResource(mode.illustrationRes)
             optionView.findViewById<TextView>(R.id.setRingtoneOptionTitle).setText(mode.titleRes)
+            optionView.contentDescription = context.getString(mode.titleRes)
             optionView.setOnClickListener {
                 selectedMode = mode
                 bindSelection()
@@ -60,9 +62,12 @@ class SetRingtoneBottomSheet(
             dialog.dismiss()
         }
 
+        // The X dismisses like back / outside / swipe, so the cancel is still reported.
+        sheetView.findViewById<View>(R.id.setRingtoneCloseButton).setOnClickListener { dialog.dismiss() }
+
         dialog.setOnDismissListener {
             if (!continued) onDismissed()
         }
-        dialog.present(sheetView)
+        dialog.present(sheetView, LIGHT_SCRIM_DIM)
     }
 }

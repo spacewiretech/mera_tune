@@ -34,6 +34,8 @@ class UploadPhotoBottomSheet(
 
         sheetView.findViewById<View>(R.id.uploadPhotoCameraRow).setOnClickListener { onCameraClick() }
         sheetView.findViewById<View>(R.id.uploadPhotoGalleryRow).setOnClickListener { onGalleryClick() }
+        // Not [dismiss]: that marks the sheet completed and would hide the photo_sheet cancel.
+        sheetView.findViewById<View>(R.id.uploadPhotoCloseButton).setOnClickListener { sheetDialog.dismiss() }
         continueButton?.setOnClickListener {
             val uri = selectedUri ?: return@setOnClickListener
             if (completed) return@setOnClickListener
@@ -51,15 +53,15 @@ class UploadPhotoBottomSheet(
 
         dialog = sheetDialog
         selectedUri?.let(::setPreview)
-        sheetDialog.present(sheetView)
+        sheetDialog.present(sheetView, LIGHT_SCRIM_DIM)
     }
 
     fun setPreview(uri: Uri) {
         selectedUri = uri
         previewContainer?.visibility = View.VISIBLE
         previewView?.load(uri) {
-        crossfade(true)
-    }
+            crossfade(true)
+        }
         continueButton?.isEnabled = true
     }
 

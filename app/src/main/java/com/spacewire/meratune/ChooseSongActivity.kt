@@ -13,6 +13,8 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.PlaybackException
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -21,6 +23,9 @@ import com.spacewire.meratune.analytics.AnalyticsSource
 import com.spacewire.meratune.analytics.AnalyticsTrigger
 import com.spacewire.meratune.analytics.FilterSelection
 import com.spacewire.meratune.analytics.mixpanelAnalytics
+import com.spacewire.meratune.calltheme.RingtoneSetController
+import com.spacewire.meratune.calltheme.SetChoice
+import com.spacewire.meratune.calltheme.SetEntryContext
 import com.spacewire.meratune.data.Category
 import com.spacewire.meratune.data.FallbackLevel
 import com.spacewire.meratune.data.HomeRepository
@@ -32,11 +37,13 @@ import com.spacewire.meratune.data.Tune
 import com.spacewire.meratune.data.VoiceFilter
 import com.spacewire.meratune.ui.FilterChip
 import com.spacewire.meratune.ui.FilterChipAdapter
+import com.spacewire.meratune.ui.InsetDividerDecoration
 import com.spacewire.meratune.ui.PlaybackSessionStats
 import com.spacewire.meratune.ui.PreviewPlayerController
 import com.spacewire.meratune.ui.SongChoiceAdapter
 import com.spacewire.meratune.util.Haptics
 import com.spacewire.meratune.util.LoadErrorMapper
+import com.spacewire.meratune.util.TuneStatsUtils
 import com.spacewire.meratune.util.enableLightEdgeToEdge
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -45,7 +52,9 @@ import java.util.Locale
 
 /**
  * Step 2 of the personalized-ringtone flow: preview and pick one of the curated songs.
- * Tapping a card selects it and toggles its preview; the CTA sends the selection to generation.
+ * A row tap only toggles its preview. "chuno" commits: `sample_selected`, then the set-mode sheets
+ * ([RingtoneSetController.choose]); the choice travels to generation and is applied on the final
+ * screen.
  */
 class ChooseSongActivity : AppCompatActivity() {
 
@@ -65,7 +74,6 @@ class ChooseSongActivity : AppCompatActivity() {
 
     private var voiceFilter: VoiceFilter = VoiceFilter.ALL
     private var categoryFilterId: String = Category.ALL_CATEGORY_ID
-    private var selectedTuneId: String? = null
 
     private var allTunes: List<Tune>? = null
     private var ranked: RankedSongs? = null
@@ -84,6 +92,17 @@ class ChooseSongActivity : AppCompatActivity() {
     private var reportedLoadState: String? = null
     private var isNavigating = false
 
+    /** A chuno choice that completed while this screen was not in front; launched in [onResume]. */
+    private var pendingLaunch: Pair<Tune, SetChoice>? = null
+
+    // A field so its result launchers register before the activity is created.
+    private val setController = RingtoneSetController(
+        activity = this,
+        analyticsSource = AnalyticsSource.CREATION_FLOW,
+        categoryForTune = { tune -> tune.category?.name.orEmpty() },
+        onChosen = { tune, choice -> launchProcessing(tune, choice) },
+    )
+
     private var loadJob: Job? = null
     private var skeletonAnimator: ObjectAnimator? = null
 
@@ -98,16 +117,14 @@ class ChooseSongActivity : AppCompatActivity() {
     private lateinit var emptyContainer: View
     private lateinit var errorText: TextView
     private lateinit var fallbackBanner: TextView
-    private lateinit var continueButton: TextView
 
     private val previewPlayer: PreviewPlayerController by lazy {
         PreviewPlayerController(
             context = this,
             scope = lifecycleScope,
             listener = object : PreviewPlayerController.Listener {
-                override fun onProgress(id: String, progress: Float) {
-                    songAdapter.updateProgress(id, progress)
-                }
+                // The picker rows show play / pause only (no progress ring).
+                override fun onProgress(id: String, progress: Float) = Unit
 
                 override fun onPlayingChanged(id: String, isPlaying: Boolean) {
                     songAdapter.setPreview(id, isPlaying)
@@ -116,7 +133,6 @@ class ChooseSongActivity : AppCompatActivity() {
                 override fun onEnded(id: String) {
                     endedPreviewId = id
                     songAdapter.setPreview(id, isPlaying = false)
-                    songAdapter.updateProgress(id, 0f)
                 }
 
                 override fun onError(id: String, error: PlaybackException) {
@@ -145,7 +161,6 @@ class ChooseSongActivity : AppCompatActivity() {
         requestedLanguage = language
         effectiveLanguage = savedInstanceState?.getString(STATE_EFFECTIVE_LANGUAGE) ?: language
         savedInstanceState?.let { state ->
-            selectedTuneId = state.getString(STATE_SELECTED_TUNE_ID)
             voiceFilter = state.getString(STATE_VOICE_FILTER)
                 ?.let { stored -> VoiceFilter.entries.firstOrNull { it.name == stored } }
                 ?: VoiceFilter.ALL
@@ -159,9 +174,12 @@ class ChooseSongActivity : AppCompatActivity() {
         enableLightEdgeToEdge()
         setContentView(R.layout.activity_choose_song)
 
+        val scroll = findViewById<View>(R.id.chooseSongScroll)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.chooseSongRoot)) { view, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            // The list scrolls under the navigation bar (clipToPadding=false) and ends above it.
+            view.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
+            scroll.updatePadding(bottom = systemBars.bottom)
             insets
         }
 
@@ -174,6 +192,10 @@ class ChooseSongActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         isNavigating = false
+        pendingLaunch?.let { (tune, choice) ->
+            pendingLaunch = null
+            launchProcessing(tune, choice)
+        }
     }
 
     override fun onPause() {
@@ -196,7 +218,6 @@ class ChooseSongActivity : AppCompatActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         if (!::effectiveLanguage.isInitialized) return
-        outState.putString(STATE_SELECTED_TUNE_ID, selectedTuneId)
         outState.putString(STATE_VOICE_FILTER, voiceFilter.name)
         outState.putString(STATE_CATEGORY_FILTER, categoryFilterId)
         outState.putString(STATE_EFFECTIVE_LANGUAGE, effectiveLanguage)
@@ -214,15 +235,18 @@ class ChooseSongActivity : AppCompatActivity() {
         emptyContainer = findViewById(R.id.emptyContainer)
         errorText = findViewById(R.id.errorText)
         fallbackBanner = findViewById(R.id.fallbackBanner)
-        continueButton = findViewById(R.id.chooseSongContinueButton)
 
         findViewById<TextView>(R.id.songChoiceTitle).text = getString(R.string.song_choice_title, userName)
+        findViewById<TextView>(R.id.songChoiceSubtitle).text = getString(R.string.song_choice_subtitle, userName)
     }
 
     private fun setupLists() {
-        songAdapter = SongChoiceAdapter(onSongClick = ::onSongTapped)
+        songAdapter = SongChoiceAdapter(onPreviewClick = ::onPreviewTapped, onChooseClick = ::onChooseTapped)
         songsRecycler.layoutManager = LinearLayoutManager(this)
         songsRecycler.adapter = songAdapter
+        songsRecycler.addItemDecoration(
+            InsetDividerDecoration(this, insetStartDp = ROW_DIVIDER_INSET_DP, insetEndDp = ROW_DIVIDER_INSET_DP),
+        )
 
         voiceChipAdapter = FilterChipAdapter { chip -> onVoiceChipTapped(chip) }
         voiceChipsRecycler.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
@@ -243,7 +267,6 @@ class ChooseSongActivity : AppCompatActivity() {
             categoryFilterId = Category.ALL_CATEGORY_ID
             loadSongs(AnalyticsTrigger.HINDI_FALLBACK)
         }
-        continueButton.setOnClickListener { onContinue() }
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -258,7 +281,8 @@ class ChooseSongActivity : AppCompatActivity() {
         render(ScreenState.LOADING)
         loadJob = lifecycleScope.launch {
             try {
-                val tunes = repository.fetchPersonalizableTunes()
+                // Same seeded like/view counts as Home for the same tune.
+                val tunes = TuneStatsUtils.withRandomStats(repository.fetchPersonalizableTunes())
                 allTunes = tunes
                 applyFilters(isTerminalLoad = true)
             } catch (error: CancellationException) {
@@ -294,7 +318,6 @@ class ChooseSongActivity : AppCompatActivity() {
         if (!hasTier) {
             ranked = unfiltered
             visibleSongs = emptyList()
-            selectedTuneId = null
             renderEmptyState()
             render(ScreenState.EMPTY)
             if (isTerminalLoad) {
@@ -327,16 +350,13 @@ class ChooseSongActivity : AppCompatActivity() {
             result.songs.filter { it.tune.category?.id == categoryFilterId }
         }
 
-        if (selectedTuneId != null && visibleSongs.none { it.tune.id == selectedTuneId }) {
-            selectedTuneId = null
-        }
         previewPlayer.currentId?.let { playingId ->
             if (visibleSongs.none { it.tune.id == playingId }) releasePreview()
         }
 
         renderVoiceChips(availableVoices)
         renderCategoryChips(result.categories)
-        songAdapter.submit(visibleSongs, userName, selectedTuneId)
+        songAdapter.submit(visibleSongs)
         previewPlayer.currentId?.let { songAdapter.setPreview(it, previewPlayer.isPlaying) }
 
         fallbackBanner.visibility = if (isHindiFallbackActive()) {
@@ -347,7 +367,6 @@ class ChooseSongActivity : AppCompatActivity() {
         }
 
         render(ScreenState.CONTENT)
-        renderContinueButton()
 
         if (isTerminalLoad) {
             trackPickerViewed(
@@ -363,8 +382,6 @@ class ChooseSongActivity : AppCompatActivity() {
         songsRecycler.visibility = if (state == ScreenState.CONTENT) View.VISIBLE else View.GONE
         emptyContainer.visibility = if (state == ScreenState.EMPTY) View.VISIBLE else View.GONE
         errorText.visibility = if (state == ScreenState.ERROR) View.VISIBLE else View.GONE
-        continueButton.visibility =
-            if (state == ScreenState.EMPTY || state == ScreenState.ERROR) View.GONE else View.VISIBLE
 
         if (state != ScreenState.CONTENT) {
             voiceChipsRecycler.visibility = View.GONE
@@ -372,7 +389,6 @@ class ChooseSongActivity : AppCompatActivity() {
             fallbackBanner.visibility = View.GONE
         }
         if (state == ScreenState.LOADING) {
-            renderContinueButton(forceDisabled = true)
             showSkeleton()
         } else {
             hideSkeleton()
@@ -423,16 +439,6 @@ class ChooseSongActivity : AppCompatActivity() {
         categoryChipsRecycler.visibility = View.VISIBLE
     }
 
-    private fun renderContinueButton(forceDisabled: Boolean = false) {
-        val selected = selectedTuneId?.takeIf { !forceDisabled }
-        continueButton.isEnabled = selected != null
-        continueButton.text = if (selected != null) {
-            getString(R.string.song_choice_cta, userName)
-        } else {
-            getString(R.string.song_choice_cta_disabled)
-        }
-    }
-
     private fun showSkeleton() {
         skeletonContainer.visibility = View.VISIBLE
         if (skeletonAnimator == null) {
@@ -455,21 +461,12 @@ class ChooseSongActivity : AppCompatActivity() {
     // Interaction
     // ---------------------------------------------------------------------------------------------
 
-    /** On the first tap of a card, `sample_previewed` is tracked before `sample_selected`. */
-    private fun onSongTapped(song: RankedSong) {
+    /** Row or art tap: toggles the preview only (`sample_previewed` for a new preview). */
+    private fun onPreviewTapped(song: RankedSong) {
         val tune = song.tune
-        val selectionChanged = selectedTuneId != tune.id
-        if (selectionChanged) {
-            selectedTuneId = tune.id
-            songAdapter.setSelected(tune.id)
-            Haptics.select(songsRecycler)
-            renderContinueButton()
-        }
-
         val url = tune.tuneUrl.trim()
         if (url.isEmpty()) {
             Toast.makeText(this, R.string.playback_error, Toast.LENGTH_SHORT).show()
-            if (selectionChanged) trackSelectedOnce(song)
             return
         }
         val startsNewPreview = previewPlayer.currentId != tune.id || endedPreviewId == tune.id
@@ -488,7 +485,23 @@ class ChooseSongActivity : AppCompatActivity() {
                 rank = song.rank,
             )
         }
-        if (selectionChanged) trackSelectedOnce(song)
+    }
+
+    /**
+     * "chuno": commits the song. `sample_selected` (once per tune), then the set-mode sheets; the
+     * choice opens Processing ([launchProcessing]). Ignored while a set flow is already open
+     * (a sheet showing, or a photo still being staged) or while navigating.
+     */
+    private fun onChooseTapped(song: RankedSong) {
+        if (isNavigating || !setController.isIdle) return
+        val tune = song.tune
+        trackSelectedOnce(song)
+        releasePreview()
+        Haptics.select(songsRecycler)
+        setController.choose(
+            tune,
+            SetEntryContext(rank = song.rank, wasPreviewed = tune.id in previewedTuneIds),
+        )
     }
 
     private fun trackSelectedOnce(song: RankedSong) {
@@ -531,10 +544,13 @@ class ChooseSongActivity : AppCompatActivity() {
         applyFilters(isTerminalLoad = false)
     }
 
-    private fun onContinue() {
+    /** Opens Processing with the chuno [choice]; waits for [onResume] if this screen is not in front. */
+    private fun launchProcessing(tune: Tune, choice: SetChoice) {
+        if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            pendingLaunch = tune to choice
+            return
+        }
         if (isNavigating) return
-        val tuneId = selectedTuneId ?: return
-        val tune = songAdapter.songAt(tuneId)?.tune ?: return
         isNavigating = true
         releasePreview()
         startActivity(
@@ -544,6 +560,7 @@ class ChooseSongActivity : AppCompatActivity() {
                 language = effectiveLanguage,
                 tune = tune,
                 previewedCount = previewedTuneIds.size,
+                setChoice = choice,
             ),
         )
     }
@@ -620,7 +637,6 @@ class ChooseSongActivity : AppCompatActivity() {
         private const val TAG = "ChooseSong"
         private const val EXTRA_NAME = "extra_name"
         private const val EXTRA_LANGUAGE = "extra_language"
-        private const val STATE_SELECTED_TUNE_ID = "state_selected_tune_id"
         private const val STATE_VOICE_FILTER = "state_voice_filter"
         private const val STATE_CATEGORY_FILTER = "state_category_filter"
         private const val STATE_EFFECTIVE_LANGUAGE = "state_effective_language"
@@ -631,6 +647,7 @@ class ChooseSongActivity : AppCompatActivity() {
         private const val MIN_CATEGORIES_FOR_CHIPS = 2
         private const val SKELETON_MIN_ALPHA = 0.4f
         private const val SKELETON_PULSE_MS = 700L
+        private const val ROW_DIVIDER_INSET_DP = 36f
 
         /** @param name the validated display name; @param language a `Languages.storageValue`. */
         fun intent(context: Context, name: String, language: String): Intent {

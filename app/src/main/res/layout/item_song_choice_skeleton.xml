@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Loading placeholder for one picker row (same geometry as item_song_choice). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="100dp"
+    android:gravity="center_vertical"
+    android:importantForAccessibility="no"
+    android:orientation="horizontal"
+    android:paddingHorizontal="36dp">
+
+    <View
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:background="@drawable/bg_skeleton_circle" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="14dp"
+            android:background="@drawable/bg_skeleton_block" />
+
+        <View
+            android:layout_width="96dp"
+            android:layout_height="12dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_skeleton_block" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="82dp"
+        android:layout_height="40dp"
+        android:background="@drawable/bg_skeleton_block" />
+
+</LinearLayout>

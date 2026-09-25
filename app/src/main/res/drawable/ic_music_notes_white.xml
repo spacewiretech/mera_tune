@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Outline beamed double note (Composing step). -->
+<!-- Outline beamed double note, white (Ready "Ringtone set karein" end icon). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -8,18 +8,18 @@
     <path
         android:fillColor="@android:color/transparent"
         android:pathData="M9,17.5V6l11,-2.5V15"
-        android:strokeWidth="1.8"
-        android:strokeColor="@color/navy"
+        android:strokeWidth="2"
+        android:strokeColor="@color/white"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
     <path
         android:fillColor="@android:color/transparent"
         android:pathData="M6.5,17.5m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0"
-        android:strokeWidth="1.8"
-        android:strokeColor="@color/navy" />
+        android:strokeWidth="2"
+        android:strokeColor="@color/white" />
     <path
         android:fillColor="@android:color/transparent"
         android:pathData="M17.5,15m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0"
-        android:strokeWidth="1.8"
-        android:strokeColor="@color/navy" />
+        android:strokeWidth="2"
+        android:strokeColor="@color/white" />
 </vector>

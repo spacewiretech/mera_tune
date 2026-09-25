@@ -2,13 +2,9 @@ package com.spacewire.meratune
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Typeface
 import android.os.Bundle
 import android.os.SystemClock
-import android.text.SpannableString
-import android.text.Spanned
-import android.text.style.ForegroundColorSpan
-import android.text.style.StyleSpan
+import android.text.style.RelativeSizeSpan
 import android.view.View
 import android.view.WindowManager
 import android.view.animation.DecelerateInterpolator
@@ -17,7 +13,6 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
@@ -30,14 +25,18 @@ import com.spacewire.meratune.analytics.LogoutReason
 import com.spacewire.meratune.analytics.firebaseAnalytics
 import com.spacewire.meratune.analytics.metaAnalytics
 import com.spacewire.meratune.analytics.mixpanelAnalytics
+import com.spacewire.meratune.calltheme.SetChoice
 import com.spacewire.meratune.data.GenerationErrorCode
 import com.spacewire.meratune.data.Languages
 import com.spacewire.meratune.data.Tune
+import com.spacewire.meratune.ui.AppFonts
 import com.spacewire.meratune.ui.GenerationState
 import com.spacewire.meratune.ui.ProcessingStepperController
 import com.spacewire.meratune.ui.RingtoneGenerationViewModel
 import com.spacewire.meratune.util.AuthStore
+import com.spacewire.meratune.util.GradientTextHelper
 import com.spacewire.meratune.util.Haptics
+import com.spacewire.meratune.util.TypefaceCompatSpan
 import com.spacewire.meratune.util.enableLightEdgeToEdge
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -52,13 +51,15 @@ class RingtoneProcessingActivity : AppCompatActivity() {
     private lateinit var language: String
     private lateinit var tune: Tune
 
+    /** The chuno set-mode choice, passed through to Ready; `null` when Processing was opened without one. */
+    private var setChoice: SetChoice? = null
+
     private lateinit var stepper: ProcessingStepperController
     private lateinit var stepperView: View
     private lateinit var titleView: TextView
     private lateinit var subtitleView: TextView
     private lateinit var waveformView: View
     private lateinit var footerView: TextView
-    private lateinit var tipView: TextView
     private lateinit var errorContainer: View
     private lateinit var errorMessageView: TextView
     private lateinit var primaryActionButton: TextView
@@ -95,13 +96,14 @@ class RingtoneProcessingActivity : AppCompatActivity() {
         name = extraName
         language = extraLanguage
         tune = extraTune
+        setChoice = SetChoice.from(intent)
 
         enableLightEdgeToEdge()
         setContentView(R.layout.activity_ringtone_processing)
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.processingScroll)) { view, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.setPadding(0, systemBars.top, 0, systemBars.bottom)
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            view.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
 
@@ -110,13 +112,10 @@ class RingtoneProcessingActivity : AppCompatActivity() {
 
         titleView.text = getString(R.string.processing_title, name)
         styleProcessingSubtitle()
-        findViewById<TextView>(R.id.processingSongLine).text =
-            getString(R.string.processing_song_line, tune.name, voiceOrLanguageLabel())
 
         val previewedCount = intent.getIntExtra(EXTRA_PREVIEWED_COUNT, -1).takeIf { it >= 0 }
         viewModel.start(tune, name, language, previewedCount)
         observeState()
-        rotateTips()
     }
 
     override fun onResume() {
@@ -137,7 +136,6 @@ class RingtoneProcessingActivity : AppCompatActivity() {
         subtitleView = findViewById(R.id.processingSubtitle)
         waveformView = findViewById(R.id.processingWaveform)
         footerView = findViewById(R.id.processingFooter)
-        tipView = findViewById(R.id.processingTip)
         errorContainer = findViewById(R.id.processingErrorContainer)
         errorMessageView = findViewById(R.id.errorMessage)
         primaryActionButton = findViewById(R.id.primaryActionButton)
@@ -174,7 +172,7 @@ class RingtoneProcessingActivity : AppCompatActivity() {
         if (!generatingUiActive) {
             generatingUiActive = true
             errorContainer.visibility = View.GONE
-            listOf(titleView, subtitleView, stepperView, waveformView, footerView, tipView)
+            listOf(titleView, subtitleView, stepperView, waveformView, footerView)
                 .forEach { it.visibility = View.VISIBLE }
             stepper.setProgress(0f)
             stepper.animateTo(INDETERMINATE_TARGET, INDETERMINATE_DURATION_MS, DecelerateInterpolator())
@@ -204,32 +202,6 @@ class RingtoneProcessingActivity : AppCompatActivity() {
                 else -> R.string.processing_footer
             },
         )
-    }
-
-    /** Crossfades through the three tips every 3 s while the screen is visible. */
-    private fun rotateTips() {
-        val tips = listOf(R.string.processing_tip_1, R.string.processing_tip_2, R.string.processing_tip_3)
-        tipView.setText(tips.first())
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                var index = tips.indexOfFirst { getString(it) == tipView.text.toString() }.coerceAtLeast(0)
-                while (true) {
-                    delay(TIP_INTERVAL_MS)
-                    if (!generatingUiActive) continue
-                    index = (index + 1) % tips.size
-                    val next = tips[index]
-                    tipView.animate().cancel()
-                    tipView.animate()
-                        .alpha(0f)
-                        .setDuration(TIP_FADE_MS)
-                        .withEndAction {
-                            tipView.setText(next)
-                            tipView.animate().alpha(1f).setDuration(TIP_FADE_MS).start()
-                        }
-                        .start()
-                }
-            }
-        }
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -275,6 +247,7 @@ class RingtoneProcessingActivity : AppCompatActivity() {
                 title = result.title,
                 generationId = result.generationId,
                 cached = result.cached,
+                setChoice = setChoice,
             ),
         )
         finish()
@@ -294,7 +267,7 @@ class RingtoneProcessingActivity : AppCompatActivity() {
         isTakingLonger = false
         errorActionTaken = false
 
-        listOf(titleView, subtitleView, stepperView, waveformView, footerView, tipView)
+        listOf(titleView, subtitleView, stepperView, waveformView, footerView)
             .forEach { it.visibility = View.GONE }
         errorContainer.visibility = View.VISIBLE
         errorMessageView.text = errorMessageFor(state.code)
@@ -420,34 +393,16 @@ class RingtoneProcessingActivity : AppCompatActivity() {
         return definition?.let { getString(it.nativeLabelRes) } ?: language
     }
 
-    private fun voiceOrLanguageLabel(): String = when (tune.voiceKey) {
-        Tune.VOICE_MALE -> getString(R.string.create_form_voice_male)
-        Tune.VOICE_FEMALE -> getString(R.string.create_form_voice_female)
-        else -> languageLabel()
-    }
-
+    /** "Bas 10–15 second me…" with the duration in a larger, bold pink-to-magenta gradient. */
     private fun styleProcessingSubtitle() {
         val highlight = getString(R.string.processing_subtitle_highlight)
-        val fullText = getString(R.string.processing_subtitle, highlight)
-        val spannable = SpannableString(fullText)
-        val start = fullText.indexOf(highlight)
-
-        if (start >= 0) {
-            spannable.setSpan(
-                StyleSpan(Typeface.BOLD),
-                start,
-                start + highlight.length,
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
-            )
-            spannable.setSpan(
-                ForegroundColorSpan(ContextCompat.getColor(this, R.color.gradient_pink)),
-                start,
-                start + highlight.length,
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
-            )
-        }
-
-        subtitleView.text = spannable
+        GradientTextHelper.setTextWithGradientHighlight(
+            textView = subtitleView,
+            fullText = getString(R.string.processing_subtitle, highlight),
+            highlight = highlight,
+            colorRes = intArrayOf(R.color.gradient_pink, R.color.gradient_magenta),
+            extraSpans = listOf(RelativeSizeSpan(SUBTITLE_HIGHLIGHT_SCALE), TypefaceCompatSpan(AppFonts.bold(this))),
+        )
     }
 
     companion object {
@@ -462,14 +417,14 @@ class RingtoneProcessingActivity : AppCompatActivity() {
         private const val MIN_VISIBLE_MS = 1_200L
         private const val READY_BEAT_MS = 500L
         private const val TAKING_LONGER_AFTER_MS = 45_000L
-        private const val TIP_INTERVAL_MS = 3_000L
-        private const val TIP_FADE_MS = 220L
+        private const val SUBTITLE_HIGHLIGHT_SCALE = 1.18f
 
         /**
          * @param name validated display name (never logged or tracked)
          * @param language `Languages.storageValue` the name is spoken in
          * @param tune the picked base song
          * @param previewedCount distinct songs previewed in the picker (analytics only)
+         * @param setChoice the set-mode choice made at chuno, applied on the final screen
          */
         fun intent(
             context: Context,
@@ -477,12 +432,14 @@ class RingtoneProcessingActivity : AppCompatActivity() {
             language: String,
             tune: Tune,
             previewedCount: Int? = null,
+            setChoice: SetChoice? = null,
         ): Intent {
             return Intent(context, RingtoneProcessingActivity::class.java)
                 .putExtra(EXTRA_NAME, name)
                 .putExtra(EXTRA_LANGUAGE, language)
                 .putExtra(EXTRA_TUNE_JSON, tune.toIntentJson())
                 .apply { previewedCount?.let { putExtra(EXTRA_PREVIEWED_COUNT, it) } }
+                .also { intent -> setChoice?.putInto(intent) }
         }
     }
 }

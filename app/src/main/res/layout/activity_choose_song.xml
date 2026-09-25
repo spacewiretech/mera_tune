@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- "Choose ringtones": the header scrolls with the list (at most 10 rows, so no recycling concern). -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/chooseSongRoot"
@@ -7,257 +8,207 @@
     android:layout_height="match_parent"
     android:background="@color/background">
 
-    <LinearLayout
-        android:id="@+id/chooseSongHeader"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingTop="12dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <ImageView
-            android:id="@+id/backButton"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="20dp"
-            android:background="@drawable/bg_back_button"
-            android:contentDescription="@string/back"
-            android:padding="8dp"
-            android:src="@drawable/ic_back" />
-
-        <TextView
-            android:id="@+id/songChoiceTitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginTop="16dp"
-            android:fontFamily="@font/manrope_bold"
-            android:lineSpacingExtra="4dp"
-            android:textColor="@color/navy"
-            android:textSize="24sp"
-            tools:text="Ayush, Apna Gaana Chuniye" />
-
-        <TextView
-            android:id="@+id/songChoiceSubtitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginTop="6dp"
-            android:lineSpacingExtra="2dp"
-            android:text="@string/song_choice_subtitle"
-            android:textColor="@color/text_secondary"
-            android:textSize="15sp" />
-
-        <TextView
-            android:id="@+id/fallbackBanner"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/bg_fallback_banner"
-            android:lineSpacingExtra="2dp"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="10dp"
-            android:textColor="@color/navy"
-            android:textSize="13sp"
-            android:visibility="gone"
-            tools:text="தமிழ் me gaane nahi mile, Hindi gaane dikha rahe hain"
-            tools:visibility="visible" />
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/voiceChipsRecycler"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:clipToPadding="false"
-            android:overScrollMode="never"
-            android:paddingHorizontal="20dp"
-            android:visibility="gone"
-            tools:listitem="@layout/item_filter_chip"
-            tools:visibility="visible" />
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/categoryChipsRecycler"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:clipToPadding="false"
-            android:overScrollMode="never"
-            android:paddingHorizontal="20dp"
-            android:visibility="gone"
-            tools:listitem="@layout/item_filter_chip"
-            tools:visibility="visible" />
-    </LinearLayout>
-
-    <FrameLayout
-        android:id="@+id/chooseSongContent"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginTop="8dp"
-        app:layout_constraintBottom_toTopOf="@id/chooseSongContinueButton"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/chooseSongHeader">
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/songsRecycler"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:overScrollMode="never"
-            android:paddingTop="4dp"
-            android:paddingBottom="16dp"
-            android:visibility="gone"
-            tools:listitem="@layout/item_song_choice"
-            tools:visibility="visible" />
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/chooseSongScroll"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:overScrollMode="never"
+        android:scrollbars="none">
 
         <LinearLayout
-            android:id="@+id/skeletonContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingHorizontal="20dp"
-            android:paddingTop="4dp"
-            android:visibility="gone">
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="96dp"
-                android:layout_marginVertical="6dp"
-                android:background="@drawable/bg_photo_source_card" />
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="96dp"
-                android:layout_marginVertical="6dp"
-                android:background="@drawable/bg_photo_source_card" />
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="96dp"
-                android:layout_marginVertical="6dp"
-                android:background="@drawable/bg_photo_source_card" />
-        </LinearLayout>
-
-        <ScrollView
-            android:id="@+id/emptyContainer"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:fillViewport="true"
-            android:overScrollMode="never"
-            android:scrollbars="none"
-            android:visibility="gone">
+            android:paddingBottom="24dp">
 
             <LinearLayout
+                android:id="@+id/chooseSongHeader"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center_horizontal"
                 android:orientation="vertical"
-                android:paddingHorizontal="24dp"
-                android:paddingTop="16dp"
-                android:paddingBottom="24dp">
+                android:paddingTop="12dp">
 
                 <ImageView
-                    android:layout_width="160dp"
-                    android:layout_height="160dp"
-                    android:contentDescription="@null"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/big_logo" />
+                    android:id="@+id/backButton"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="20dp"
+                    android:background="@drawable/bg_back_button"
+                    android:contentDescription="@string/back"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_back" />
 
                 <TextView
-                    android:id="@+id/emptyTitle"
+                    android:id="@+id/songChoiceTitle"
+                    style="@style/Text.MeraTune.Headline.Large"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="26dp"
+                    android:layout_marginTop="28dp"
+                    android:lineSpacingExtra="6dp"
+                    tools:text="Ram Ke Liye Kaunsi Dhun Pasand Hai?" />
+
+                <TextView
+                    android:id="@+id/songChoiceSubtitle"
+                    style="@style/Text.MeraTune.Body.Muted"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="26dp"
+                    android:layout_marginTop="8dp"
+                    android:lineSpacingExtra="4dp"
+                    tools:text="Ek ringtone choose karo, hum usse Ram ke naam mein bana denge." />
+
+                <TextView
+                    android:id="@+id/fallbackBanner"
+                    style="@style/Text.MeraTune.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="26dp"
+                    android:layout_marginTop="14dp"
+                    android:background="@drawable/bg_fallback_banner"
+                    android:lineSpacingExtra="2dp"
+                    android:paddingHorizontal="14dp"
+                    android:paddingVertical="10dp"
+                    android:textColor="@color/navy"
+                    android:visibility="gone"
+                    tools:text="தமிழ் me gaane nahi mile, Hindi gaane dikha rahe hain"
+                    tools:visibility="visible" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/voiceChipsRecycler"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="20dp"
-                    android:fontFamily="@font/manrope_bold"
-                    android:gravity="center"
-                    android:text="@string/song_choice_empty_title"
-                    android:textColor="@color/navy"
-                    android:textSize="20sp" />
+                    android:clipToPadding="false"
+                    android:nestedScrollingEnabled="false"
+                    android:overScrollMode="never"
+                    android:paddingHorizontal="26dp"
+                    android:visibility="gone"
+                    tools:listitem="@layout/item_filter_chip"
+                    tools:visibility="visible" />
 
-                <TextView
-                    android:id="@+id/emptyMessage"
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/categoryChipsRecycler"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
+                    android:clipToPadding="false"
+                    android:nestedScrollingEnabled="false"
+                    android:overScrollMode="never"
+                    android:paddingHorizontal="26dp"
+                    android:visibility="gone"
+                    tools:listitem="@layout/item_filter_chip"
+                    tools:visibility="visible" />
+            </LinearLayout>
+
+            <FrameLayout
+                android:id="@+id/chooseSongContent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/songsRecycler"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    android:overScrollMode="never"
+                    android:visibility="gone"
+                    tools:listitem="@layout/item_song_choice"
+                    tools:visibility="visible" />
+
+                <LinearLayout
+                    android:id="@+id/skeletonContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <include layout="@layout/item_song_choice_skeleton" />
+
+                    <include layout="@layout/item_song_choice_skeleton" />
+
+                    <include layout="@layout/item_song_choice_skeleton" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/emptyContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="24dp"
+                    android:paddingTop="16dp"
+                    android:paddingBottom="24dp"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:layout_width="160dp"
+                        android:layout_height="160dp"
+                        android:contentDescription="@null"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/big_logo" />
+
+                    <TextView
+                        android:id="@+id/emptyTitle"
+                        style="@style/Text.MeraTune.Title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="20dp"
+                        android:gravity="center"
+                        android:text="@string/song_choice_empty_title" />
+
+                    <TextView
+                        android:id="@+id/emptyMessage"
+                        style="@style/Text.MeraTune.Body.Muted"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:gravity="center"
+                        android:lineSpacingExtra="4dp"
+                        tools:text="தமிழ் ke gaane jaldi aa rahe hain. Tab tak Hindi gaane try karein?" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/emptyHindiButton"
+                        style="@style/Widget.MeraTune.Cta"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="12dp"
+                        android:layout_marginTop="28dp"
+                        android:text="@string/song_choice_empty_hindi_cta" />
+
+                    <TextView
+                        android:id="@+id/emptyChangeLanguageButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="8dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:fontFamily="@font/manrope_bold"
+                        android:gravity="center"
+                        android:paddingHorizontal="20dp"
+                        android:text="@string/song_choice_empty_change_language"
+                        android:textColor="@color/gradient_pink"
+                        android:textSize="15sp"
+                        app:fontFamily="@font/manrope_bold" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/errorText"
+                    style="@style/Text.MeraTune.Body.Muted"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:background="?attr/selectableItemBackground"
                     android:gravity="center"
                     android:lineSpacingExtra="4dp"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="15sp"
-                    tools:text="தமிழ் ke gaane jaldi aa rahe hain. Tab tak Hindi gaane try karein?" />
+                    android:padding="24dp"
+                    android:visibility="gone"
+                    tools:text="No internet connection. Please check your network and try again.\n\nTap to retry."
+                    tools:visibility="visible" />
+            </FrameLayout>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
-                <TextView
-                    android:id="@+id/emptyHindiButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="56dp"
-                    android:layout_marginTop="28dp"
-                    android:background="@drawable/bg_create_ringtone_button"
-                    android:fontFamily="@font/manrope_bold"
-                    android:foreground="@drawable/fg_pill_ripple"
-                    android:gravity="center"
-                    android:maxLines="1"
-                    android:paddingHorizontal="16dp"
-                    android:text="@string/song_choice_empty_hindi_cta"
-                    android:textColor="@color/white"
-                    android:textSize="16sp"
-                    app:autoSizeMaxTextSize="16sp"
-                    app:autoSizeMinTextSize="12sp"
-                    app:autoSizeTextType="uniform" />
-
-                <TextView
-                    android:id="@+id/emptyChangeLanguageButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="48dp"
-                    android:layout_marginTop="8dp"
-                    android:background="?attr/selectableItemBackground"
-                    android:fontFamily="@font/manrope_bold"
-                    android:gravity="center"
-                    android:paddingHorizontal="20dp"
-                    android:text="@string/song_choice_empty_change_language"
-                    android:textColor="@color/gradient_pink"
-                    android:textSize="15sp" />
-            </LinearLayout>
-        </ScrollView>
-
-        <TextView
-            android:id="@+id/errorText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:background="?attr/selectableItemBackground"
-            android:gravity="center"
-            android:lineSpacingExtra="4dp"
-            android:padding="24dp"
-            android:textColor="@color/text_secondary"
-            android:textSize="15sp"
-            android:visibility="gone"
-            tools:text="No internet connection. Please check your network and try again.\n\nTap to retry."
-            tools:visibility="visible" />
-    </FrameLayout>
-
-    <TextView
-        android:id="@+id/chooseSongContinueButton"
-        android:layout_width="0dp"
-        android:layout_height="56dp"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginBottom="24dp"
-        android:background="@drawable/bg_create_ringtone_button"
-        android:enabled="false"
-        android:fontFamily="@font/manrope_bold"
-        android:gravity="center"
-        android:maxLines="1"
-        android:paddingHorizontal="16dp"
-        android:text="@string/song_choice_cta_disabled"
-        android:textColor="@color/white"
-        android:textSize="16sp"
-        app:autoSizeMaxTextSize="16sp"
-        app:autoSizeMinTextSize="12sp"
-        app:autoSizeTextType="uniform"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</FrameLayout>

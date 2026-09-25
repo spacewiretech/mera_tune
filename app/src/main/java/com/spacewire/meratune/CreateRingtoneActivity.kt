@@ -6,14 +6,10 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
 import android.view.View
-import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updateLayoutParams
 import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import com.spacewire.meratune.analytics.AnalyticsScreen
@@ -23,6 +19,7 @@ import com.spacewire.meratune.data.LanguageDefinition
 import com.spacewire.meratune.data.Languages
 import com.spacewire.meratune.ui.FormOptionGroup
 import com.spacewire.meratune.util.GradientTextHelper
+import com.spacewire.meratune.util.InsetsUi
 import com.spacewire.meratune.util.NameInvalidReason
 import com.spacewire.meratune.util.NameNormalizer
 import com.spacewire.meratune.util.NameValidation
@@ -68,15 +65,8 @@ class CreateRingtoneActivity : AppCompatActivity() {
         continueButton = findViewById(R.id.continueButton)
         comingSoonNote = findViewById(R.id.languageComingSoonNote)
 
-        val ctaBottomMargin = (continueButton.layoutParams as ViewGroup.MarginLayoutParams).bottomMargin
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.formScroll)) { view, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.setPadding(0, systemBars.top, 0, 0)
-            continueButton.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                bottomMargin = ctaBottomMargin + systemBars.bottom
-            }
-            insets
-        }
+        // The CTA lives in the scroll content; the keyboard raises the bottom padding so it stays reachable.
+        InsetsUi.padForSystemBarsAndIme(findViewById(R.id.formScroll))
 
         applyGradientLabels()
         setupLanguageGroup()

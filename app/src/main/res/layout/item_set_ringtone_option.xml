@@ -1,42 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    One set-mode column. match_parent height inside the horizontal row stretches every column to
+    the tallest, and the weighted Space pushes each radio to the bottom, so the radios share one
+    baseline even when a title wraps to three lines.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="0dp"
-    android:layout_height="wrap_content"
+    android:layout_height="match_parent"
     android:layout_weight="1"
-    android:background="?attr/selectableItemBackgroundBorderless"
+    android:background="?attr/selectableItemBackground"
     android:clickable="true"
     android:focusable="true"
     android:gravity="center_horizontal"
     android:orientation="vertical"
     android:paddingHorizontal="4dp"
-    android:paddingVertical="8dp">
+    android:paddingVertical="4dp">
 
     <ImageView
         android:id="@+id/setRingtoneOptionIllustration"
-        android:layout_width="72dp"
-        android:layout_height="96dp"
+        android:layout_width="76dp"
+        android:layout_height="150dp"
         android:contentDescription="@null"
         android:scaleType="fitCenter"
         tools:src="@drawable/ic_set_mode_audio" />
 
     <TextView
         android:id="@+id/setRingtoneOptionTitle"
+        style="@style/Text.MeraTune.Label"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:gravity="center_horizontal|top"
-        android:lineSpacingExtra="1dp"
-        android:minHeight="52dp"
-        android:textColor="@color/navy"
-        android:textSize="12sp"
-        android:textStyle="bold"
+        android:layout_marginTop="14dp"
+        android:gravity="top|center_horizontal"
+        android:minLines="3"
+        android:textSize="14sp"
         tools:text="Sirf Ringtone" />
+
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
 
     <FrameLayout
         android:layout_width="24dp"
         android:layout_height="24dp"
-        android:layout_marginTop="6dp">
+        android:layout_marginTop="12dp">
 
         <View
             android:id="@+id/setRingtoneOptionIndicator"
@@ -46,11 +54,11 @@
 
         <ImageView
             android:id="@+id/setRingtoneOptionCheck"
-            android:layout_width="12dp"
-            android:layout_height="12dp"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
             android:layout_gravity="center"
             android:contentDescription="@null"
-            android:src="@drawable/ic_check_white"
+            android:src="@drawable/ic_check_gradient"
             android:visibility="gone"
             tools:visibility="visible" />
     </FrameLayout>

@@ -1,163 +1,182 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+    Three-step stepper: 32dp circles centred at 1/6, 3/6 and 5/6 of the width, hollow connector
+    bars between them (their *Progress views fill via scaleX), and one label per third.
+-->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:paddingHorizontal="8dp">
+    android:layout_height="wrap_content">
 
-    <LinearLayout
-        android:layout_width="match_parent"
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/stepperThirdOne"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.3333" />
 
-        <FrameLayout
-            android:layout_width="52dp"
-            android:layout_height="52dp">
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/stepperThirdTwo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.6667" />
 
-            <View
-                android:id="@+id/stepOneCircle"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/bg_processing_step_active" />
+    <FrameLayout
+        android:id="@+id/stepOneFrame"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        app:layout_constraintEnd_toStartOf="@id/stepperThirdOne"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="center"
-                android:contentDescription="@null"
-                android:src="@drawable/ic_processing_mic" />
-        </FrameLayout>
+        <View
+            android:id="@+id/stepOneCircle"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_processing_step_active" />
 
-        <FrameLayout
-            android:layout_width="0dp"
-            android:layout_height="4dp"
-            android:layout_marginHorizontal="4dp"
-            android:layout_weight="1">
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_processing_mic"
+            app:tint="@color/navy" />
+    </FrameLayout>
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/bg_processing_connector_inactive" />
+    <FrameLayout
+        android:id="@+id/stepTwoFrame"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        app:layout_constraintEnd_toStartOf="@id/stepperThirdTwo"
+        app:layout_constraintStart_toStartOf="@id/stepperThirdOne"
+        app:layout_constraintTop_toTopOf="parent">
 
-            <View
-                android:id="@+id/connectorOneProgress"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_gravity="start"
-                android:background="@drawable/bg_processing_connector_active"
-                android:scaleX="0"
-                android:transformPivotX="0dp" />
-        </FrameLayout>
+        <View
+            android:id="@+id/stepTwoCircle"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_processing_step_inactive" />
 
-        <FrameLayout
-            android:layout_width="52dp"
-            android:layout_height="52dp">
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_processing_music"
+            app:tint="@color/navy" />
+    </FrameLayout>
 
-            <View
-                android:id="@+id/stepTwoCircle"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/bg_processing_step_inactive" />
+    <FrameLayout
+        android:id="@+id/stepThreeFrame"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="@id/stepperThirdTwo"
+        app:layout_constraintTop_toTopOf="parent">
 
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="center"
-                android:contentDescription="@null"
-                android:src="@drawable/ic_processing_music" />
-        </FrameLayout>
+        <View
+            android:id="@+id/stepThreeCircle"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_processing_step_inactive" />
 
-        <FrameLayout
-            android:layout_width="0dp"
-            android:layout_height="4dp"
-            android:layout_marginHorizontal="4dp"
-            android:layout_weight="1">
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_processing_check"
+            app:tint="@color/navy" />
+    </FrameLayout>
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/bg_processing_connector_inactive" />
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="4dp"
+        app:layout_constraintBottom_toBottomOf="@id/stepOneFrame"
+        app:layout_constraintEnd_toStartOf="@id/stepTwoFrame"
+        app:layout_constraintStart_toEndOf="@id/stepOneFrame"
+        app:layout_constraintTop_toTopOf="@id/stepOneFrame">
 
-            <View
-                android:id="@+id/connectorTwoProgress"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_gravity="start"
-                android:background="@drawable/bg_processing_connector_active"
-                android:scaleX="0"
-                android:transformPivotX="0dp" />
-        </FrameLayout>
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_processing_connector_inactive" />
 
-        <FrameLayout
-            android:layout_width="52dp"
-            android:layout_height="52dp">
+        <View
+            android:id="@+id/connectorOneProgress"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_processing_connector_active"
+            android:scaleX="0"
+            android:transformPivotX="0dp" />
+    </FrameLayout>
 
-            <View
-                android:id="@+id/stepThreeCircle"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/bg_processing_step_inactive" />
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="4dp"
+        app:layout_constraintBottom_toBottomOf="@id/stepTwoFrame"
+        app:layout_constraintEnd_toStartOf="@id/stepThreeFrame"
+        app:layout_constraintStart_toEndOf="@id/stepTwoFrame"
+        app:layout_constraintTop_toTopOf="@id/stepTwoFrame">
 
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="center"
-                android:contentDescription="@null"
-                android:src="@drawable/ic_processing_check" />
-        </FrameLayout>
-    </LinearLayout>
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_processing_connector_inactive" />
 
-    <LinearLayout
-        android:layout_width="match_parent"
+        <View
+            android:id="@+id/connectorTwoProgress"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_processing_connector_active"
+            android:scaleX="0"
+            android:transformPivotX="0dp" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/stepOneLabel"
+        style="@style/Text.MeraTune.Body"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:orientation="horizontal">
+        android:gravity="center"
+        android:lineSpacingExtra="2dp"
+        android:paddingHorizontal="4dp"
+        android:text="@string/processing_step_preparing"
+        app:layout_constraintEnd_toStartOf="@id/stepperThirdOne"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/stepOneFrame" />
 
-        <TextView
-            android:id="@+id/stepOneLabel"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="@string/processing_step_preparing"
-            android:textColor="@color/navy"
-            android:lineSpacingExtra="2dp"
-            android:textSize="13sp" />
+    <TextView
+        android:id="@+id/stepTwoLabel"
+        style="@style/Text.MeraTune.Body"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:gravity="center"
+        android:lineSpacingExtra="2dp"
+        android:paddingHorizontal="4dp"
+        android:text="@string/processing_step_composing"
+        app:layout_constraintEnd_toStartOf="@id/stepperThirdTwo"
+        app:layout_constraintStart_toStartOf="@id/stepperThirdOne"
+        app:layout_constraintTop_toBottomOf="@id/stepTwoFrame" />
 
-        <Space
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="0.35" />
+    <TextView
+        android:id="@+id/stepThreeLabel"
+        style="@style/Text.MeraTune.Body"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:gravity="center"
+        android:lineSpacingExtra="2dp"
+        android:paddingHorizontal="4dp"
+        android:text="@string/processing_step_ready"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="@id/stepperThirdTwo"
+        app:layout_constraintTop_toBottomOf="@id/stepThreeFrame"
+        tools:text="Ringtone Ready!" />
 
-        <TextView
-            android:id="@+id/stepTwoLabel"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="@string/processing_step_composing"
-            android:textColor="@color/navy"
-            android:lineSpacingExtra="2dp"
-            android:textSize="13sp" />
-
-        <Space
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="0.35" />
-
-        <TextView
-            android:id="@+id/stepThreeLabel"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="@string/processing_step_ready"
-            android:textColor="@color/navy"
-            android:lineSpacingExtra="2dp"
-            android:textSize="13sp"
-            tools:text="Ringtone Ready!" />
-    </LinearLayout>
-
-</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

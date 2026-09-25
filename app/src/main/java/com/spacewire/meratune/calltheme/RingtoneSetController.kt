@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
@@ -13,6 +14,8 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.lifecycleScope
 import com.spacewire.meratune.R
 import com.spacewire.meratune.analytics.AnalyticsPermissionKey
@@ -37,20 +40,45 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * Shared Set flow for Home and RingtoneReady:
- * mode sheet → photo sheet (if needed) → permissions → contact picker → set ringtone + save call theme.
+ * Shared Set flow. One class, three entry points (all launchers are registered at construction):
  *
- * One flow at a time: it runs from [start] until success or [failFlow], and `pendingTune` is
- * non-null for exactly that span.
+ * - [start] (Home, and Ready without a saved choice), single shot: storage permission (API <= 28)
+ *   → mode sheet → photo sheet (if needed) → permissions → contact picker → set ringtone + save
+ *   call theme.
+ * - [choose] (song picker "chuno"): mode sheet → photo sheet → the photo is staged. No permission,
+ *   no download, no ringtone change; [onChosen] receives the [SetChoice].
+ * - [apply] (Ready "Ringtone set karein"): the saved [SetChoice] without a sheet: storage permission
+ *   (API <= 28) → WRITE_SETTINGS pre-flight (before any download) → per-mode permissions / contact
+ *   picker → set ringtone → promote the staged photo → save the call theme. A missing staged photo
+ *   falls back to the photo sheet.
+ *
+ * One flow at a time: it runs from an entry point until success, a choice, or [failFlow], and
+ * `pendingTune` is non-null for exactly that span ([isIdle]). While a system screen is on top, the
+ * flow is kept in the activity's SavedStateRegistry, so a camera / gallery / contact picker round
+ * trip survives process death.
  */
 class RingtoneSetController(
     private val activity: ComponentActivity,
     private val analyticsSource: String,
     private val categoryForTune: (Tune) -> String,
     private val onSuccess: (Tune, Uri) -> Unit = { _, _ -> },
+    /** [choose] finished: the base tune and the choice to apply on the final screen. */
+    private val onChosen: (Tune, SetChoice) -> Unit = { _, _ -> },
 ) {
     // Must be lazy: controller is constructed during Activity init, before Context is attached.
     private val themeStore by lazy { CallThemeStore(activity) }
+
+    private enum class Phase { SINGLE_SHOT, CHOOSE, APPLY }
+
+    private var phase = Phase.SINGLE_SHOT
+
+    /** `personalized` for this flow's analytics: the create path is always personalized. */
+    private var flowPersonalized = false
+    private var writeSettingsPreflight = false
+    private var cameraOutputFile: File? = null
+
+    /** A launcher is out (system screen on top); only then is the flow worth restoring. */
+    private var awaitingLaunchResult = false
 
     private var pendingTune: Tune? = null
     private var pendingMode: RingtoneSetMode = RingtoneSetMode.AUDIO_ONLY
@@ -65,15 +93,36 @@ class RingtoneSetController(
     private var photoSheet: UploadPhotoBottomSheet? = null
     private var cameraOutputUri: Uri? = null
 
+    /** No flow is open: a new [start], [choose] or [apply] would be accepted. */
+    val isIdle: Boolean
+        get() = pendingTune == null
+
+    init {
+        activity.savedStateRegistry.registerSavedStateProvider(SAVED_STATE_KEY) { saveFlowState() }
+        activity.lifecycle.addObserver(
+            object : LifecycleEventObserver {
+                override fun onStateChanged(source: androidx.lifecycle.LifecycleOwner, event: Lifecycle.Event) {
+                    if (event == Lifecycle.Event.ON_CREATE) {
+                        activity.lifecycle.removeObserver(this)
+                        restoreFlowState(activity.savedStateRegistry.consumeRestoredStateForKey(SAVED_STATE_KEY))
+                    }
+                }
+            },
+        )
+    }
+
     private val storagePermissionLauncher = activity.registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
+        awaitingLaunchResult = false
         trackPermissionAnswered(Manifest.permission.WRITE_EXTERNAL_STORAGE, granted)
         val tune = pendingTune
         if (tune == null) {
             reportStateLost(SetFailureStage.STORAGE_PERMISSION)
         } else if (granted) {
-            beginMode(tune, pendingMode)
+            // APPLY continues with the saved mode; Home now shows the mode sheet (it used to set
+            // audio-only silently on Android 8/9).
+            if (phase == Phase.APPLY) applyAfterStorage(tune) else showModeSheet(tune)
         } else {
             Toast.makeText(activity, R.string.ringtone_set_error, Toast.LENGTH_SHORT).show()
             failFlow(SetFailureStage.STORAGE_PERMISSION, FailureReason.PERMISSION_DENIED)
@@ -85,6 +134,9 @@ class RingtoneSetController(
     ) {
         val tune = pendingTune
         awaitingWriteSettings = false
+        awaitingLaunchResult = false
+        val preflight = writeSettingsPreflight
+        writeSettingsPreflight = false
         val granted = !RingtoneHelper.needsWriteSettingsPermission(activity)
         activity.mixpanelAnalytics().trackPermissionPromptAnswered(
             permission = AnalyticsPermissionKey.WRITE_SETTINGS,
@@ -96,6 +148,8 @@ class RingtoneSetController(
         } else if (!granted) {
             Toast.makeText(activity, R.string.ringtone_permission_required, Toast.LENGTH_LONG).show()
             failFlow(SetFailureStage.WRITE_SETTINGS_PERMISSION, FailureReason.PERMISSION_DENIED)
+        } else if (preflight) {
+            proceedApply(tune)
         } else {
             continueAfterWriteSettings(tune)
         }
@@ -104,6 +158,7 @@ class RingtoneSetController(
     private val runtimePermissionsLauncher = activity.registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
+        awaitingLaunchResult = false
         result.forEach { (permission, granted) -> trackPermissionAnswered(permission, granted) }
         val step = permissionStep.takeUnless { it == PermissionStep.NONE }
             ?: PermissionStep.forRequest(result.keys)
@@ -144,6 +199,7 @@ class RingtoneSetController(
     private val contactPickerLauncher = activity.registerForActivityResult(
         ActivityResultContracts.PickContact(),
     ) { uri ->
+        awaitingLaunchResult = false
         val tune = pendingTune
         if (tune == null) {
             reportStateLost(SetFailureStage.CONTACT_PICKER)
@@ -171,6 +227,7 @@ class RingtoneSetController(
         ActivityResultContracts.PickVisualMedia(),
     ) { uri ->
         awaitingImagePick = false
+        awaitingLaunchResult = false
         if (pendingTune == null) {
             reportStateLost(SetFailureStage.PHOTO_SHEET)
         } else if (uri != null) {
@@ -184,6 +241,7 @@ class RingtoneSetController(
         ActivityResultContracts.TakePicture(),
     ) { success ->
         awaitingImagePick = false
+        awaitingLaunchResult = false
         val uri = cameraOutputUri
         if (pendingTune == null) {
             reportStateLost(SetFailureStage.PHOTO_SHEET)
@@ -197,29 +255,136 @@ class RingtoneSetController(
     /** Ignored while another flow is in progress (double tap, or a second row tapped mid-download). */
     fun start(tune: Tune, entry: SetEntryContext = SetEntryContext()) {
         if (pendingTune != null) return
+        phase = Phase.SINGLE_SHOT
         pendingTune = tune
         pendingMode = RingtoneSetMode.AUDIO_ONLY
+        flowPersonalized = tune.isPersonalized
         flowStartedAtMs = SystemClock.elapsedRealtime()
         activity.mixpanelAnalytics().trackRingtoneSetStarted(
             source = analyticsSource,
             tuneId = tune.id,
             category = categoryForTune(tune),
-            personalized = tune.isPersonalized,
+            personalized = flowPersonalized,
             generationId = tune.generationId,
             rank = entry.rank,
             wasPreviewed = entry.wasPreviewed,
         )
 
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
+        if (needsStoragePermission()) {
+            launchStoragePermission()
+            return
+        }
+        showModeSheet(tune)
+    }
+
+    /**
+     * Song picker "chuno": mode sheet, then the photo sheet for photo modes, then the photo is
+     * staged and [onChosen] receives the choice. Returns false (and does nothing) while another flow
+     * is open.
+     */
+    fun choose(baseTune: Tune, entry: SetEntryContext = SetEntryContext()): Boolean {
+        if (pendingTune != null) return false
+        phase = Phase.CHOOSE
+        pendingTune = baseTune
+        pendingMode = RingtoneSetMode.AUDIO_ONLY
+        flowPersonalized = true
+        flowStartedAtMs = SystemClock.elapsedRealtime()
+        activity.mixpanelAnalytics().trackRingtoneSetStarted(
+            source = analyticsSource,
+            tuneId = baseTune.id,
+            category = categoryForTune(baseTune),
+            personalized = true,
+            generationId = null,
+            rank = entry.rank,
+            wasPreviewed = entry.wasPreviewed,
+        )
+        showModeSheet(baseTune)
+        return true
+    }
+
+    /**
+     * Final screen: sets [tune] with the [choice] made at chuno, without a sheet. [continuesFlow]
+     * is true for the first apply of that choice (the flow started at chuno, so no second
+     * `ringtone_set_started`); a retry after a terminal failure starts a new flow. Returns false
+     * while another flow is open.
+     */
+    fun apply(tune: Tune, choice: SetChoice, continuesFlow: Boolean): Boolean {
+        if (pendingTune != null) return false
+        phase = Phase.APPLY
+        pendingTune = tune
+        pendingMode = choice.mode
+        pendingContact = null
+        pendingImageUri = null
+        pendingImagePath = choice.imagePath
+        pendingPhotoSource = choice.photoSource
+        flowPersonalized = true
+        val now = SystemClock.elapsedRealtime()
+        if (continuesFlow) {
+            flowStartedAtMs = now - choice.chooseDurationMs
+        } else {
+            flowStartedAtMs = now
+            activity.mixpanelAnalytics().trackRingtoneSetStarted(
+                source = analyticsSource,
+                tuneId = tune.id,
+                category = categoryForTune(tune),
+                personalized = true,
+                generationId = tune.generationId,
+            )
+        }
+
+        if (needsStoragePermission()) {
+            launchStoragePermission()
+        } else {
+            applyAfterStorage(tune)
+        }
+        return true
+    }
+
+    private fun needsStoragePermission(): Boolean =
+        Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
             ContextCompat.checkSelfPermission(
                 activity,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE,
             ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+
+    private fun launchStoragePermission() {
+        awaitingLaunchResult = true
+        storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+    }
+
+    /** APPLY: asks WRITE_SETTINGS before anything is downloaded, so a grant never re-downloads. */
+    private fun applyAfterStorage(tune: Tune) {
+        if (RingtoneHelper.needsWriteSettingsPermission(activity)) {
+            awaitingWriteSettings = true
+            writeSettingsPreflight = true
+            awaitingLaunchResult = true
+            writeSettingsLauncher.launch(RingtoneHelper.writeSettingsIntent(activity))
             return
         }
+        proceedApply(tune)
+    }
 
+    /** APPLY, per mode. A photo mode whose staged file is gone falls back to the photo sheet. */
+    private fun proceedApply(tune: Tune) {
+        when (pendingMode) {
+            RingtoneSetMode.AUDIO_ONLY -> setRingtoneOnly(tune)
+            RingtoneSetMode.WITH_IMAGE_EVERYONE,
+            RingtoneSetMode.WITH_IMAGE_CONTACT,
+            -> if (CallThemeImageHelper.isUsableImage(pendingImagePath)) {
+                if (pendingMode == RingtoneSetMode.WITH_IMAGE_EVERYONE) {
+                    requestCallDisplayPermissions(tune)
+                } else {
+                    requestContactsPermission()
+                }
+            } else {
+                pendingImagePath = null
+                pendingPhotoSource = null
+                showPhotoSheet()
+            }
+        }
+    }
+
+    private fun showModeSheet(tune: Tune) {
         SetRingtoneBottomSheet(
             context = activity,
             onContinue = { mode ->
@@ -227,7 +392,7 @@ class RingtoneSetController(
                     setMode = mode.analyticsValue,
                     source = analyticsSource,
                     tuneId = tune.id,
-                    personalized = tune.isPersonalized,
+                    personalized = flowPersonalized,
                 )
                 beginMode(tune, mode)
             },
@@ -244,11 +409,41 @@ class RingtoneSetController(
         pendingPhotoSource = null
 
         when (mode) {
-            RingtoneSetMode.AUDIO_ONLY -> setRingtoneOnly(tune)
+            RingtoneSetMode.AUDIO_ONLY ->
+                if (phase == Phase.CHOOSE) completeChoice(tune, mode, null, null) else setRingtoneOnly(tune)
             RingtoneSetMode.WITH_IMAGE_EVERYONE,
             RingtoneSetMode.WITH_IMAGE_CONTACT,
             -> showPhotoSheet()
         }
+    }
+
+    /** CHOOSE: copies the picked photo into staging (it must outlive this activity), then completes. */
+    private fun stageAndComplete(tune: Tune, uri: Uri) {
+        activity.lifecycleScope.launch {
+            val path = runCatching { CallThemeImageHelper.stageImage(activity, uri) }.getOrElse { error ->
+                if (error is CancellationException) throw error
+                Log.e(TAG, "Failed to stage call theme image", error)
+                Toast.makeText(activity, R.string.call_theme_image_save_error, Toast.LENGTH_SHORT).show()
+                failFlow(SetFailureClassifier.forError(SetFailureStage.PHOTO_SHEET, error))
+                return@launch
+            }
+            if (pendingPhotoSource == PHOTO_SOURCE_CAMERA) {
+                cameraOutputFile?.delete()
+            }
+            completeChoice(tune, pendingMode, path, pendingPhotoSource)
+        }
+    }
+
+    /** CHOOSE finished: the flow closes here (no analytics) and resumes on the final screen. */
+    private fun completeChoice(tune: Tune, mode: RingtoneSetMode, imagePath: String?, photoSource: String?) {
+        val choice = SetChoice(
+            mode = mode,
+            imagePath = imagePath,
+            photoSource = photoSource,
+            chooseDurationMs = (SystemClock.elapsedRealtime() - flowStartedAtMs).coerceAtLeast(0L),
+        )
+        clearPending()
+        onChosen(tune, choice)
     }
 
     private fun showPhotoSheet() {
@@ -260,6 +455,10 @@ class RingtoneSetController(
                 pendingImageUri = uri
                 photoSheet = null
                 val tune = pendingTune ?: return@UploadPhotoBottomSheet
+                if (phase == Phase.CHOOSE) {
+                    stageAndComplete(tune, uri)
+                    return@UploadPhotoBottomSheet
+                }
                 when (pendingMode) {
                     RingtoneSetMode.AUDIO_ONLY -> setRingtoneOnly(tune)
                     RingtoneSetMode.WITH_IMAGE_EVERYONE -> requestCallDisplayPermissions(tune)
@@ -302,6 +501,7 @@ class RingtoneSetController(
             return
         }
         awaitingImagePick = true
+        awaitingLaunchResult = true
         cameraOutputUri = uri
         takePictureLauncher.launch(uri)
     }
@@ -320,6 +520,7 @@ class RingtoneSetController(
             return
         }
         permissionStep = PermissionStep.CONTACTS
+        awaitingLaunchResult = true
         runtimePermissionsLauncher.launch(
             arrayOf(
                 Manifest.permission.READ_CONTACTS,
@@ -329,11 +530,13 @@ class RingtoneSetController(
     }
 
     private fun launchContactPicker() {
+        awaitingLaunchResult = true
         contactPickerLauncher.launch(null)
     }
 
     private fun launchImagePicker() {
         awaitingImagePick = true
+        awaitingLaunchResult = true
         imagePickerLauncher.launch(
             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
         )
@@ -345,6 +548,7 @@ class RingtoneSetController(
             val file = File(directory, "set_ringtone_${System.currentTimeMillis()}.jpg").apply {
                 createNewFile()
             }
+            cameraOutputFile = file
             FileProvider.getUriForFile(
                 activity,
                 "${activity.packageName}.fileprovider",
@@ -388,6 +592,7 @@ class RingtoneSetController(
         }
 
         permissionStep = PermissionStep.CALL_DISPLAY
+        awaitingLaunchResult = true
         runtimePermissionsLauncher.launch(needed.toTypedArray())
     }
 
@@ -433,7 +638,13 @@ class RingtoneSetController(
                 handleSetFailure(tune, mode, error)
                 return@launch
             }
-            val themeResult = runCatching { saveTheme(tune, mode, imagePath, uri) }.getOrElse { error ->
+            val themeResult = runCatching {
+                // A staged (create path) photo moves into call_themes/ only now that the ringtone
+                // is set, so a failed set keeps it for a retry.
+                val themePath = CallThemeImageHelper.promoteStaged(activity, imagePath)
+                pendingImagePath = themePath
+                saveTheme(tune, mode, themePath, uri)
+            }.getOrElse { error ->
                 if (error is CancellationException) throw error
                 Log.e(TAG, "Failed to save call theme", error)
                 // The system ringtone already changed; only the photo part failed.
@@ -527,7 +738,7 @@ class RingtoneSetController(
         theme: ThemeSaveResult? = null,
     ) {
         onSuccess(tune, uri)
-        val personalized = tune.isPersonalized
+        val personalized = flowPersonalized
         activity.mixpanelAnalytics().trackRingtoneSet(
             source = analyticsSource,
             category = categoryForTune(tune),
@@ -575,6 +786,7 @@ class RingtoneSetController(
         val cause = (error as? RingtoneSetException)?.cause ?: error
         if (cause is SecurityException && RingtoneHelper.needsWriteSettingsPermission(activity)) {
             awaitingWriteSettings = true
+            awaitingLaunchResult = true
             pendingTune = tune
             pendingMode = mode
             writeSettingsLauncher.launch(RingtoneHelper.writeSettingsIntent(activity))
@@ -593,7 +805,7 @@ class RingtoneSetController(
                 failureReason = failureReason,
                 source = analyticsSource,
                 tuneId = tune.id,
-                personalized = tune.isPersonalized,
+                personalized = flowPersonalized,
                 setMode = pendingMode.analyticsValue.takeUnless { stage == SetFailureStage.MODE_SHEET },
                 errorType = errorType,
             )
@@ -645,8 +857,65 @@ class RingtoneSetController(
         permissionStep = PermissionStep.NONE
         awaitingImagePick = false
         cameraOutputUri = null
+        cameraOutputFile = null
+        phase = Phase.SINGLE_SHOT
+        flowPersonalized = false
+        writeSettingsPreflight = false
+        awaitingLaunchResult = false
         photoSheet?.dismiss()
         photoSheet = null
+    }
+
+    /**
+     * Saved only while a system screen (permission dialog, Settings, camera, gallery, contact
+     * picker) is on top: its result then continues this flow after process death. A flow with only
+     * a sheet showing is not saved, the same as before (the sheet is lost with the activity).
+     */
+    private fun saveFlowState(): Bundle {
+        val tune = pendingTune
+        if (tune == null || !awaitingLaunchResult) return Bundle()
+        return Bundle().apply {
+            putString(STATE_PHASE, phase.name)
+            putString(STATE_TUNE_JSON, tune.toIntentJson())
+            putString(STATE_MODE, pendingMode.name)
+            putString(STATE_IMAGE_PATH, pendingImagePath)
+            putString(STATE_IMAGE_URI, pendingImageUri?.toString())
+            putString(STATE_PHOTO_SOURCE, pendingPhotoSource)
+            putString(STATE_CAMERA_URI, cameraOutputUri?.toString())
+            putString(STATE_CAMERA_FILE, cameraOutputFile?.absolutePath)
+            putString(STATE_CONTACT_URI, pendingContact?.contactUri?.toString())
+            putLong(STATE_FLOW_STARTED_AT_MS, flowStartedAtMs)
+            putBoolean(STATE_AWAITING_IMAGE_PICK, awaitingImagePick)
+            putBoolean(STATE_AWAITING_WRITE_SETTINGS, awaitingWriteSettings)
+            putBoolean(STATE_WRITE_SETTINGS_PREFLIGHT, writeSettingsPreflight)
+            putBoolean(STATE_FLOW_PERSONALIZED, flowPersonalized)
+            putString(STATE_PERMISSION_STEP, permissionStep.name)
+        }
+    }
+
+    private fun restoreFlowState(state: Bundle?) {
+        if (state == null || pendingTune != null) return
+        val tune = Tune.fromIntentJson(state.getString(STATE_TUNE_JSON)) ?: return
+        phase = Phase.entries.firstOrNull { it.name == state.getString(STATE_PHASE) } ?: return
+        pendingTune = tune
+        pendingMode = RingtoneSetMode.entries.firstOrNull { it.name == state.getString(STATE_MODE) }
+            ?: RingtoneSetMode.AUDIO_ONLY
+        pendingImagePath = state.getString(STATE_IMAGE_PATH)
+        pendingImageUri = state.getString(STATE_IMAGE_URI)?.let(Uri::parse)
+        pendingPhotoSource = state.getString(STATE_PHOTO_SOURCE)
+        cameraOutputUri = state.getString(STATE_CAMERA_URI)?.let(Uri::parse)
+        cameraOutputFile = state.getString(STATE_CAMERA_FILE)?.let(::File)
+        pendingContact = state.getString(STATE_CONTACT_URI)?.let { raw ->
+            runCatching { ContactLookupHelper.loadDetails(activity, Uri.parse(raw)) }.getOrNull()
+        }
+        flowStartedAtMs = state.getLong(STATE_FLOW_STARTED_AT_MS, SystemClock.elapsedRealtime())
+        awaitingImagePick = state.getBoolean(STATE_AWAITING_IMAGE_PICK, false)
+        awaitingWriteSettings = state.getBoolean(STATE_AWAITING_WRITE_SETTINGS, false)
+        writeSettingsPreflight = state.getBoolean(STATE_WRITE_SETTINGS_PREFLIGHT, false)
+        flowPersonalized = state.getBoolean(STATE_FLOW_PERSONALIZED, false)
+        permissionStep = PermissionStep.entries.firstOrNull { it.name == state.getString(STATE_PERMISSION_STEP) }
+            ?: PermissionStep.NONE
+        awaitingLaunchResult = true
     }
 
     private val Tune.isPersonalized: Boolean
@@ -677,8 +946,25 @@ class RingtoneSetController(
 
     private companion object {
         const val TAG = "RingtoneSetController"
-        const val PHOTO_SOURCE_CAMERA = "camera"
-        const val PHOTO_SOURCE_GALLERY = "gallery"
+        const val PHOTO_SOURCE_CAMERA = SetChoice.PHOTO_SOURCE_CAMERA
+        const val PHOTO_SOURCE_GALLERY = SetChoice.PHOTO_SOURCE_GALLERY
+
+        const val SAVED_STATE_KEY = "com.spacewire.meratune.calltheme.RingtoneSetController"
+        const val STATE_PHASE = "phase"
+        const val STATE_TUNE_JSON = "tune_json"
+        const val STATE_MODE = "mode"
+        const val STATE_IMAGE_PATH = "image_path"
+        const val STATE_IMAGE_URI = "image_uri"
+        const val STATE_PHOTO_SOURCE = "photo_source"
+        const val STATE_CAMERA_URI = "camera_uri"
+        const val STATE_CAMERA_FILE = "camera_file"
+        const val STATE_CONTACT_URI = "contact_uri"
+        const val STATE_FLOW_STARTED_AT_MS = "flow_started_at_ms"
+        const val STATE_AWAITING_IMAGE_PICK = "awaiting_image_pick"
+        const val STATE_AWAITING_WRITE_SETTINGS = "awaiting_write_settings"
+        const val STATE_WRITE_SETTINGS_PREFLIGHT = "write_settings_preflight"
+        const val STATE_FLOW_PERSONALIZED = "flow_personalized"
+        const val STATE_PERMISSION_STEP = "permission_step"
     }
 }
 

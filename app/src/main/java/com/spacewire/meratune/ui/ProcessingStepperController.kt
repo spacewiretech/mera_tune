@@ -27,7 +27,8 @@ class ProcessingStepperController(root: View) {
         root.findViewById(R.id.stepThreeLabel),
     )
 
-    private val boldTypeface = AppFonts.bold(root.context)
+    // The active step's label is a touch heavier; the others stay regular (as in the mock).
+    private val activeTypeface = AppFonts.semibold(root.context)
     private val regularTypeface = AppFonts.regular(root.context)
 
     private var animator: ValueAnimator? = null
@@ -112,7 +113,7 @@ class ProcessingStepperController(root: View) {
         if (step != activeStep) {
             activeStep = step
             stepLabels.forEachIndexed { index, label ->
-                label.typeface = if (index + 1 == step) boldTypeface else regularTypeface
+                label.typeface = if (index + 1 == step) activeTypeface else regularTypeface
             }
         }
     }

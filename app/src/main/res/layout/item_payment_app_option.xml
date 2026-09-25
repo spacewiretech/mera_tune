@@ -39,8 +39,8 @@
         tools:text="PhonePe" />
 
     <FrameLayout
-        android:layout_width="22dp"
-        android:layout_height="22dp">
+        android:layout_width="24dp"
+        android:layout_height="24dp">
 
         <View
             android:id="@+id/paymentAppOptionIndicator"
@@ -50,11 +50,11 @@
 
         <ImageView
             android:id="@+id/paymentAppOptionCheck"
-            android:layout_width="12dp"
-            android:layout_height="12dp"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
             android:layout_gravity="center"
             android:contentDescription="@null"
-            android:src="@drawable/ic_check_white"
+            android:src="@drawable/ic_check_gradient"
             android:visibility="gone"
             tools:visibility="visible" />
     </FrameLayout>

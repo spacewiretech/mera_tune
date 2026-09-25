@@ -144,10 +144,7 @@
     <string name="ready_default_title">%1$s Ki Ringtone</string>
     <string name="ready_change_song">Gaana Badlein</string>
     <string name="ready_make_another">Naya Naam Try Karein</string>
-    <string name="ready_go_home">Home Par Jaayein</string>
     <string name="ready_go_home">Home par jayen</string>
-    <string name="auth_speaker">Read aloud</string>
-    <string name="auth_language">Change language</string>
     <string name="language_continue">Aage badhein</string>
     <string name="language_subtitle_english" translatable="false">English</string>
     <string name="language_subtitle_hindi" translatable="false">Hindi</string>

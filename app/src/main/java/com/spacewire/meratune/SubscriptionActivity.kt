@@ -96,10 +96,13 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
 
     /**
      * Back on Pending / Failed returns to the paywall (not a dismissal). Registered after
-     * [verifyBackBlocker], so it wins while enabled.
+     * [verifyBackBlocker], so it wins while enabled; it swallows back itself while a manual
+     * re-check verify runs, so the state cannot change under an in-flight verify.
      */
     private val stateBackCallback = object : OnBackPressedCallback(false) {
-        override fun handleOnBackPressed() = showState(PaywallUiState.PAYWALL)
+        override fun handleOnBackPressed() {
+            if (!verifyInFlight) showState(PaywallUiState.PAYWALL)
+        }
     }
     private var uiState = PaywallUiState.PAYWALL
 

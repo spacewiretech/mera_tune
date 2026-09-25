@@ -111,7 +111,7 @@
     <string name="ready_default_title">%1$s-এর রিংটোন</string>
     <string name="ready_change_song">গান বদলান</string>
     <string name="ready_make_another">নতুন নাম চেষ্টা করুন</string>
-    <string name="ready_go_home">হোমে যান</string>
+    <string name="ready_go_home">হোমে যান</string> <!-- UI refresh: native review pending -->
     <!-- UI refresh: native review pending -->
     <string name="language_continue">এগিয়ে যান</string>
     <!-- UI refresh: native review pending -->

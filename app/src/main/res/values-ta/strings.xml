@@ -111,7 +111,7 @@
     <string name="ready_default_title">%1$s இன் ரிங்டோன்</string>
     <string name="ready_change_song">பாடலை மாற்று</string>
     <string name="ready_make_another">புதிய பெயரை முயற்சிக்கவும்</string>
-    <string name="ready_go_home">முகப்புக்குச் செல்</string>
+    <string name="ready_go_home">முகப்புக்குச் செல்</string> <!-- UI refresh: native review pending -->
     <!-- UI refresh: native review pending -->
     <string name="language_continue">தொடரவும்</string>
     <!-- UI refresh: native review pending -->

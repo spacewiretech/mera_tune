@@ -111,7 +111,7 @@
     <string name="ready_default_title">%1$s ಅವರ ರಿಂಗ್‌ಟೋನ್</string>
     <string name="ready_change_song">ಹಾಡು ಬದಲಾಯಿಸಿ</string>
     <string name="ready_make_another">ಹೊಸ ಹೆಸರು ಪ್ರಯತ್ನಿಸಿ</string>
-    <string name="ready_go_home">ಹೋಮ್‌ಗೆ ಹೋಗಿ</string>
+    <string name="ready_go_home">ಹೋಮ್‌ಗೆ ಹೋಗಿ</string> <!-- UI refresh: native review pending -->
     <!-- UI refresh: native review pending -->
     <string name="language_continue">ಮುಂದುವರಿಯಿರಿ</string>
     <!-- UI refresh: native review pending -->

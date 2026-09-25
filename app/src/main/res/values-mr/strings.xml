@@ -111,7 +111,7 @@
     <string name="ready_default_title">%1$s ची रिंगटोन</string>
     <string name="ready_change_song">गाणे बदला</string>
     <string name="ready_make_another">नवीन नाव वापरून पाहा</string>
-    <string name="ready_go_home">होमवर जा</string>
+    <string name="ready_go_home">होमवर जा</string> <!-- UI refresh: native review pending -->
     <!-- UI refresh: native review pending -->
     <string name="language_continue">पुढे चला</string>
     <!-- UI refresh: native review pending -->

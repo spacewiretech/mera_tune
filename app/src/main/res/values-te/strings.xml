@@ -111,7 +111,7 @@
     <string name="ready_default_title">%1$s రింగ్‌టోన్</string>
     <string name="ready_change_song">పాట మార్చండి</string>
     <string name="ready_make_another">కొత్త పేరు ప్రయత్నించండి</string>
-    <string name="ready_go_home">హోమ్‌కి వెళ్ళండి</string>
+    <string name="ready_go_home">హోమ్‌కి వెళ్ళండి</string> <!-- UI refresh: native review pending -->
     <!-- UI refresh: native review pending -->
     <string name="language_continue">ముందుకు సాగండి</string>
     <!-- UI refresh: native review pending -->

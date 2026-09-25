@@ -64,4 +64,6 @@
     <color name="home_playing_ring_track">#66F74460</color>
     <color name="profile_phone">#897B64</color>
     <color name="logout_red">#EF3E0D</color>
+    <!-- final QA -->
+    <color name="payment_failed_bg">#FFF5F4</color>
 </resources>

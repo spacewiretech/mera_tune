@@ -111,7 +111,7 @@
     <string name="ready_default_title">%1$sଙ୍କ ରିଙ୍ଗଟୋନ୍</string>
     <string name="ready_change_song">ଗୀତ ବଦଳାନ୍ତୁ</string>
     <string name="ready_make_another">ନୂଆ ନାମ ଚେଷ୍ଟା କରନ୍ତୁ</string>
-    <string name="ready_go_home">ହୋମ୍‌କୁ ଯାଆନ୍ତୁ</string>
+    <string name="ready_go_home">ହୋମ୍‌କୁ ଯାଆନ୍ତୁ</string> <!-- UI refresh: native review pending -->
     <!-- UI refresh: native review pending -->
     <string name="language_continue">ଆଗକୁ ବଢ଼ନ୍ତୁ</string>
     <!-- UI refresh: native review pending -->

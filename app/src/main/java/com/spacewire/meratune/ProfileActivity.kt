@@ -71,8 +71,14 @@ class ProfileActivity : AppCompatActivity() {
     private fun bindProfile() {
         val profile = ProfileStore(this).getProfile()
 
-        findViewById<TextView>(R.id.profileName).text = profile.name
-        findViewById<TextView>(R.id.profilePhone).text = profile.phone
+        findViewById<TextView>(R.id.profileName).apply {
+            text = profile.name
+            visibility = if (profile.name.isBlank()) View.GONE else View.VISIBLE
+        }
+        findViewById<TextView>(R.id.profilePhone).apply {
+            text = profile.phone
+            visibility = if (profile.phone.isBlank()) View.GONE else View.VISIBLE
+        }
         val versionText = findViewById<TextView>(R.id.versionText)
         versionText.text = getString(R.string.profile_version, BuildConfig.VERSION_NAME)
         GradientTextHelper.applyHorizontalGradient(versionText, R.color.gradient_pink, R.color.gradient_orange)

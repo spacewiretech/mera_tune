@@ -111,7 +111,7 @@
     <string name="ready_default_title">%1$s-ന്റെ റിംഗ്ടോൺ</string>
     <string name="ready_change_song">ഗാനം മാറ്റൂ</string>
     <string name="ready_make_another">പുതിയ പേര് പരീക്ഷിക്കൂ</string>
-    <string name="ready_go_home">ഹോമിലേക്ക് പോകൂ</string>
+    <string name="ready_go_home">ഹോമിലേക്ക് പോകൂ</string> <!-- UI refresh: native review pending -->
     <!-- UI refresh: native review pending -->
     <string name="language_continue">മുന്നോട്ട് പോകുക</string>
     <!-- UI refresh: native review pending -->

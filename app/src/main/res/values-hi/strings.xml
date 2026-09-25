@@ -125,7 +125,7 @@
     <string name="ready_default_title">%1$s की रिंगटोन</string>
     <string name="ready_change_song">गाना बदलें</string>
     <string name="ready_make_another">नया नाम आज़माएँ</string>
-    <string name="ready_go_home">होम पर जाएँ</string>
+    <string name="ready_go_home">होम पर जाएँ</string> <!-- UI refresh: native review pending -->
     <!-- UI refresh: native review pending -->
     <string name="language_continue">आगे बढ़ें</string>
     <!-- UI refresh: native review pending -->

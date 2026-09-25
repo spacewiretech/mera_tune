@@ -42,7 +42,7 @@
 
                 <TextView
                     android:id="@+id/songChoiceTitle"
-                    style="@style/Text.MeraTune.Headline.Large"
+                    style="@style/Text.MeraTune.Headline"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginHorizontal="26dp"

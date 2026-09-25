@@ -155,4 +155,9 @@
     <string name="auth_otp_verify">சரிபார்க்கவும்</string>
     <string name="auth_name_headline">உங்கள் %1$s</string>
     <string name="auth_name_headline_highlight">பெயரை உள்ளிடவும்</string>
+    <!-- P3 shared list rows: category display labels (analytics keep DB names) -->
+    <!-- UI refresh: native review pending -->
+    <string name="category_all_tunes">அனைத்து டியூன்கள்</string>
+    <!-- UI refresh: native review pending -->
+    <string name="category_your_name">உங்கள் பெயர்</string>
 </resources>

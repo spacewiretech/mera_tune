@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Translucent white disc behind the row play/pause glyph, centred on the category art. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:width="24dp"
+        android:height="24dp"
+        android:gravity="center">
+        <shape android:shape="oval">
+            <solid android:color="@color/home_play_overlay_disc" />
+        </shape>
+    </item>
+</layer-list>

@@ -167,4 +167,9 @@
     <string name="auth_otp_verify">सत्यापित करें</string>
     <string name="auth_name_headline">अपना %1$s</string>
     <string name="auth_name_headline_highlight">नाम दर्ज करें</string>
+    <!-- P3 shared list rows: category display labels (analytics keep DB names) -->
+    <!-- UI refresh: native review pending -->
+    <string name="category_all_tunes">सभी ट्यून्स</string>
+    <!-- UI refresh: native review pending -->
+    <string name="category_your_name">आपका नाम</string>
 </resources>

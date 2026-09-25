@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ripple for Widget.MeraTune.RowPill, clipped to the 4dp-inset visible pill of bg_row_pill. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="?attr/colorControlHighlight">
+    <item
+        android:id="@android:id/mask"
+        android:bottom="4dp"
+        android:top="4dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/white" />
+            <corners android:radius="100dp" />
+        </shape>
+    </item>
+</ripple>

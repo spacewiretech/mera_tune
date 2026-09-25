@@ -155,4 +155,9 @@
     <string name="auth_otp_verify">ଯାଞ୍ଚ କରନ୍ତୁ</string>
     <string name="auth_name_headline">ଆପଣଙ୍କ %1$s</string>
     <string name="auth_name_headline_highlight">ନାମ ଲେଖନ୍ତୁ</string>
+    <!-- P3 shared list rows: category display labels (analytics keep DB names) -->
+    <!-- UI refresh: native review pending -->
+    <string name="category_all_tunes">ସମସ୍ତ ଟ୍ୟୁନ୍</string>
+    <!-- UI refresh: native review pending -->
+    <string name="category_your_name">ଆପଣଙ୍କ ନାମ</string>
 </resources>

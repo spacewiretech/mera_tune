@@ -30,4 +30,7 @@
     <color name="call_header_icon">#E83E8C</color>
     <color name="call_card_text">#111827</color>
     <color name="call_card_muted">#6B7280</color>
+    <!-- P3 shared list rows -->
+    <color name="home_play_overlay_disc">#EBFFFFFF</color>
+    <color name="home_play_overlay_glyph">#73120938</color>
 </resources>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Single owner of the PlaybackRingView attributes (plan P3). Defaults equal the pre-refresh ring. -->
+    <declare-styleable name="PlaybackRingView">
+        <!-- solid: flat progress colour. sweep: orange -> pink -> magenta sweep gradient. -->
+        <attr name="ringStyle" format="enum">
+            <enum name="solid" value="0" />
+            <enum name="sweep" value="1" />
+        </attr>
+        <!-- Shorthand for both widths; ringTrackWidth / ringProgressWidth win when set. Default 3dp. -->
+        <attr name="ringStrokeWidth" format="dimension" />
+        <attr name="ringTrackWidth" format="dimension" />
+        <attr name="ringProgressWidth" format="dimension" />
+        <!-- Default: text_secondary at alpha 60. -->
+        <attr name="ringTrackColor" format="color" />
+        <!-- Default: gradient_pink. Ignored in sweep style. -->
+        <attr name="ringProgressColor" format="color" />
+        <!-- Optional glow behind the progress arc (API 28+ only). Default: none. -->
+        <attr name="ringGlowColor" format="color" />
+    </declare-styleable>
+</resources>

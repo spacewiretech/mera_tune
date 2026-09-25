@@ -155,4 +155,9 @@
     <string name="auth_otp_verify">സ്ഥിരീകരിക്കുക</string>
     <string name="auth_name_headline">നിങ്ങളുടെ %1$s</string>
     <string name="auth_name_headline_highlight">പേര് നൽകുക</string>
+    <!-- P3 shared list rows: category display labels (analytics keep DB names) -->
+    <!-- UI refresh: native review pending -->
+    <string name="category_all_tunes">എല്ലാ ട്യൂണുകളും</string>
+    <!-- UI refresh: native review pending -->
+    <string name="category_your_name">നിങ്ങളുടെ പേര്</string>
 </resources>

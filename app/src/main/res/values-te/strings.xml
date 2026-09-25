@@ -155,4 +155,9 @@
     <string name="auth_otp_verify">ధృవీకరించండి</string>
     <string name="auth_name_headline">మీ %1$s</string>
     <string name="auth_name_headline_highlight">పేరు నమోదు చేయండి</string>
+    <!-- P3 shared list rows: category display labels (analytics keep DB names) -->
+    <!-- UI refresh: native review pending -->
+    <string name="category_all_tunes">అన్ని ట్యూన్‌లు</string>
+    <!-- UI refresh: native review pending -->
+    <string name="category_your_name">మీ పేరు</string>
 </resources>

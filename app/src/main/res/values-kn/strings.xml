@@ -155,4 +155,9 @@
     <string name="auth_otp_verify">ಪರಿಶೀಲಿಸಿ</string>
     <string name="auth_name_headline">ನಿಮ್ಮ %1$s</string>
     <string name="auth_name_headline_highlight">ಹೆಸರನ್ನು ನಮೂದಿಸಿ</string>
+    <!-- P3 shared list rows: category display labels (analytics keep DB names) -->
+    <!-- UI refresh: native review pending -->
+    <string name="category_all_tunes">ಎಲ್ಲಾ ಟ್ಯೂನ್‌ಗಳು</string>
+    <!-- UI refresh: native review pending -->
+    <string name="category_your_name">ನಿಮ್ಮ ಹೆಸರು</string>
 </resources>

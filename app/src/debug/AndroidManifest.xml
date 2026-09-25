@@ -20,5 +20,29 @@
             android:name=".SignUpNameActivity"
             android:exported="true"
             tools:replace="android:exported" />
+        <activity
+            android:name=".SubscriptionActivity"
+            android:exported="true"
+            tools:replace="android:exported" />
+        <activity
+            android:name=".CreateRingtoneActivity"
+            android:exported="true"
+            tools:replace="android:exported" />
+        <activity
+            android:name=".ChooseSongActivity"
+            android:exported="true"
+            tools:replace="android:exported" />
+        <activity
+            android:name=".RingtoneReadyActivity"
+            android:exported="true"
+            tools:replace="android:exported" />
+        <activity
+            android:name=".ProfileActivity"
+            android:exported="true"
+            tools:replace="android:exported" />
+        <activity
+            android:name=".Home"
+            android:exported="true"
+            tools:replace="android:exported" />
     </application>
 </manifest>

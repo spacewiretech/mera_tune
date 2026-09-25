@@ -209,4 +209,7 @@
     <string name="auth_otp_verify">Verify karein</string>
     <string name="auth_name_headline">Aapka %1$s</string>
     <string name="auth_name_headline_highlight">naam dale</string>
+    <!-- P3 shared list rows: category display labels (analytics keep DB names) -->
+    <string name="category_all_tunes">All Tunes</string>
+    <string name="category_your_name">Your Name</string>
 </resources>

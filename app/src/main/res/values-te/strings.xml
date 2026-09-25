@@ -35,7 +35,8 @@
     <string name="create_ringtone">రింగ్‌టోన్ సృష్టించండి +</string>
     <string name="back">వెనుక</string>
     <string name="create_form_title">%1$s, మీ పేరుతో రింగ్‌టోన్ తయారు చేయండి!</string>
-    <string name="create_form_subtitle">పేరు మరియు భాష ఎంచుకోండి, ఆపై మీకు ఇష్టమైన పాటను ఎంచుకోండి</string>
+    <!-- UI refresh: native review pending -->
+    <string name="create_form_subtitle">చెప్పండి, ఎలాంటి రింగ్‌టోన్ కావాలి?</string>
     <string name="create_form_enter_name">పేరు నమోదు చేయండి</string>
     <string name="create_form_choose_language">భాష ఎంచుకోండి</string>
     <string name="create_form_voice_male">పురుష గొంతు</string>
@@ -49,7 +50,8 @@
     <string name="create_form_language_marathi">मराठी</string>
     <string name="create_form_language_odia">ଓଡ଼ିଆ</string>
     <string name="create_form_language_bengali">বাংলা</string>
-    <string name="create_form_continue">కొనసాగించండి &gt;</string>
+    <!-- UI refresh: native review pending -->
+    <string name="create_form_continue">ముందుకు సాగండి</string>
     <string name="create_form_name_required">దయచేసి పేరు నమోదు చేయండి</string>
     <string name="processing_title">%1$s, మీ పేరుతో రింగ్‌టోన్ తయారవుతోంది</string>
     <string name="processing_subtitle">కేవలం %1$sలో మీ రింగ్‌టోన్ సిద్ధం!</string>
@@ -59,7 +61,8 @@
     <string name="processing_step_ready">రింగ్‌టోన్ సిద్ధం!</string>
     <string name="processing_footer">మీ కోసం ప్రత్యేకమైనది తయారు చేస్తున్నాం…</string>
     <string name="ready_title">%1$s, మీ రింగ్‌టోన్ సిద్ధంగా ఉంది!</string>
-    <string name="ready_set_ringtone">రింగ్‌టోన్‌గా సెట్ చేయండి ♫</string>
+    <!-- UI refresh: native review pending -->
+    <string name="ready_set_ringtone">రింగ్‌టోన్ సెట్ చేయండి</string>
     <string name="ready_rewind">10 సెకన్లు రివైండ్</string>
     <string name="ready_forward">10 సెకన్లు ఫార్వర్డ్</string>
     <!-- New personalized-ringtone strings: native review pending -->
@@ -68,8 +71,10 @@
     <string name="create_form_name_invalid">పేరులో అక్షరాలు మాత్రమే రాయండి</string>
     <string name="create_form_language_hint">ఇదే భాషలో మీ పేరు పలకబడుతుంది</string>
     <string name="create_form_language_coming_soon">%1$s త్వరలో వస్తోంది</string>
-    <string name="song_choice_title">%1$s, మీ పాటను ఎంచుకోండి</string>
-    <string name="song_choice_subtitle">వినడానికి ట్యాప్ చేయండి, ఒక పాటను ఎంచుకోండి — దానిలో మీ పేరును చేరుస్తాము</string>
+    <!-- UI refresh: native review pending -->
+    <string name="song_choice_title">%1$s కోసం ఏ ట్యూన్ నచ్చింది?</string>
+    <!-- UI refresh: native review pending -->
+    <string name="song_choice_subtitle">ఒక రింగ్‌టోన్ ఎంచుకోండి, దాన్ని %1$s పేరుతో తయారు చేస్తాము.</string>
     <string name="song_choice_filter_all">అన్నీ</string>
     <string name="song_choice_sample">నమూనా: %1$s</string>
     <string name="song_choice_replaces">\"%1$s\" బదులుగా \"%2$s\" అని పలుకుతారు</string>
@@ -191,4 +196,31 @@
     <string name="member_row_photo">కాల్స్‌లో ఫోటో ఆన్ చేయండి</string>
     <string name="member_row_family">కుటుంబం కోసం ట్యూన్లు తయారు చేయండి</string>
     <string name="member_cta">మీ ట్యూన్ తయారు చేయండి</string>
+    <!-- lane B -->
+    <!-- UI refresh: native review pending -->
+    <string name="song_choice_choose">ఎంచుకో</string>
+    <!-- UI refresh: native review pending -->
+    <string name="song_choice_choose_a11y">%1$s ఎంచుకోండి</string>
+    <!-- UI refresh: native review pending -->
+    <string name="ready_set_done">రింగ్‌టోన్ సెట్ అయింది</string>
+    <!-- UI refresh: native review pending -->
+    <string name="set_ringtone_sheet_title">దీన్ని ఎలా సెట్ చేయాలనుకుంటున్నారు?</string>
+    <!-- UI refresh: native review pending -->
+    <string name="set_ringtone_option_audio_title">రింగ్‌టోన్ మాత్రమే</string>
+    <!-- UI refresh: native review pending -->
+    <string name="set_ringtone_option_everyone_title">రింగ్‌టోన్‌తో పాటు ఫోటో</string>
+    <!-- UI refresh: native review pending -->
+    <string name="set_ringtone_option_contact_title">ఎంచుకున్న కాంటాక్ట్‌లకు రింగ్‌టోన్ + ఫోటో</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_sheet_title">మీ ఫోటోను అప్‌లోడ్ చేయండి</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_camera_title">కెమెరా</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_camera_subtitle">కొత్త ఫోటో తీయండి</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_gallery_title">గ్యాలరీ నుండి అప్‌లోడ్ చేయండి</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_gallery_subtitle">మీ ఫోటోల నుండి ఎంచుకోండి</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_preview_content_description">ఎంచుకున్న ఫోటో</string>
 </resources>

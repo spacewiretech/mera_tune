@@ -1,53 +1,73 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- "Sirf Ringtone" set-mode art: outlined phone with a speaker slit, a navy note disc and sound waves. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="72dp"
-    android:height="96dp"
-    android:viewportWidth="72"
-    android:viewportHeight="96">
+    android:width="76dp"
+    android:height="150dp"
+    android:viewportWidth="76"
+    android:viewportHeight="150">
 
     <!-- Phone frame -->
     <path
-        android:fillColor="@android:color/transparent"
-        android:pathData="M24,6h24c5.5,0 10,4.5 10,10v56c0,5.5 -4.5,10 -10,10H24c-5.5,0 -10,-4.5 -10,-10V16c0,-5.5 4.5,-10 10,-10z"
-        android:strokeWidth="2.2"
-        android:strokeColor="#1A1F4B"
+        android:fillColor="@color/white"
+        android:pathData="M11,2h54c5,0 9,4 9,9v128c0,5 -4,9 -9,9H11c-5,0 -9,-4 -9,-9V11c0,-5 4,-9 9,-9z"
+        android:strokeWidth="2"
+        android:strokeColor="@color/navy"
         android:strokeLineJoin="round" />
 
-    <!-- Left sound waves -->
+    <!-- Speaker slit -->
     <path
         android:fillColor="@android:color/transparent"
-        android:pathData="M16,38c-3.5,4 -3.5,12 0,16"
-        android:strokeWidth="1.8"
-        android:strokeColor="#1A1F4B"
-        android:strokeLineCap="round" />
-    <path
-        android:fillColor="@android:color/transparent"
-        android:pathData="M11,34c-5.5,6 -5.5,18 0,24"
-        android:strokeWidth="1.8"
-        android:strokeColor="#1A1F4B"
+        android:pathData="M32,10.5h12"
+        android:strokeWidth="2"
+        android:strokeColor="@color/navy"
         android:strokeLineCap="round" />
 
-    <!-- Right sound waves -->
+    <!-- Thin ring -->
     <path
         android:fillColor="@android:color/transparent"
-        android:pathData="M56,38c3.5,4 3.5,12 0,16"
-        android:strokeWidth="1.8"
-        android:strokeColor="#1A1F4B"
+        android:pathData="M38,72m-19,0a19,19 0,1 1,38 0a19,19 0,1 1,-38 0"
+        android:strokeWidth="1.2"
+        android:strokeColor="@color/navy" />
+
+    <!-- Note disc -->
+    <path
+        android:fillColor="@color/navy"
+        android:pathData="M38,72m-15,0a15,15 0,1 1,30 0a15,15 0,1 1,-30 0" />
+
+    <!-- Beamed double note -->
+    <group
+        android:scaleX="0.8"
+        android:scaleY="0.8"
+        android:translateX="28.8"
+        android:translateY="63.2">
+        <path
+            android:fillColor="@color/white"
+            android:pathData="M9,5.5L18,3.5V6L9,8Z M9,6h1.6v10.5h-1.6z M16.4,4h1.6v10.5h-1.6z M7.6,16.6m-2.8,0a2.8,2.1 0,1 0,5.6 0a2.8,2.1 0,1 0,-5.6 0 M15,14.6m-2.8,0a2.8,2.1 0,1 0,5.6 0a2.8,2.1 0,1 0,-5.6 0" />
+    </group>
+
+    <!-- Waves -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M15,62c-3.3,6 -3.3,14 0,20"
+        android:strokeWidth="1.6"
+        android:strokeColor="@color/navy"
         android:strokeLineCap="round" />
     <path
         android:fillColor="@android:color/transparent"
-        android:pathData="M61,34c5.5,6 5.5,18 0,24"
-        android:strokeWidth="1.8"
-        android:strokeColor="#1A1F4B"
+        android:pathData="M10,58c-5,8.5 -5,19.5 0,28"
+        android:strokeWidth="1.6"
+        android:strokeColor="@color/navy"
         android:strokeLineCap="round" />
-
-    <!-- Music circle -->
     <path
-        android:fillColor="#FF4DA6"
-        android:pathData="M36,46m-13,0a13,13 0,1 1,26 0a13,13 0,1 1,-26 0" />
-
-    <!-- Music note -->
+        android:fillColor="@android:color/transparent"
+        android:pathData="M61,62c3.3,6 3.3,14 0,20"
+        android:strokeWidth="1.6"
+        android:strokeColor="@color/navy"
+        android:strokeLineCap="round" />
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M39.2,36.5v9.3c-0.5,-0.28 -1.05,-0.45 -1.65,-0.45 -1.82,0 -3.3,1.48 -3.3,3.3 0,1.82 1.48,3.3 3.3,3.3s3.3,-1.48 3.3,-3.3V39.8h3.2v-3.3h-4.85z" />
+        android:fillColor="@android:color/transparent"
+        android:pathData="M66,58c5,8.5 5,19.5 0,28"
+        android:strokeWidth="1.6"
+        android:strokeColor="@color/navy"
+        android:strokeLineCap="round" />
 </vector>

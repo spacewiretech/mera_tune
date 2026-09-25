@@ -5,6 +5,8 @@
    analytics_state.xml (install referrer / permission dedupe, call-event cap) and active_ringtone.xml
    (the default-ringtone URI on this device) are device-local: restored, they suppress
    install_attributed and report a false ringtone_replaced_externally.
+   call_theme_staging/ holds photos picked for a ringtone that is not set yet; they are pruned after
+   7 days and are meaningless on another device.
    See https://developer.android.com/guide/topics/data/autobackup
 -->
 <full-backup-content>
@@ -17,4 +19,7 @@
     <exclude
         domain="sharedpref"
         path="active_ringtone.xml" />
+    <exclude
+        domain="file"
+        path="call_theme_staging/" />
 </full-backup-content>

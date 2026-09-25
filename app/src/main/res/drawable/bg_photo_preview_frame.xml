@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 1.5dp pink-to-orange frame around the picked-photo thumbnail (the frame's padding is the ring). -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="oval">
+    android:shape="rectangle">
     <gradient
-        android:angle="0"
+        android:angle="315"
         android:endColor="@color/gradient_orange"
         android:startColor="@color/gradient_pink"
         android:type="linear" />
+    <corners android:radius="8dp" />
 </shape>

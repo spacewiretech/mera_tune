@@ -1,171 +1,125 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+    Flat picker row: 60dp category art with the translucent play disc, a one-line title, outline
+    stats, and the "chuno" pill. A row / art tap only previews; chuno commits. Dividers come from
+    InsetDividerDecoration (36dp insets, none after the last row).
+-->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/songRow"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:clipChildren="false"
-    android:clipToPadding="false"
-    android:paddingHorizontal="20dp"
-    android:paddingVertical="6dp">
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:minHeight="100dp"
+    android:paddingHorizontal="36dp"
+    android:paddingVertical="20dp">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/songCard"
-        android:layout_width="match_parent"
+    <FrameLayout
+        android:id="@+id/thumbnailContainer"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:background="@drawable/bg_category_art_circle"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/thumbnailIcon"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@null"
+            android:importantForAccessibility="no"
+            tools:src="@drawable/ic_category_devotional" />
+
+        <ImageButton
+            android:id="@+id/playButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_play_overlay"
+            android:contentDescription="@string/play_tune"
+            android:padding="14dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_play"
+            app:tint="@color/home_play_overlay_glyph" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/songTitle"
+        style="@style/Text.MeraTune.RowTitle"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_photo_source_card"
-        android:clickable="true"
-        android:focusable="true"
-        android:foreground="@drawable/fg_song_card_ripple"
-        android:minHeight="96dp"
-        android:paddingStart="12dp"
-        android:paddingTop="12dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="12dp">
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="8dp"
+        android:textSize="17sp"
+        app:layout_constraintBottom_toTopOf="@id/statsRow"
+        app:layout_constraintEnd_toStartOf="@id/chooseButton"
+        app:layout_constraintStart_toEndOf="@id/thumbnailContainer"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_chainStyle="packed"
+        tools:text="Jai Shri Ram Rahul ji..." />
 
-        <FrameLayout
-            android:id="@+id/thumbnailWrapper"
-            android:layout_width="72dp"
-            android:layout_height="72dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
+    <LinearLayout
+        android:id="@+id/statsRow"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginEnd="8dp"
+        android:gravity="center_vertical"
+        android:importantForAccessibility="no"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/chooseButton"
+        app:layout_constraintStart_toEndOf="@id/thumbnailContainer"
+        app:layout_constraintTop_toBottomOf="@id/songTitle">
 
-            <com.spacewire.meratune.ui.PlaybackRingView
-                android:id="@+id/playbackRing"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:visibility="gone"
-                tools:visibility="visible" />
-
-            <FrameLayout
-                android:id="@+id/thumbnailContainer"
-                android:layout_width="64dp"
-                android:layout_height="64dp"
-                android:layout_gravity="center"
-                android:background="@drawable/bg_category_devotional">
-
-                <ImageView
-                    android:id="@+id/thumbnailIcon"
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
-                    android:layout_gravity="center"
-                    android:contentDescription="@null"
-                    tools:src="@drawable/ic_category_devotional" />
-
-                <ImageButton
-                    android:id="@+id/playButton"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:layout_gravity="center"
-                    android:background="@drawable/bg_play_button"
-                    android:contentDescription="@string/play_tune"
-                    android:scaleType="centerInside"
-                    android:src="@drawable/ic_play"
-                    app:tint="@color/navy" />
-            </FrameLayout>
-        </FrameLayout>
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_heart"
+            app:tint="@color/text_muted" />
 
         <TextView
-            android:id="@+id/songTitle"
-            android:layout_width="0dp"
+            android:id="@+id/likesCount"
+            style="@style/Text.MeraTune.RowStat"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:textSize="14sp"
+            tools:text="2.4k" />
+
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
             android:layout_marginStart="14dp"
-            android:layout_marginEnd="12dp"
-            android:ellipsize="end"
-            android:fontFamily="@font/manrope_bold"
-            android:maxLines="2"
-            android:textColor="@color/navy"
-            android:textSize="16sp"
-            app:layout_constraintBottom_toTopOf="@id/metaRow"
-            app:layout_constraintEnd_toStartOf="@id/radioWrapper"
-            app:layout_constraintStart_toEndOf="@id/thumbnailWrapper"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintVertical_chainStyle="packed"
-            tools:text="Ram Bhajan Hook" />
-
-        <LinearLayout
-            android:id="@+id/metaRow"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
-            android:layout_marginTop="6dp"
-            android:layout_marginEnd="12dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            app:layout_constraintBottom_toTopOf="@id/replaceHint"
-            app:layout_constraintEnd_toStartOf="@id/radioWrapper"
-            app:layout_constraintStart_toEndOf="@id/thumbnailWrapper"
-            app:layout_constraintTop_toBottomOf="@id/songTitle">
-
-            <TextView
-                android:id="@+id/voiceBadge"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_voice_badge"
-                android:fontFamily="@font/manrope_medium"
-                android:maxLines="1"
-                android:paddingHorizontal="8dp"
-                android:paddingVertical="2dp"
-                android:textColor="@color/gradient_pink"
-                android:textSize="12sp"
-                tools:text="Female voice" />
-
-            <TextView
-                android:id="@+id/sampleText"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="@color/text_secondary"
-                android:textSize="13sp"
-                tools:text="Sample: Ram" />
-        </LinearLayout>
+            android:contentDescription="@null"
+            android:src="@drawable/ic_eye"
+            app:tint="@color/text_muted" />
 
         <TextView
-            android:id="@+id/replaceHint"
-            android:layout_width="0dp"
+            android:id="@+id/viewsCount"
+            style="@style/Text.MeraTune.RowStat"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
-            android:layout_marginTop="6dp"
-            android:layout_marginEnd="12dp"
-            android:lineSpacingExtra="2dp"
-            android:textColor="@color/gradient_pink"
-            android:textSize="13sp"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/radioWrapper"
-            app:layout_constraintStart_toEndOf="@id/thumbnailWrapper"
-            app:layout_constraintTop_toBottomOf="@id/metaRow"
-            tools:text="&quot;Ram&quot; ki jagah &quot;Ayush&quot; bola jayega"
-            tools:visibility="visible" />
+            android:layout_marginStart="4dp"
+            android:textSize="14sp"
+            tools:text="19k" />
+    </LinearLayout>
 
-        <FrameLayout
-            android:id="@+id/radioWrapper"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
+    <TextView
+        android:id="@+id/chooseButton"
+        style="@style/Widget.MeraTune.RowPill"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minWidth="82dp"
+        android:text="@string/song_choice_choose"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
-            <View
-                android:id="@+id/radioIndicator"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/bg_form_option_unselected" />
-
-            <ImageView
-                android:id="@+id/radioCheck"
-                android:layout_width="14dp"
-                android:layout_height="14dp"
-                android:layout_gravity="center"
-                android:contentDescription="@null"
-                android:src="@drawable/ic_check_white"
-                android:visibility="gone"
-                tools:visibility="visible" />
-        </FrameLayout>
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
-</FrameLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

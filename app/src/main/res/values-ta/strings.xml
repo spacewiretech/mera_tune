@@ -35,7 +35,8 @@
     <string name="create_ringtone">ரிங்டோன் உருவாக்கு +</string>
     <string name="back">பின்செல்</string>
     <string name="create_form_title">%1$s, உங்கள் பெயரின் ரிங்டோனை உருவாக்குங்கள்!</string>
-    <string name="create_form_subtitle">பெயரையும் மொழியையும் தேர்ந்தெடுங்கள், பிறகு உங்களுக்குப் பிடித்த பாடலைத் தேர்ந்தெடுங்கள்</string>
+    <!-- UI refresh: native review pending -->
+    <string name="create_form_subtitle">சொல்லுங்கள், எப்படிப்பட்ட ரிங்டோன் வேண்டும்?</string>
     <string name="create_form_enter_name">பெயரை உள்ளிடவும்</string>
     <string name="create_form_choose_language">மொழியை தேர்ந்தெடுக்கவும்</string>
     <string name="create_form_voice_male">ஆண் குரல்</string>
@@ -49,7 +50,8 @@
     <string name="create_form_language_marathi">मराठी</string>
     <string name="create_form_language_odia">ଓଡ଼ିଆ</string>
     <string name="create_form_language_bengali">বাংলা</string>
-    <string name="create_form_continue">தொடரவும் &gt;</string>
+    <!-- UI refresh: native review pending -->
+    <string name="create_form_continue">தொடரவும்</string>
     <string name="create_form_name_required">தயவுசெய்து பெயரை உள்ளிடவும்</string>
     <string name="processing_title">%1$s, உங்கள் பெயரின் ரிங்டோன் உருவாக்கப்படுகிறது</string>
     <string name="processing_subtitle">வெறும் %1$s இல் உங்கள் ரிங்டோன் தயார்!</string>
@@ -59,7 +61,8 @@
     <string name="processing_step_ready">ரிங்டோன் தயார்!</string>
     <string name="processing_footer">உங்களுக்காக சிறப்பான ஒன்றை உருவாக்குகிறோம்…</string>
     <string name="ready_title">%1$s, உங்கள் ரிங்டோன் தயார்!</string>
-    <string name="ready_set_ringtone">ரிங்டோனாக அமை ♫</string>
+    <!-- UI refresh: native review pending -->
+    <string name="ready_set_ringtone">ரிங்டோனை அமை</string>
     <string name="ready_rewind">10 வினாடிகள் பின்செல்</string>
     <string name="ready_forward">10 வினாடிகள் முன்செல்</string>
     <!-- New personalized-ringtone strings: native review pending -->
@@ -68,8 +71,10 @@
     <string name="create_form_name_invalid">பெயரில் எழுத்துகளை மட்டும் எழுதுங்கள்</string>
     <string name="create_form_language_hint">இதே மொழியில் உங்கள் பெயர் சொல்லப்படும்</string>
     <string name="create_form_language_coming_soon">%1$s விரைவில் வருகிறது</string>
-    <string name="song_choice_title">%1$s, உங்கள் பாடலைத் தேர்ந்தெடுங்கள்</string>
-    <string name="song_choice_subtitle">கேட்க தட்டுங்கள், ஒரு பாடலைத் தேர்ந்தெடுங்கள் — அதில் உங்கள் பெயரைச் சேர்ப்போம்</string>
+    <!-- UI refresh: native review pending -->
+    <string name="song_choice_title">%1$s-க்கு எந்த இசை பிடிக்கும்?</string>
+    <!-- UI refresh: native review pending -->
+    <string name="song_choice_subtitle">ஒரு ரிங்டோனைத் தேர்ந்தெடுங்கள், அதை %1$s பெயரில் உருவாக்கித் தருவோம்.</string>
     <string name="song_choice_filter_all">அனைத்தும்</string>
     <string name="song_choice_sample">மாதிரி: %1$s</string>
     <string name="song_choice_replaces">\"%1$s\" என்பதற்குப் பதிலாக \"%2$s\" என்று சொல்லப்படும்</string>
@@ -191,4 +196,31 @@
     <string name="member_row_photo">அழைப்புகளில் புகைப்படத்தை இயக்குங்கள்</string>
     <string name="member_row_family">குடும்பத்திற்கு ட்யூன்களை உருவாக்குங்கள்</string>
     <string name="member_cta">உங்கள் ட்யூனை உருவாக்குங்கள்</string>
+    <!-- lane B -->
+    <!-- UI refresh: native review pending -->
+    <string name="song_choice_choose">தேர்வு</string>
+    <!-- UI refresh: native review pending -->
+    <string name="song_choice_choose_a11y">%1$s தேர்ந்தெடுக்கவும்</string>
+    <!-- UI refresh: native review pending -->
+    <string name="ready_set_done">ரிங்டோன் அமைக்கப்பட்டது</string>
+    <!-- UI refresh: native review pending -->
+    <string name="set_ringtone_sheet_title">இதை எப்படி அமைக்க விரும்புகிறீர்கள்?</string>
+    <!-- UI refresh: native review pending -->
+    <string name="set_ringtone_option_audio_title">ரிங்டோன் மட்டும்</string>
+    <!-- UI refresh: native review pending -->
+    <string name="set_ringtone_option_everyone_title">ரிங்டோனுடன் புகைப்படம்</string>
+    <!-- UI refresh: native review pending -->
+    <string name="set_ringtone_option_contact_title">தேர்ந்தெடுத்த தொடர்புகளுக்கு ரிங்டோன் + புகைப்படம்</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_sheet_title">உங்கள் புகைப்படத்தைப் பதிவேற்றுங்கள்</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_camera_title">கேமரா</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_camera_subtitle">புதிய புகைப்படம் எடுங்கள்</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_gallery_title">கேலரியிலிருந்து பதிவேற்றவும்</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_gallery_subtitle">உங்கள் புகைப்படங்களிலிருந்து தேர்ந்தெடுங்கள்</string>
+    <!-- UI refresh: native review pending -->
+    <string name="upload_photo_preview_content_description">தேர்ந்தெடுத்த புகைப்படம்</string>
 </resources>

@@ -52,4 +52,11 @@
     <color name="text_faq">#101010</color>
     <color name="member_star">#FFC93C</color>
     <color name="member_star_highlight">#FFE9A6</color>
+    <!-- lane B -->
+    <!-- create flow, set-mode / upload sheets, processing, ready -->
+    <color name="radio_ring_unselected">#8E8E93</color>
+    <color name="sheet_handle">#9C9494</color>
+    <color name="photo_icon_circle">#F5F5F8</color>
+    <color name="ready_ring_track">#F1F1F1</color>
+    <color name="ready_ring_glow">#66FC960C</color>
 </resources>

@@ -4,10 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.view.View
-import android.view.ViewGroup
-import android.view.animation.DecelerateInterpolator
-import android.view.animation.OvershootInterpolator
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
@@ -15,16 +11,15 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.PlaybackException
 import com.spacewire.meratune.analytics.AnalyticsSource
-import com.spacewire.meratune.analytics.CreationEntryPoint
 import com.spacewire.meratune.analytics.ReadyAction
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.calltheme.RingtoneSetController
-import com.spacewire.meratune.data.Languages
+import com.spacewire.meratune.calltheme.SetChoice
 import com.spacewire.meratune.data.Tune
+import com.spacewire.meratune.ui.CtaButtons
 import com.spacewire.meratune.ui.PlaybackRingView
 import com.spacewire.meratune.ui.PlaybackSessionStats
 import com.spacewire.meratune.ui.PreviewPlayerController
@@ -32,13 +27,24 @@ import com.spacewire.meratune.util.ActiveRingtoneStore
 import com.spacewire.meratune.util.Haptics
 import com.spacewire.meratune.util.enableLightEdgeToEdge
 
-/** Step 4: play the generated ringtone and set it. */
+/**
+ * Step 4: play the generated ringtone and set it. "Ringtone set karein" applies the set-mode
+ * choice made at chuno ([SetChoice], no sheet); without one it runs the full single-shot flow.
+ * "Home par jayen" is always available. `ReadyAction.CHANGE_SONG` / `MAKE_ANOTHER` and
+ * `CreationEntryPoint.READY_SCREEN` are no longer sent from 1.3.0 (those buttons were removed).
+ */
 class RingtoneReadyActivity : AppCompatActivity() {
 
     private lateinit var generatedTune: Tune
     private lateinit var previewId: String
     private var isSet = false
     private var actionTapped = false
+
+    /** The chuno choice; `null` when this screen was opened without one. */
+    private var setChoice: SetChoice? = null
+
+    /** The first apply continues the chuno flow; a retry after a terminal failure starts a new one. */
+    private var setFlowConsumed = false
 
     private lateinit var playbackRing: PlaybackRingView
     private lateinit var playPauseButton: ImageButton
@@ -101,7 +107,6 @@ class RingtoneReadyActivity : AppCompatActivity() {
             finish()
             return
         }
-        val language = intent.getStringExtra(EXTRA_LANGUAGE).orEmpty()
         val title = intent.getStringExtra(EXTRA_TITLE)?.takeIf { it.isNotBlank() }
         val generationId = intent.getStringExtra(EXTRA_GENERATION_ID)?.takeIf { it.isNotBlank() }
 
@@ -112,18 +117,16 @@ class RingtoneReadyActivity : AppCompatActivity() {
         )
         previewId = generationId ?: baseTune.id
         isSet = savedInstanceState?.getBoolean(STATE_IS_SET, false) ?: false
+        setFlowConsumed = savedInstanceState?.getBoolean(STATE_SET_FLOW_CONSUMED, false) ?: false
+        setChoice = SetChoice.from(intent)
 
         enableLightEdgeToEdge()
         setContentView(R.layout.activity_ringtone_ready)
 
         setRingtoneButton = findViewById(R.id.setRingtoneButton)
-        val ctaBottomMargin = (setRingtoneButton.layoutParams as ViewGroup.MarginLayoutParams).bottomMargin
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.readyScroll)) { view, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.setPadding(0, systemBars.top, 0, 0)
-            setRingtoneButton.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                bottomMargin = ctaBottomMargin + systemBars.bottom
-            }
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            view.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
 
@@ -132,15 +135,9 @@ class RingtoneReadyActivity : AppCompatActivity() {
 
         findViewById<TextView>(R.id.readyTitle).text = getString(R.string.ready_title, name)
         findViewById<TextView>(R.id.readyTuneName).text = generatedTune.name
-        findViewById<TextView>(R.id.readyBaseSong).text =
-            getString(R.string.ready_based_on, baseTune.name, voiceOrLanguageLabel(baseTune, language))
 
         setupActions()
         renderSetButton()
-
-        if (savedInstanceState == null) {
-            playCelebration()
-        }
         previewPlayer.play(previewId, ringtoneUrl)
     }
 
@@ -162,6 +159,7 @@ class RingtoneReadyActivity : AppCompatActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(STATE_IS_SET, isSet)
+        outState.putBoolean(STATE_SET_FLOW_CONSUMED, setFlowConsumed)
     }
 
     private fun setupActions() {
@@ -176,26 +174,21 @@ class RingtoneReadyActivity : AppCompatActivity() {
         findViewById<ImageButton>(R.id.forwardButton).setOnClickListener { previewPlayer.seekBy(SEEK_STEP_MS) }
 
         setRingtoneButton.setOnClickListener {
-            if (isSet) {
-                onActionTapped(ReadyAction.GO_HOME) {
-                    startActivity(
-                        Intent(this, Home::class.java)
-                            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
-                    )
-                    finish()
+            if (isSet) return@setOnClickListener
+            val choice = setChoice
+            if (choice != null) {
+                if (ringtoneSetController.apply(generatedTune, choice, continuesFlow = !setFlowConsumed)) {
+                    setFlowConsumed = true
                 }
             } else {
                 ringtoneSetController.start(generatedTune)
             }
         }
 
-        findViewById<View>(R.id.changeSongButton).setOnClickListener {
-            onActionTapped(ReadyAction.CHANGE_SONG) { finish() }
-        }
-        findViewById<View>(R.id.makeAnotherButton).setOnClickListener {
-            onActionTapped(ReadyAction.MAKE_ANOTHER) {
+        findViewById<TextView>(R.id.goHomeButton).setOnClickListener {
+            onActionTapped(ReadyAction.GO_HOME) {
                 startActivity(
-                    CreateRingtoneActivity.intent(this, "", CreationEntryPoint.READY_SCREEN)
+                    Intent(this, Home::class.java)
                         .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
                 )
                 finish()
@@ -222,8 +215,11 @@ class RingtoneReadyActivity : AppCompatActivity() {
         Haptics.confirm(setRingtoneButton)
     }
 
+    /** After a successful set the primary CTA becomes a disabled "Ringtone set ho gayi". */
     private fun renderSetButton() {
-        setRingtoneButton.setText(if (isSet) R.string.ready_go_home else R.string.ready_set_ringtone)
+        setRingtoneButton.setText(if (isSet) R.string.ready_set_done else R.string.ready_set_ringtone)
+        setRingtoneButton.isEnabled = !isSet
+        CtaButtons.setEndIcon(setRingtoneButton, if (isSet) R.drawable.ic_check_white else R.drawable.ic_music_notes_white)
     }
 
     private fun stopPreview() {
@@ -236,44 +232,6 @@ class RingtoneReadyActivity : AppCompatActivity() {
         playPauseButton.setImageResource(if (isPlaying) R.drawable.ic_pause_white else R.drawable.ic_play_white)
     }
 
-    /** Overshoot scale-in of the hero, then staggered fades of the copy, with a confirm haptic. */
-    private fun playCelebration() {
-        val hero = findViewById<View>(R.id.readyHero)
-        hero.scaleX = HERO_START_SCALE
-        hero.scaleY = HERO_START_SCALE
-        hero.alpha = 0f
-        hero.animate()
-            .scaleX(1f)
-            .scaleY(1f)
-            .alpha(1f)
-            .setDuration(HERO_DURATION_MS)
-            .setInterpolator(OvershootInterpolator(OVERSHOOT_TENSION))
-            .withStartAction { Haptics.confirm(hero) }
-            .start()
-
-        listOf(R.id.readyTitle, R.id.readyTuneName, R.id.readyBaseSong, R.id.readyControls, R.id.secondaryActionsRow)
-            .forEachIndexed { index, viewId ->
-                val view = findViewById<View>(viewId)
-                view.alpha = 0f
-                view.translationY = FADE_OFFSET_DP * resources.displayMetrics.density
-                view.animate()
-                    .alpha(1f)
-                    .translationY(0f)
-                    .setStartDelay(STAGGER_START_MS + index * STAGGER_STEP_MS)
-                    .setDuration(FADE_DURATION_MS)
-                    .setInterpolator(DecelerateInterpolator())
-                    .start()
-            }
-    }
-
-    private fun voiceOrLanguageLabel(tune: Tune, language: String): String = when (tune.voiceKey) {
-        Tune.VOICE_MALE -> getString(R.string.create_form_voice_male)
-        Tune.VOICE_FEMALE -> getString(R.string.create_form_voice_female)
-        else -> Languages.all.firstOrNull { it.storageValue.equals(language, ignoreCase = true) }
-            ?.let { getString(it.nativeLabelRes) }
-            ?: language
-    }
-
     companion object {
         private const val TAG = "RingtoneReady"
         private const val EXTRA_NAME = "extra_name"
@@ -284,15 +242,9 @@ class RingtoneReadyActivity : AppCompatActivity() {
         private const val EXTRA_GENERATION_ID = "extra_generation_id"
         private const val EXTRA_CACHED = "extra_cached"
         private const val STATE_IS_SET = "state_is_set"
+        private const val STATE_SET_FLOW_CONSUMED = "state_set_flow_consumed"
 
         private const val SEEK_STEP_MS = 10_000L
-        private const val HERO_START_SCALE = 0.6f
-        private const val HERO_DURATION_MS = 520L
-        private const val OVERSHOOT_TENSION = 2.2f
-        private const val FADE_OFFSET_DP = 12f
-        private const val FADE_DURATION_MS = 320L
-        private const val STAGGER_START_MS = 180L
-        private const val STAGGER_STEP_MS = 90L
 
         fun intent(
             context: Context,
@@ -303,6 +255,7 @@ class RingtoneReadyActivity : AppCompatActivity() {
             title: String?,
             generationId: String,
             cached: Boolean,
+            setChoice: SetChoice? = null,
         ): Intent {
             return Intent(context, RingtoneReadyActivity::class.java)
                 .putExtra(EXTRA_NAME, name)
@@ -312,6 +265,7 @@ class RingtoneReadyActivity : AppCompatActivity() {
                 .putExtra(EXTRA_TITLE, title)
                 .putExtra(EXTRA_GENERATION_ID, generationId)
                 .putExtra(EXTRA_CACHED, cached)
+                .also { intent -> setChoice?.putInto(intent) }
         }
     }
 }

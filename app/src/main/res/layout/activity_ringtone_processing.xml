@@ -1,80 +1,68 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+    Processing: M mark, title, the (accurate) duration subtitle and the stepper sit a little below
+    centre; the full-bleed waveform and the footer are pinned to the bottom. fillViewport lets the
+    ConstraintLayout fill tall screens and scroll on short ones.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/processingScroll"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background">
+    android:background="@color/background"
+    android:fillViewport="true"
+    android:overScrollMode="never"
+    android:scrollbars="none">
 
-    <ScrollView
-        android:id="@+id/processingScroll"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:clipToPadding="false"
-        android:fillViewport="true"
-        android:overScrollMode="never"
-        android:scrollbars="none"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:id="@+id/processingContent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginHorizontal="24dp"
+            android:layout_marginTop="32dp"
+            android:layout_marginBottom="32dp"
             android:animateLayoutChanges="true"
             android:gravity="center_horizontal"
             android:orientation="vertical"
-            android:paddingHorizontal="24dp"
-            android:paddingTop="48dp"
-            android:paddingBottom="32dp">
+            app:layout_constraintBottom_toTopOf="@id/processingWaveform"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.6">
 
             <ImageView
                 android:id="@+id/processingLogo"
-                android:layout_width="120dp"
-                android:layout_height="120dp"
+                android:layout_width="48dp"
+                android:layout_height="40dp"
                 android:contentDescription="@null"
                 android:scaleType="fitCenter"
-                android:src="@drawable/big_logo" />
+                android:src="@drawable/logo" />
 
             <TextView
                 android:id="@+id/processingTitle"
+                style="@style/Text.MeraTune.Headline.Large"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="28dp"
-                android:fontFamily="@font/manrope_bold"
+                android:layout_marginTop="24dp"
                 android:gravity="center"
-                android:lineSpacingExtra="4dp"
-                android:textColor="@color/navy"
-                android:textSize="24sp"
+                android:lineSpacingExtra="6dp"
                 tools:text="Ram, Aapke Naam Ki Ringtone Ban Rahi Hai" />
 
             <TextView
                 android:id="@+id/processingSubtitle"
+                style="@style/Text.MeraTune.Body.Muted"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="10dp"
                 android:gravity="center"
                 android:lineSpacingExtra="4dp"
-                android:textColor="@color/text_secondary"
-                android:textSize="15sp"
+                android:textSize="17sp"
                 tools:text="Bas 10–15 second me aapki ringtone taiyar!" />
-
-            <TextView
-                android:id="@+id/processingSongLine"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:background="@drawable/bg_voice_badge"
-                android:ellipsize="end"
-                android:fontFamily="@font/manrope_medium"
-                android:gravity="center"
-                android:maxLines="1"
-                android:paddingHorizontal="14dp"
-                android:paddingVertical="6dp"
-                android:textColor="@color/gradient_pink"
-                android:textSize="13sp"
-                tools:text="Gaana: Ram Bhajan Hook · Female voice" />
 
             <include
                 android:id="@+id/processingStepper"
@@ -82,35 +70,6 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="32dp" />
-
-            <com.spacewire.meratune.ui.WaveformView
-                android:id="@+id/processingWaveform"
-                android:layout_width="match_parent"
-                android:layout_height="72dp"
-                android:layout_marginTop="40dp" />
-
-            <TextView
-                android:id="@+id/processingFooter"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:fontFamily="@font/manrope_bold"
-                android:gravity="center"
-                android:text="@string/processing_footer"
-                android:textColor="@color/navy"
-                android:textSize="16sp" />
-
-            <TextView
-                android:id="@+id/processingTip"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:gravity="center"
-                android:lineSpacingExtra="2dp"
-                android:minLines="2"
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp"
-                tools:text="@string/processing_tip_1" />
 
             <LinearLayout
                 android:id="@+id/processingErrorContainer"
@@ -124,41 +83,30 @@
 
                 <TextView
                     android:id="@+id/errorTitle"
+                    style="@style/Text.MeraTune.Headline"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:fontFamily="@font/manrope_bold"
                     android:gravity="center"
                     android:text="@string/processing_error_title"
-                    android:textColor="@color/navy"
                     android:textSize="22sp" />
 
                 <TextView
                     android:id="@+id/errorMessage"
+                    style="@style/Text.MeraTune.Body.Muted"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
                     android:gravity="center"
                     android:lineSpacingExtra="4dp"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="15sp"
                     tools:text="@string/processing_error_network" />
 
-                <TextView
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/primaryActionButton"
+                    style="@style/Widget.MeraTune.Cta"
                     android:layout_width="match_parent"
-                    android:layout_height="56dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="32dp"
                     android:layout_marginTop="28dp"
-                    android:background="@drawable/bg_create_ringtone_button"
-                    android:fontFamily="@font/manrope_bold"
-                    android:foreground="@drawable/fg_pill_ripple"
-                    android:gravity="center"
-                    android:maxLines="1"
-                    android:paddingHorizontal="16dp"
-                    android:textColor="@color/white"
-                    android:textSize="16sp"
-                    app:autoSizeMaxTextSize="16sp"
-                    app:autoSizeMinTextSize="12sp"
-                    app:autoSizeTextType="uniform"
                     tools:text="@string/processing_retry" />
 
                 <TextView
@@ -172,10 +120,33 @@
                     android:paddingHorizontal="20dp"
                     android:text="@string/processing_choose_another"
                     android:textColor="@color/gradient_pink"
-                    android:textSize="15sp" />
+                    android:textSize="15sp"
+                    app:fontFamily="@font/manrope_bold" />
             </LinearLayout>
-
         </LinearLayout>
-    </ScrollView>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <com.spacewire.meratune.ui.WaveformView
+            android:id="@+id/processingWaveform"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_marginBottom="24dp"
+            app:layout_constraintBottom_toTopOf="@id/processingFooter"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <TextView
+            android:id="@+id/processingFooter"
+            style="@style/Text.MeraTune.Body"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="24dp"
+            android:layout_marginBottom="64dp"
+            android:gravity="center"
+            android:text="@string/processing_footer"
+            android:textSize="17sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>

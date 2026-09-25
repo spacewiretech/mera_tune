@@ -1,10 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Outline camera (upload-photo sheet). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
-        android:fillColor="#1A1F4B"
-        android:pathData="M12,15.2c1.77,0 3.2,-1.43 3.2,-3.2s-1.43,-3.2 -3.2,-3.2 -3.2,1.43 -3.2,3.2 1.43,3.2 3.2,3.2zM9,2l-1.83,2H4c-1.1,0 -2,0.9 -2,2v12c0,1.1 0.9,2 2,2h16c1.1,0 2,-0.9 2,-2V6c0,-1.1 -0.9,-2 -2,-2h-3.17L15,2H9zM12,17c-2.76,0 -5,-2.24 -5,-5s2.24,-5 5,-5 5,2.24 5,5 -2.24,5 -5,5z" />
+        android:fillColor="@android:color/transparent"
+        android:pathData="M4.5,7.5h2.6l1.6,-2.3h6.6l1.6,2.3h2.6c1.1,0 2,0.9 2,2v8.3c0,1.1 -0.9,2 -2,2h-15c-1.1,0 -2,-0.9 -2,-2v-8.3c0,-1.1 0.9,-2 2,-2z"
+        android:strokeWidth="2"
+        android:strokeColor="@color/navy"
+        android:strokeLineJoin="round" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M12,13.6m-3.2,0a3.2,3.2 0,1 1,6.4 0a3.2,3.2 0,1 1,-6.4 0"
+        android:strokeWidth="2"
+        android:strokeColor="@color/navy" />
 </vector>

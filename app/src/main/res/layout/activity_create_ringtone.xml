@@ -1,209 +1,175 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- "Choose preferences": name + language (UI refresh R2: no voice / category radios). -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/formScroll"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background">
+    android:background="@color/background"
+    android:fillViewport="true"
+    android:overScrollMode="never"
+    android:scrollbars="none">
 
-    <ScrollView
-        android:id="@+id/formScroll"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:clipToPadding="false"
-        android:fillViewport="true"
-        android:overScrollMode="never"
-        android:paddingBottom="16dp"
-        android:scrollbars="none"
-        app:layout_constraintBottom_toTopOf="@id/continueButton"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="20dp"
+        android:paddingTop="12dp">
+
+        <ImageView
+            android:id="@+id/backButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_back_button"
+            android:contentDescription="@string/back"
+            android:padding="8dp"
+            android:src="@drawable/ic_back" />
+
+        <TextView
+            android:id="@+id/formTitle"
+            style="@style/Text.MeraTune.Headline.Large"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:lineSpacingExtra="4dp"
+            tools:text="Ram, Apne Naam Ki Ringtone Banaiye!" />
+
+        <TextView
+            android:id="@+id/formSubtitle"
+            style="@style/Text.MeraTune.Body.Muted"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/create_form_subtitle" />
+
+        <TextView
+            android:id="@+id/nameSectionLabel"
+            style="@style/Text.MeraTune.Title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/create_form_enter_name" />
+
+        <EditText
+            android:id="@+id/nameInput"
+            style="@style/Widget.MeraTune.InputPill"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:hint="@string/search_hint"
+            android:imeOptions="actionDone"
+            android:importantForAutofill="no"
+            android:inputType="textPersonName|textCapWords"
+            android:maxLength="30"
+            android:maxLines="1" />
+
+        <TextView
+            android:id="@+id/nameError"
+            style="@style/Text.MeraTune.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:paddingHorizontal="12dp"
+            android:textColor="@color/gradient_pink"
+            android:visibility="gone"
+            tools:text="@string/create_form_name_invalid"
+            tools:visibility="visible" />
+
+        <TextView
+            android:id="@+id/languageSectionLabel"
+            style="@style/Text.MeraTune.Title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="36dp"
+            android:text="@string/create_form_choose_language" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingHorizontal="20dp"
-            android:paddingTop="12dp">
-
-            <ImageView
-                android:id="@+id/backButton"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="@drawable/bg_back_button"
-                android:contentDescription="@string/back"
-                android:padding="8dp"
-                android:src="@drawable/ic_back" />
-
-            <TextView
-                android:id="@+id/formTitle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:fontFamily="@font/manrope_bold"
-                android:lineSpacingExtra="4dp"
-                android:textColor="@color/navy"
-                android:textSize="24sp"
-                tools:text="Ram, Apne Naam Ki Ringtone Banaiye!" />
-
-            <TextView
-                android:id="@+id/formSubtitle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/create_form_subtitle"
-                android:textColor="@color/text_secondary"
-                android:textSize="15sp" />
-
-            <TextView
-                android:id="@+id/nameSectionLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="28dp"
-                android:fontFamily="@font/manrope_bold"
-                android:text="@string/create_form_enter_name"
-                android:textSize="16sp" />
-
-            <EditText
-                android:id="@+id/nameInput"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/bg_search_bar"
-                android:hint="@string/search_hint"
-                android:imeOptions="actionDone"
-                android:importantForAutofill="no"
-                android:inputType="textPersonName|textCapWords"
-                android:maxLength="30"
-                android:maxLines="1"
-                android:paddingHorizontal="20dp"
-                android:textColor="@color/navy"
-                android:textColorHint="@color/text_secondary"
-                android:textSize="15sp" />
-
-            <TextView
-                android:id="@+id/nameError"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:paddingHorizontal="4dp"
-                android:textColor="@color/gradient_pink"
-                android:textSize="13sp"
-                android:visibility="gone"
-                tools:text="@string/create_form_name_invalid"
-                tools:visibility="visible" />
-
-
-            <TextView
-                android:id="@+id/languageSectionLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="28dp"
-                android:fontFamily="@font/manrope_bold"
-                android:text="@string/create_form_choose_language"
-                android:textSize="16sp" />
-
-            <TextView
-                android:id="@+id/languageHint"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="@string/create_form_language_hint"
-                android:textColor="@color/text_secondary"
-                android:textSize="13sp" />
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal">
 
             <LinearLayout
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:orientation="horizontal">
+                android:layout_weight="1"
+                android:orientation="vertical">
 
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
+                <include
+                    android:id="@+id/languageEnglishOption"
+                    layout="@layout/item_form_option" />
 
-                    <include
-                        android:id="@+id/languageEnglishOption"
-                        layout="@layout/item_form_option" />
+                <include
+                    android:id="@+id/languageTeluguOption"
+                    layout="@layout/item_form_option" />
 
-                    <include
-                        android:id="@+id/languageTeluguOption"
-                        layout="@layout/item_form_option" />
+                <include
+                    android:id="@+id/languageKannadaOption"
+                    layout="@layout/item_form_option" />
 
-                    <include
-                        android:id="@+id/languageKannadaOption"
-                        layout="@layout/item_form_option" />
+                <include
+                    android:id="@+id/languageMarathiOption"
+                    layout="@layout/item_form_option" />
 
-                    <include
-                        android:id="@+id/languageMarathiOption"
-                        layout="@layout/item_form_option" />
-
-                    <include
-                        android:id="@+id/languageBengaliOption"
-                        layout="@layout/item_form_option" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <include
-                        android:id="@+id/languageHindiOption"
-                        layout="@layout/item_form_option" />
-
-                    <include
-                        android:id="@+id/languageTamilOption"
-                        layout="@layout/item_form_option" />
-
-                    <include
-                        android:id="@+id/languageMalayalamOption"
-                        layout="@layout/item_form_option" />
-
-                    <include
-                        android:id="@+id/languageOdiaOption"
-                        layout="@layout/item_form_option" />
-                </LinearLayout>
+                <include
+                    android:id="@+id/languageBengaliOption"
+                    layout="@layout/item_form_option" />
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/languageComingSoonNote"
-                android:layout_width="match_parent"
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:lineSpacingExtra="2dp"
-                android:textColor="@color/text_secondary"
-                android:textSize="13sp"
-                android:visibility="gone"
-                tools:text="తెలుగు, தமிழ் jaldi aa raha hai"
-                tools:visibility="visible" />
+                android:layout_weight="1"
+                android:orientation="vertical">
 
+                <include
+                    android:id="@+id/languageHindiOption"
+                    layout="@layout/item_form_option" />
+
+                <include
+                    android:id="@+id/languageTamilOption"
+                    layout="@layout/item_form_option" />
+
+                <include
+                    android:id="@+id/languageMalayalamOption"
+                    layout="@layout/item_form_option" />
+
+                <include
+                    android:id="@+id/languageOdiaOption"
+                    layout="@layout/item_form_option" />
+            </LinearLayout>
         </LinearLayout>
-    </ScrollView>
 
-    <TextView
-        android:id="@+id/continueButton"
-        android:layout_width="0dp"
-        android:layout_height="56dp"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginBottom="24dp"
-        android:background="@drawable/bg_create_ringtone_button"
-        android:fontFamily="@font/manrope_bold"
-        android:gravity="center"
-        android:maxLines="1"
-        android:paddingHorizontal="16dp"
-        android:text="@string/create_form_continue"
-        android:textColor="@color/white"
-        android:textSize="16sp"
-        app:autoSizeMaxTextSize="16sp"
-        app:autoSizeMinTextSize="12sp"
-        app:autoSizeTextType="uniform"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        <TextView
+            android:id="@+id/languageComingSoonNote"
+            style="@style/Text.MeraTune.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:lineSpacingExtra="2dp"
+            android:paddingHorizontal="16dp"
+            android:textColor="@color/text_muted_warm"
+            android:visibility="gone"
+            tools:text="తెలుగు, தமிழ் jaldi aa raha hai"
+            tools:visibility="visible" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/continueButton"
+            style="@style/Widget.MeraTune.Cta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="36dp"
+            android:layout_marginTop="40dp"
+            android:layout_marginBottom="24dp"
+            android:text="@string/create_form_continue"
+            app:icon="@drawable/ic_arrow_next_white" />
+
+    </LinearLayout>
+</ScrollView>

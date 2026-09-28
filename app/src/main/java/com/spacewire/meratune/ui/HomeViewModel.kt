@@ -2,6 +2,7 @@ package com.spacewire.meratune.ui
 
 import android.app.Application
 import android.os.SystemClock
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.spacewire.meratune.analytics.AnalyticsSource
@@ -10,10 +11,13 @@ import com.spacewire.meratune.analytics.FilterSelection
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.data.Category
 import com.spacewire.meratune.data.HomeRepository
+import com.spacewire.meratune.data.NameRingtonesRepository
+import com.spacewire.meratune.data.RingtoneGenerationException
 import com.spacewire.meratune.data.Tune
 import com.spacewire.meratune.util.ActiveRingtoneStore
 import com.spacewire.meratune.util.LoadErrorMapper
 import com.spacewire.meratune.util.ProfileStore
+import com.spacewire.meratune.util.TuneStatsUtils
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -32,23 +36,40 @@ data class HomeUiState(
     val isLoadingCategories: Boolean = true,
     val isLoadingTunes: Boolean = false,
     val errorMessage: String? = null,
+    /** [Tune.rowKey] of the previewing row (the tune id for a catalog tune). */
     val playingTuneId: String? = null,
+    /** [Tune.rowKey] of the row that is the system ringtone (the tune id for a catalog tune). */
     val activeRingtoneId: String? = null,
     /** The profile's first name for the "{name} Tunes" chip; blank when the profile has none. */
     val profileFirstName: String = "",
+    /** The user's own ready ringtones, newest first; `null` until the first successful load. */
+    val myRingtones: List<Tune>? = null,
+    val isLoadingMyRingtones: Boolean = false,
 ) {
     val isLoading: Boolean
         get() = isLoadingCategories || isLoadingTunes
 
-    /** The synthetic "{name} Tunes" chip is selected (every active tune, filtered by the name). */
+    /**
+     * The synthetic "{name} Tunes" chip is selected: the user's own ringtones, then every active
+     * tune filtered by the name (see [HomeTuneFilter.nameTab]).
+     */
     val isMyNameSelected: Boolean
         get() = selectedCategoryId == Category.MY_NAME_CATEGORY_ID
+
+    /** The name chip waits for the first load of the user's own ringtones. */
+    val isAwaitingMyRingtones: Boolean
+        get() = isMyNameSelected && isLoadingMyRingtones && myRingtones == null
+
+    /** The progress indicator: a Home load, or an empty name tab waiting for the user's ringtones. */
+    val showLoadingIndicator: Boolean
+        get() = isLoading || (isAwaitingMyRingtones && filteredTunes.isEmpty())
 
     /** No tune for a search query or for the name chip: the create empty state instead of the list. */
     val showSearchEmptyState: Boolean
         get() = (searchQuery.isNotBlank() || isMyNameSelected) &&
             filteredTunes.isEmpty() &&
             !isLoading &&
+            !isAwaitingMyRingtones &&
             errorMessage == null
 
     /** The empty state's name (see [HomeTuneFilter.emptyStateName]); blank uses the generic copy. */
@@ -61,9 +82,9 @@ data class HomeUiState(
             ?.takeIf { it != Category.ALL_CATEGORY_ID }
             ?.let { id -> categories.firstOrNull { it.id == id }?.name }
 
-    /** 1-based position of [tuneId] in [filteredTunes]; `null` when it is not listed. */
-    fun rankOf(tuneId: String): Int? =
-        filteredTunes.indexOfFirst { it.id == tuneId }.takeIf { it >= 0 }?.plus(1)
+    /** 1-based position of the [rowKey] row ([Tune.rowKey]) in [filteredTunes]; `null` when it is not listed. */
+    fun rankOf(rowKey: String): Int? =
+        filteredTunes.indexOfFirst { it.rowKey == rowKey }.takeIf { it >= 0 }?.plus(1)
 }
 
 class HomeViewModel(
@@ -71,6 +92,7 @@ class HomeViewModel(
 ) : AndroidViewModel(application) {
 
     private val repository = HomeRepository()
+    private val nameRingtonesRepository = NameRingtonesRepository(application)
     private val activeRingtoneStore = ActiveRingtoneStore(application)
     private val profileStore = ProfileStore(application)
     private val analytics = application.mixpanelAnalytics()
@@ -80,6 +102,10 @@ class HomeViewModel(
     private var pendingSearchQuery: String? = null
     private val createdAtMs = SystemClock.elapsedRealtime()
     private var homeViewTracked = false
+    private var myRingtonesJob: Job? = null
+
+    /** The locally saved personalized ringtone for the name tab (re-read on resume and after a set). */
+    private var savedPersonalizedTune: Tune? = readSavedPersonalizedTune()
 
     init {
         loadHomeData(AnalyticsTrigger.INITIAL)
@@ -130,35 +156,61 @@ class HomeViewModel(
         activeRingtoneStore.consumeReplacedRingtone(getApplication())?.let {
             analytics.trackRingtoneReplacedExternally(it)
         }
-        val tunes = _uiState.value.tunes
-        if (tunes.isEmpty()) return
+        savedPersonalizedTune = readSavedPersonalizedTune()
+        val state = _uiState.value
+        if (state.tunes.isEmpty() && state.myRingtones == null) return
 
-        val activeId = activeRingtoneStore.resolveActiveTuneId(getApplication(), tunes)
-        updateFilteredTunes(activeRingtoneId = activeId)
+        updateFilteredTunes(activeRingtoneId = resolveActiveKey(state.tunes, state.myRingtones))
+    }
+
+    /**
+     * Reloads the user's own ringtones for the name chip (Home resumes after the create flow). A
+     * failure keeps the last loaded list; before any, the chip lists the saved personalized one.
+     */
+    fun refreshMyRingtones() {
+        if (myRingtonesJob?.isActive == true) return
+        myRingtonesJob = viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingMyRingtones = true) }
+            val mine = try {
+                nameRingtonesRepository.fetchMyRingtones()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                val reason = (error as? RingtoneGenerationException)?.code?.name ?: error.javaClass.simpleName
+                Log.w(TAG, "My ringtones unavailable: $reason")
+                null
+            }
+            val current = _uiState.value
+            val myRingtones = mine ?: current.myRingtones
+            val activeId = resolveActiveKey(current.tunes, myRingtones)
+            _uiState.update { state ->
+                state.copy(
+                    myRingtones = myRingtones,
+                    isLoadingMyRingtones = false,
+                    activeRingtoneId = activeId,
+                ).withFilteredTunes()
+            }
+        }
     }
 
     /** Re-reads the profile name (Home resumes after login / verify saved a user). */
     fun refreshProfileName() {
         val firstName = readProfileFirstName()
         if (firstName == _uiState.value.profileFirstName) return
-        _uiState.update { state ->
-            state.copy(
-                profileFirstName = firstName,
-                filteredTunes = buildFilteredTunes(
-                    state.tunes,
-                    state.searchQuery,
-                    state.activeRingtoneId,
-                    nameFilterFor(state.selectedCategoryId, firstName),
-                ),
-            )
-        }
+        _uiState.update { state -> state.copy(profileFirstName = firstName).withFilteredTunes() }
     }
 
     private fun readProfileFirstName(): String = HomeTuneFilter.firstName(profileStore.getProfile().name)
 
-    fun onRingtoneSet(tuneId: String, ringtoneUri: android.net.Uri) {
-        activeRingtoneStore.save(tuneId, ringtoneUri)
-        updateFilteredTunes(activeRingtoneId = tuneId)
+    /** Home's stable per-tune numbers, like the own ringtones from the server. */
+    private fun readSavedPersonalizedTune(): Tune? =
+        activeRingtoneStore.savedPersonalizedTune()?.let { TuneStatsUtils.withRandomStats(listOf(it)).first() }
+
+    /** [tune] was set as the default: a personalized row (own ringtone) is recorded as its copy. */
+    fun onRingtoneSet(tune: Tune, ringtoneUri: android.net.Uri) {
+        activeRingtoneStore.save(tune, ringtoneUri)
+        savedPersonalizedTune = readSavedPersonalizedTune()
+        updateFilteredTunes(activeRingtoneId = tune.rowKey)
     }
 
     fun onCategorySelected(categoryId: String) {
@@ -173,6 +225,8 @@ class HomeViewModel(
             trackCategoryFiltered(state.categories, categoryId, currentCategoryId, nextCategoryId)
         }
         _uiState.update { it.copy(selectedCategoryId = nextCategoryId) }
+        // A failed or not yet loaded own-ringtones list is retried when the name chip opens.
+        if (nextCategoryId == Category.MY_NAME_CATEGORY_ID && state.myRingtones == null) refreshMyRingtones()
         // All <-> the name chip show the same loaded tunes: only the local name filter changes.
         val nameChipInvolved = Category.MY_NAME_CATEGORY_ID in setOf(currentCategoryId, nextCategoryId)
         if (nameChipInvolved &&
@@ -187,19 +241,7 @@ class HomeViewModel(
     }
 
     fun onSearchQueryChanged(query: String) {
-        val current = _uiState.value
-        val filteredTunes = buildFilteredTunes(
-            current.tunes,
-            query,
-            current.activeRingtoneId,
-            nameFilterFor(current),
-        )
-        _uiState.update { state ->
-            state.copy(
-                searchQuery = query,
-                filteredTunes = filteredTunes,
-            )
-        }
+        _uiState.update { state -> state.copy(searchQuery = query).withFilteredTunes() }
 
         searchTrackingJob?.cancel()
         pendingSearchQuery = null
@@ -253,14 +295,13 @@ class HomeViewModel(
 
             runCatching { repository.fetchActiveTunes(categoryId) }
                 .onSuccess { tunes ->
-                    val activeId = activeRingtoneStore.resolveActiveTuneId(getApplication(), tunes)
+                    val activeId = resolveActiveKey(tunes, _uiState.value.myRingtones)
                     _uiState.update { state ->
                         state.copy(
                             tunes = tunes,
                             activeRingtoneId = activeId,
-                            filteredTunes = buildFilteredTunes(tunes, state.searchQuery, activeId, nameFilterFor(state)),
                             isLoadingTunes = false,
-                        )
+                        ).withFilteredTunes()
                     }
                     trackHomeViewedOnce()
                 }
@@ -330,38 +371,21 @@ class HomeViewModel(
     }
 
     private fun updateFilteredTunes(activeRingtoneId: String?) {
-        _uiState.update { state ->
-            state.copy(
-                activeRingtoneId = activeRingtoneId,
-                filteredTunes = buildFilteredTunes(
-                    state.tunes,
-                    state.searchQuery,
-                    activeRingtoneId,
-                    nameFilterFor(state),
-                ),
-            )
+        _uiState.update { state -> state.copy(activeRingtoneId = activeRingtoneId).withFilteredTunes() }
+    }
+
+    /** The row key of the system ringtone among the catalog [tunes] and the user's own [mine]. */
+    private fun resolveActiveKey(tunes: List<Tune>, mine: List<Tune>?): String? =
+        activeRingtoneStore.resolveActiveKey(getApplication(), tunes, mine.orEmpty())
+
+    /** Recomputes [HomeUiState.filteredTunes] from this state's tunes, query, chip and active row. */
+    private fun HomeUiState.withFilteredTunes(): HomeUiState {
+        val listed = if (isMyNameSelected) {
+            HomeTuneFilter.nameTab(tunes, myRingtones, savedPersonalizedTune, profileFirstName, searchQuery, activeRingtoneId)
+        } else {
+            HomeTuneFilter.withActiveFirst(HomeTuneFilter.filter(tunes, searchQuery, nameFilter = null), activeRingtoneId)
         }
-    }
-
-    /** [nameFilter] is the chip's first name while the name chip is selected, else `null`. */
-    private fun buildFilteredTunes(
-        tunes: List<Tune>,
-        query: String,
-        activeRingtoneId: String?,
-        nameFilter: String?,
-    ): List<Tune> {
-        return sortWithActiveFirst(HomeTuneFilter.filter(tunes, query, nameFilter), activeRingtoneId)
-    }
-
-    private fun nameFilterFor(state: HomeUiState): String? =
-        nameFilterFor(state.selectedCategoryId, state.profileFirstName)
-
-    private fun nameFilterFor(selectedCategoryId: String?, firstName: String): String? =
-        firstName.takeIf { selectedCategoryId == Category.MY_NAME_CATEGORY_ID }
-
-    private fun sortWithActiveFirst(tunes: List<Tune>, activeRingtoneId: String?): List<Tune> {
-        val activeTune = activeRingtoneId?.let { id -> tunes.find { it.id == id } } ?: return tunes
-        return listOf(activeTune) + tunes.filter { it.id != activeRingtoneId }
+        return copy(filteredTunes = listed)
     }
 
     /** All Tunes, then the synthetic "{name} Tunes" chip, then the DB categories. */
@@ -379,6 +403,7 @@ class HomeViewModel(
     private fun mapLoadError(error: Throwable): String = LoadErrorMapper.message(error)
 
     private companion object {
+        const val TAG = "HomeViewModel"
         const val SEARCH_TRACK_DEBOUNCE_MS = 500L
         const val STAGE_CATEGORIES = "categories"
         const val STAGE_TUNES = "tunes"

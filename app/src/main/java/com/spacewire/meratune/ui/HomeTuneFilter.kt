@@ -1,6 +1,7 @@
 package com.spacewire.meratune.ui
 
 import com.spacewire.meratune.data.Tune
+import com.spacewire.meratune.util.ActiveRingtoneResolver
 
 /**
  * Pure Home list rules: the search box and the synthetic "{name} Tunes" chip
@@ -30,6 +31,36 @@ object HomeTuneFilter {
         }
         if (query.isBlank()) return byName
         return byName.filter { matches(it, query) }
+    }
+
+    /**
+     * The "{name} Tunes" list: the user's own ringtones first, then the [catalog] tunes whose title
+     * has [firstName]; [query] applies to both, and the [activeKey] row is pinned first.
+     * Own ringtones are [mine] as the server orders them (newest first), or nothing while [mine] is
+     * unavailable (`null`: not loaded or failed); [savedPersonalized] (the locally saved
+     * personalized ringtone) is added first when [mine] does not have it, so it always appears.
+     */
+    fun nameTab(
+        catalog: List<Tune>,
+        mine: List<Tune>?,
+        savedPersonalized: Tune?,
+        firstName: String,
+        query: String,
+        activeKey: String?,
+    ): List<Tune> {
+        val own = mine.orEmpty().filter { it.generationId != null }
+        val saved = savedPersonalized?.takeIf { copy ->
+            copy.generationId != null && own.none { ActiveRingtoneResolver.sameRingtone(it, copy) }
+        }
+        val ownRows = listOfNotNull(saved) + own
+        val listed = filter(ownRows, query, nameFilter = null) + filter(catalog, query, firstName)
+        return withActiveFirst(listed.distinctBy { it.rowKey }, activeKey)
+    }
+
+    /** [tunes] with the [activeKey] row ([Tune.rowKey]) moved to the top; unchanged without one. */
+    fun withActiveFirst(tunes: List<Tune>, activeKey: String?): List<Tune> {
+        val active = activeKey?.let { key -> tunes.find { it.rowKey == key } } ?: return tunes
+        return listOf(active) + tunes.filter { it.rowKey != activeKey }
     }
 
     /**

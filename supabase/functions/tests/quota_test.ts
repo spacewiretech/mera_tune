@@ -4,9 +4,12 @@ import {
   ATTEMPT_FAILURE_CODES,
   attemptFilter,
   attemptLimitFor,
+  attemptLimitForPlan,
   BILLED_FAILURE_CODES,
   dailyLimitFor,
   DEFAULT_DAILY_ATTEMPT_LIMIT,
+  DEFAULT_MEMBER_MONTHLY_LIMIT,
+  DEFAULT_TRIAL_DAILY_LIMIT,
   freshRenderFilter,
   globalDailyLimit,
   globalRenderFilter,
@@ -16,13 +19,23 @@ import {
   isStaleProcessing,
   istDateString,
   istDayStart,
+  istMonthStart,
   istNextMidnight,
+  istNextMonthStart,
+  memberMonthlyLimit,
   parseBoundedFloat,
   parsePositiveInt,
+  periodEnd,
+  periodStart,
+  type PlanQuota,
+  planQuotaFor,
   quotaExceeded,
+  quotaRetryAfterSeconds,
+  quotaSnapshot,
   quotaWindow,
   retryableRequestFilter,
   secondsUntilIstMidnight,
+  secondsUntilPeriodEnd,
   STALE_PROCESSING_MS,
   withinLimit,
 } from "../generate-ringtone/quota.ts";
@@ -55,12 +68,80 @@ Deno.test("secondsUntilIstMidnight rounds up and is never below 1", () => {
   assertEquals(secondsUntilIstMidnight(oneHourBefore), 3600);
 });
 
-Deno.test("quotaWindow derives all three cut-offs from now", () => {
+Deno.test("quotaWindow derives all cut-offs from now", () => {
   const now = new Date("2026-09-23T10:00:00.000Z");
   const window = quotaWindow(now);
   assertEquals(window.dayStartIso, "2026-09-22T18:30:00.000Z");
+  assertEquals(window.periodStartIso, window.dayStartIso, "a day plan counts from today");
   assertEquals(window.processingSinceIso, new Date(now.getTime() - STALE_PROCESSING_MS).toISOString());
   assertEquals(window.inflightSinceIso, new Date(now.getTime() - INFLIGHT_RENDER_MS).toISOString());
+  assertEquals(quotaWindow(now, "day"), window);
+});
+
+Deno.test("quotaWindow for a monthly plan counts fresh renders from the IST month, attempts from today", () => {
+  const now = new Date("2026-09-23T10:00:00.000Z");
+  const window = quotaWindow(now, "month");
+  assertEquals(window.periodStartIso, "2026-08-31T18:30:00.000Z");
+  assertEquals(window.dayStartIso, "2026-09-22T18:30:00.000Z");
+  assertEquals(window.processingSinceIso, quotaWindow(now).processingSinceIso);
+  assertEquals(window.inflightSinceIso, quotaWindow(now).inflightSinceIso);
+});
+
+Deno.test("istMonthStart / istNextMonthStart: mid-month", () => {
+  // 2026-09-23 15:30 IST -> September IST = [2026-09-01 00:00 IST, 2026-10-01 00:00 IST)
+  const now = new Date("2026-09-23T10:00:00.000Z");
+  assertEquals(istMonthStart(now).toISOString(), "2026-08-31T18:30:00.000Z");
+  assertEquals(istNextMonthStart(now).toISOString(), "2026-09-30T18:30:00.000Z");
+});
+
+Deno.test("istMonthStart: the last IST millisecond of a month and IST midnight on the 1st", () => {
+  const lastMs = new Date("2026-09-30T18:29:59.999Z"); // 23:59:59.999 IST on 30 September
+  assertEquals(istMonthStart(lastMs).toISOString(), "2026-08-31T18:30:00.000Z");
+  assertEquals(istNextMonthStart(lastMs).toISOString(), "2026-09-30T18:30:00.000Z");
+  const firstInstant = new Date("2026-09-30T18:30:00.000Z"); // 00:00 IST on 1 October
+  assertEquals(istMonthStart(firstInstant).toISOString(), "2026-09-30T18:30:00.000Z");
+  assertEquals(istNextMonthStart(firstInstant).toISOString(), "2026-10-31T18:30:00.000Z");
+  // Still 30 September in UTC, already 1 October in IST.
+  const utcSeptember = new Date("2026-09-30T19:00:00.000Z");
+  assertEquals(istMonthStart(utcSeptember).toISOString(), "2026-09-30T18:30:00.000Z");
+  assertEquals(periodEnd(utcSeptember, "month").toISOString(), "2026-10-31T18:30:00.000Z");
+});
+
+Deno.test("istNextMonthStart: December rolls over into January of the next year", () => {
+  const december = new Date("2026-12-31T18:29:59.999Z"); // 23:59:59.999 IST on 31 December
+  assertEquals(istMonthStart(december).toISOString(), "2026-11-30T18:30:00.000Z");
+  assertEquals(istNextMonthStart(december).toISOString(), "2026-12-31T18:30:00.000Z");
+  const january = new Date("2026-12-31T19:00:00.000Z"); // 00:30 IST on 1 January 2027
+  assertEquals(istMonthStart(january).toISOString(), "2026-12-31T18:30:00.000Z");
+  assertEquals(istNextMonthStart(january).toISOString(), "2027-01-31T18:30:00.000Z");
+  assertEquals(periodEnd(january, "month").toISOString(), "2027-01-31T18:30:00.000Z");
+});
+
+Deno.test("istNextMonthStart: February, including a leap year", () => {
+  assertEquals(istNextMonthStart(new Date("2027-02-15T10:00:00.000Z")).toISOString(), "2027-02-28T18:30:00.000Z");
+  assertEquals(istNextMonthStart(new Date("2028-02-15T10:00:00.000Z")).toISOString(), "2028-02-29T18:30:00.000Z");
+});
+
+Deno.test("periodStart / periodEnd: day is the IST day, month the IST month", () => {
+  const now = new Date("2026-09-23T20:00:00.000Z");
+  assertEquals(periodStart(now, "day").toISOString(), istDayStart(now).toISOString());
+  assertEquals(periodEnd(now, "day").toISOString(), istNextMidnight(now).toISOString());
+  assertEquals(periodStart(now, "month").toISOString(), istMonthStart(now).toISOString());
+  assertEquals(periodEnd(now, "month").toISOString(), istNextMonthStart(now).toISOString());
+});
+
+Deno.test("secondsUntilPeriodEnd rounds up and is never below 1", () => {
+  assertEquals(secondsUntilPeriodEnd(new Date("2026-09-30T18:29:59.999Z"), "month"), 1);
+  assertEquals(secondsUntilPeriodEnd(new Date("2026-09-30T18:29:59.400Z"), "month"), 1);
+  // At IST midnight on 1 October the whole of October (31 days) is left.
+  assertEquals(secondsUntilPeriodEnd(new Date("2026-09-30T18:30:00.000Z"), "month"), 31 * 24 * 60 * 60);
+  assertEquals(secondsUntilPeriodEnd(new Date("2026-12-31T19:00:00.000Z"), "month"), 31 * 24 * 60 * 60 - 30 * 60);
+  for (const iso of ["2026-09-23T10:00:00.000Z", "2026-09-23T18:29:59.400Z", "2026-09-23T18:30:00.000Z"]) {
+    const now = new Date(iso);
+    assertEquals(secondsUntilPeriodEnd(now, "day"), secondsUntilIstMidnight(now), iso);
+    assert(secondsUntilPeriodEnd(now, "month") >= secondsUntilPeriodEnd(now, "day"), iso);
+    assert(secondsUntilPeriodEnd(now, "month") >= 1, iso);
+  }
 });
 
 Deno.test("config parsing falls back on garbage", () => {
@@ -87,6 +168,121 @@ Deno.test("daily limits depend on auth mode and default when unset", () => {
   assertEquals(dailyLimitFor({}, "token"), 5);
   assertEquals(dailyLimitFor({}, "legacy_user_id"), 3);
   assertEquals(globalDailyLimit({}), 2000);
+});
+
+Deno.test("planQuotaFor: users.status picks the plan (token auth)", () => {
+  assertEquals(DEFAULT_TRIAL_DAILY_LIMIT, 2);
+  assertEquals(DEFAULT_MEMBER_MONTHLY_LIMIT, 50);
+  assertEquals(planQuotaFor({}, "trial", "token"), { plan: "trial", period: "day", limit: 2 });
+  assertEquals(planQuotaFor({}, "active", "token"), { plan: "member", period: "month", limit: 50 });
+  for (const status of ["none", "expired", "cancelled", "", "   ", "pending", null, undefined]) {
+    assertEquals(planQuotaFor({}, status, "token"), { plan: "default", period: "day", limit: 5 }, String(status));
+  }
+  // Trimmed and case-insensitive.
+  assertEquals(planQuotaFor({}, " Trial ", "token").plan, "trial");
+  assertEquals(planQuotaFor({}, "ACTIVE", "token").plan, "member");
+  assertEquals(planQuotaFor({}, "Expired", "token").plan, "default");
+});
+
+Deno.test("planQuotaFor: app_config overrides and bad values fall back to the defaults", () => {
+  const config = {
+    generate_trial_daily_limit: "4",
+    generate_member_monthly_limit: " 100 ",
+    generate_daily_limit: "7",
+    generate_legacy_daily_limit: "1",
+  };
+  assertEquals(planQuotaFor(config, "trial", "token"), { plan: "trial", period: "day", limit: 4 });
+  assertEquals(planQuotaFor(config, "active", "token"), { plan: "member", period: "month", limit: 100 });
+  assertEquals(planQuotaFor(config, "none", "token"), { plan: "default", period: "day", limit: 7 });
+  assertEquals(memberMonthlyLimit(config), 100);
+  for (const bad of ["0", "-1", "abc", "", "2.5"]) {
+    const garbage = { generate_trial_daily_limit: bad, generate_member_monthly_limit: bad, generate_daily_limit: bad };
+    assertEquals(planQuotaFor(garbage, "trial", "token").limit, 2, bad);
+    assertEquals(planQuotaFor(garbage, "active", "token").limit, 50, bad);
+    assertEquals(planQuotaFor(garbage, "expired", "token").limit, 5, bad);
+    assertEquals(memberMonthlyLimit(garbage), 50, bad);
+  }
+});
+
+Deno.test("planQuotaFor: legacy user_id callers are limited per day, never above the legacy limit", () => {
+  // Defaults: legacy 3/day.
+  assertEquals(planQuotaFor({}, "trial", "legacy_user_id"), { plan: "trial", period: "day", limit: 2 });
+  assertEquals(planQuotaFor({}, "active", "legacy_user_id"), { plan: "member", period: "day", limit: 3 });
+  assertEquals(planQuotaFor({}, "none", "legacy_user_id"), { plan: "default", period: "day", limit: 3 });
+  // A daily plan below the legacy limit keeps its own limit; above it, the legacy limit wins.
+  assertEquals(planQuotaFor({ generate_trial_daily_limit: "10" }, "trial", "legacy_user_id").limit, 3);
+  const generousLegacy = { generate_legacy_daily_limit: "8", generate_daily_limit: "5" };
+  assertEquals(planQuotaFor(generousLegacy, "none", "legacy_user_id").limit, 5);
+  assertEquals(planQuotaFor(generousLegacy, "trial", "legacy_user_id").limit, 2);
+  // The monthly allowance never applies to a legacy caller: the legacy daily limit does.
+  assertEquals(planQuotaFor(generousLegacy, "active", "legacy_user_id"), { plan: "member", period: "day", limit: 8 });
+});
+
+Deno.test("attempt cap stays per day: a monthly limit is not its floor", () => {
+  const member: PlanQuota = { plan: "member", period: "month", limit: 50 };
+  assertEquals(attemptLimitForPlan({}, member), DEFAULT_DAILY_ATTEMPT_LIMIT);
+  assertEquals(attemptLimitForPlan({ generate_daily_attempt_limit: "20" }, member), 20);
+  assertEquals(attemptLimitForPlan({ generate_daily_attempt_limit: "3" }, member), 3);
+  assertEquals(attemptLimitForPlan({}, planQuotaFor({}, "trial", "token")), 12);
+  assertEquals(attemptLimitForPlan({}, planQuotaFor({}, "none", "token")), 12);
+  // A daily plan's limit is still the floor, as before.
+  assertEquals(attemptLimitForPlan({ generate_daily_attempt_limit: "3" }, { plan: "default", period: "day", limit: 5 }), 5);
+  assertEquals(attemptLimitForPlan({}, { plan: "trial", period: "day", limit: 30 }), 30);
+});
+
+Deno.test("quotaSnapshot: the contract shape, old names mirroring used / limit", () => {
+  const now = new Date("2026-09-28T10:00:00.000Z");
+  const trial = quotaSnapshot(planQuotaFor({}, "trial", "token"), 1, now, 50);
+  assertEquals(trial, {
+    used_today: 1,
+    daily_limit: 2,
+    plan: "trial",
+    period: "day",
+    used: 1,
+    limit: 2,
+    resets_at: "2026-09-28T18:30:00.000Z",
+    member_monthly_limit: 50,
+  });
+  assertEquals(Object.keys(trial), [
+    "used_today", "daily_limit", "plan", "period", "used", "limit", "resets_at", "member_monthly_limit",
+  ]);
+  const member = quotaSnapshot(planQuotaFor({}, "active", "token"), 12, now, 50);
+  assertEquals(member, {
+    used_today: 12,
+    daily_limit: 50,
+    plan: "member",
+    period: "month",
+    used: 12,
+    limit: 50,
+    resets_at: "2026-09-30T18:30:00.000Z",
+    member_monthly_limit: 50,
+  });
+  const fallback = quotaSnapshot(planQuotaFor({}, "none", "token"), 0, now, 80);
+  assertEquals([fallback.plan, fallback.period, fallback.limit, fallback.member_monthly_limit], ["default", "day", 5, 80]);
+  assert(!("exceeded" in trial) && !("exceeded" in member));
+});
+
+Deno.test("quotaSnapshot: exceeded only when given", () => {
+  const now = new Date("2026-09-28T10:00:00.000Z");
+  const plan = quotaSnapshot(planQuotaFor({}, "active", "token"), 50, now, 50, "plan");
+  assertEquals(plan.exceeded, "plan");
+  assertEquals(Object.keys(plan).at(-1), "exceeded");
+  const attempts = quotaSnapshot(planQuotaFor({}, "trial", "token"), 1, now, 50, "attempts");
+  assertEquals([attempts.exceeded, attempts.used, attempts.resets_at], ["attempts", 1, "2026-09-28T18:30:00.000Z"]);
+});
+
+Deno.test("quotaRetryAfterSeconds: plan limit until its period ends, attempt cap until IST midnight", () => {
+  const now = new Date("2026-09-28T10:00:00.000Z"); // 15:30 IST, 28 September
+  const untilMidnight = 8.5 * 60 * 60;
+  const untilOctober = 2 * 24 * 60 * 60 + untilMidnight;
+  const member = planQuotaFor({}, "active", "token");
+  const trial = planQuotaFor({}, "trial", "token");
+  assertEquals(quotaRetryAfterSeconds(now, quotaSnapshot(member, 50, now, 50, "plan")), untilOctober);
+  assertEquals(quotaRetryAfterSeconds(now, quotaSnapshot(member, 20, now, 50, "attempts")), untilMidnight);
+  assertEquals(quotaRetryAfterSeconds(now, quotaSnapshot(trial, 2, now, 50, "plan")), untilMidnight);
+  assertEquals(quotaRetryAfterSeconds(now, quotaSnapshot(trial, 1, now, 50, "attempts")), untilMidnight);
+  const lastMs = new Date("2026-09-30T18:29:59.999Z");
+  assertEquals(quotaRetryAfterSeconds(lastMs, quotaSnapshot(member, 50, lastMs, 50, "plan")), 1);
 });
 
 Deno.test("quota math: the limit-th render is the last allowed one", () => {

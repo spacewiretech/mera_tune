@@ -37,24 +37,29 @@ import {
 } from "./errors.ts";
 import {
   attemptFilter,
-  attemptLimitFor,
+  attemptLimitForPlan,
   type AuthMode,
-  dailyLimitFor,
   freshRenderFilter,
   globalDailyLimit,
   globalRenderFilter,
   isFlagEnabled,
   isStaleProcessing,
+  memberMonthlyLimit,
   parseBoundedFloat,
   parsePositiveInt,
+  planQuotaFor,
+  type QuotaExceededReason,
   type QuotaSnapshot,
   quotaExceeded,
+  quotaRetryAfterSeconds,
+  quotaSnapshot,
   type QuotaWindow,
   quotaWindow,
   retryableRequestFilter,
   secondsUntilIstMidnight,
   withinLimit,
 } from "./quota.ts";
+import { countUserFreshRenders, userRowsSince } from "./quota-db.ts";
 import {
   DEFAULT_TTS_MODEL,
   resolveFallbackModel,
@@ -304,31 +309,17 @@ function inProgressError(): ApiError {
   });
 }
 
-function quotaError(now: Date, quota: QuotaSnapshot, message: string = MESSAGES.dailyLimit): ApiError {
+/** 429 for a snapshot built with `exceeded` ("plan" or "attempts"); see quotaRetryAfterSeconds. */
+function quotaError(now: Date, quota: QuotaSnapshot): ApiError {
+  const message = quota.exceeded === "attempts"
+    ? MESSAGES.tooManyTries
+    : quota.period === "month"
+    ? MESSAGES.monthlyLimit
+    : MESSAGES.dailyLimit;
   return new ApiError(429, "QUOTA_EXCEEDED", message, {
-    retryAfterSeconds: secondsUntilIstMidnight(now),
+    retryAfterSeconds: quotaRetryAfterSeconds(now, quota),
     quota,
   });
-}
-
-/** Count over one user's cached=false generated_ringtones rows created today; callers add an `or=` filter. */
-function userRowsToday(supabase: SupabaseClient, userId: number, window: QuotaWindow) {
-  return supabase
-    .from("generated_ringtones")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .eq("cached", false)
-    .gte("created_at", window.dayStartIso);
-}
-
-async function countUserFreshRenders(
-  supabase: SupabaseClient,
-  userId: number,
-  window: QuotaWindow,
-): Promise<number> {
-  const { count, error } = await userRowsToday(supabase, userId, window).or(freshRenderFilter(window.processingSinceIso));
-  if (error) throw new Error(`user quota count failed: ${error.message}`);
-  return count ?? 0;
 }
 
 /** Every fresh-render attempt today, whatever its outcome (admission rejections excluded). */
@@ -337,7 +328,7 @@ async function countUserAttempts(
   userId: number,
   window: QuotaWindow,
 ): Promise<number> {
-  const { count, error } = await userRowsToday(supabase, userId, window).or(attemptFilter());
+  const { count, error } = await userRowsSince(supabase, userId, window.dayStartIso).or(attemptFilter());
   if (error) throw new Error(`user attempt count failed: ${error.message}`);
   return count ?? 0;
 }
@@ -352,11 +343,11 @@ async function countGlobalRenders(supabase: SupabaseClient, window: QuotaWindow)
   return count ?? 0;
 }
 
-/** Ids of the first `limit` of today's rows matching `filter`, in creation order. */
+/** Ids of the first `limit` rows created at/after `sinceIso` matching `filter`, in creation order. */
 async function firstUserRowIds(
   supabase: SupabaseClient,
   userId: number,
-  window: QuotaWindow,
+  sinceIso: string,
   filter: string,
   limit: number,
 ): Promise<string[]> {
@@ -365,7 +356,7 @@ async function firstUserRowIds(
     .select("id")
     .eq("user_id", userId)
     .eq("cached", false)
-    .gte("created_at", window.dayStartIso)
+    .gte("created_at", sinceIso)
     .or(filter)
     .order("created_at", { ascending: true })
     .order("id", { ascending: true })
@@ -376,23 +367,24 @@ async function firstUserRowIds(
 
 /**
  * Counting and inserting are separate statements, so parallel requests can all pass the
- * pre-insert quota check. After our row exists, re-read today's rows in creation order: only the
- * earliest `limit` rows may go on to bill Gemini. A rejected row is marked QUOTA_EXCEEDED, which
- * the attempt count ignores, so a lost race does not burn an attempt.
+ * pre-insert quota check. After our row exists, re-read the plan period's fresh renders and
+ * today's attempts in creation order: only the earliest `limit` rows may go on to bill Gemini. A
+ * rejected row is marked QUOTA_EXCEEDED, which the attempt count ignores, so a lost race does not
+ * burn an attempt.
  */
 async function admitAfterInsert(
   supabase: SupabaseClient,
   userId: number,
   generationId: string,
   window: QuotaWindow,
-  dailyLimit: number,
+  planLimit: number,
   attemptLimit: number,
-): Promise<"ok" | "daily_limit" | "attempt_limit"> {
+): Promise<"ok" | "plan_limit" | "attempt_limit"> {
   const [fresh, attempts] = await Promise.all([
-    firstUserRowIds(supabase, userId, window, freshRenderFilter(window.processingSinceIso), dailyLimit),
-    firstUserRowIds(supabase, userId, window, attemptFilter(), attemptLimit),
+    firstUserRowIds(supabase, userId, window.periodStartIso, freshRenderFilter(window.processingSinceIso), planLimit),
+    firstUserRowIds(supabase, userId, window.dayStartIso, attemptFilter(), attemptLimit),
   ]);
-  if (!withinLimit(fresh, generationId, dailyLimit)) return "daily_limit";
+  if (!withinLimit(fresh, generationId, planLimit)) return "plan_limit";
   if (!withinLimit(attempts, generationId, attemptLimit)) return "attempt_limit";
   return "ok";
 }
@@ -826,8 +818,12 @@ Deno.serve(async (req: Request) => {
     analytics.language = language;
 
     const now = new Date();
-    const window = quotaWindow(now);
-    const dailyLimit = dailyLimitFor(config, authMode);
+    // Fresh renders are limited by plan (users.status) and auth mode; see quota.ts planQuotaFor.
+    const planQuota = planQuotaFor(config, user.status, authMode);
+    const window = quotaWindow(now, planQuota.period);
+    const memberMonthly = memberMonthlyLimit(config);
+    const snapshot = (used: number, exceeded?: QuotaExceededReason): QuotaSnapshot =>
+      quotaSnapshot(planQuota, used, now, memberMonthly, exceeded);
 
     // 4. Idempotency by (user_id, client_request_id).
     stage = "idempotency";
@@ -857,7 +853,7 @@ Deno.serve(async (req: Request) => {
               durationMs = render.duration_ms ?? null;
             }
           }
-          const usedToday = await countUserFreshRenders(supabase, userId, window);
+          const used = await countUserFreshRenders(supabase, userId, window);
           return jsonResponse(successBody({
             generationId: String(existing.id),
             renderId: existing.render_id ? String(existing.render_id) : null,
@@ -867,7 +863,7 @@ Deno.serve(async (req: Request) => {
             language: String(existing.language ?? language),
             durationMs,
             cached: Boolean(existing.cached),
-            quota: { used_today: usedToday, daily_limit: dailyLimit },
+            quota: snapshot(used),
           }));
         }
         if (existing.status === "processing" && !isStaleProcessing(String(existing.created_at), now)) {
@@ -921,8 +917,7 @@ Deno.serve(async (req: Request) => {
       completeLookup(true);
       // Counted before the ready row exists (cached rows never count): a failed count must not
       // turn a delivered ringtone into ringtone_generation_failed.
-      const usedToday = await countUserFreshRenders(supabase, userId, window);
-      const quota = { used_today: usedToday, daily_limit: dailyLimit };
+      const quota = snapshot(await countUserFreshRenders(supabase, userId, window));
       const completedAt = new Date().toISOString();
       const latencyMs = Date.now() - startedAt;
       generationId = await writeLogRow(supabase, {
@@ -962,8 +957,7 @@ Deno.serve(async (req: Request) => {
     completeLookup(Boolean(cachedRender?.public_url));
 
     if (cachedRender?.public_url) {
-      const usedToday = await countUserFreshRenders(supabase, userId, window);
-      const quota = { used_today: usedToday, daily_limit: dailyLimit };
+      const quota = snapshot(await countUserFreshRenders(supabase, userId, window));
       const completedAt = new Date().toISOString();
       const latencyMs = Date.now() - startedAt;
       generationId = await writeLogRow(supabase, {
@@ -1021,19 +1015,19 @@ Deno.serve(async (req: Request) => {
     if (inflightError) throw new Error(`inflight lookup failed: ${inflightError.message}`);
     if (inflight) throw inProgressError();
 
-    // 8. Quota: fresh renders and attempts per user (by auth mode), then global.
+    // 8. Quota: fresh renders in the plan's period and attempts today per user, then global.
     stage = "quota";
-    const attemptLimit = attemptLimitFor(config, dailyLimit);
-    const [usedToday, attemptsToday] = await Promise.all([
+    const attemptLimit = attemptLimitForPlan(config, planQuota);
+    const [used, attemptsToday] = await Promise.all([
       countUserFreshRenders(supabase, userId, window),
       countUserAttempts(supabase, userId, window),
     ]);
-    if (quotaExceeded(usedToday, dailyLimit)) {
-      throw quotaError(now, { used_today: usedToday, daily_limit: dailyLimit });
+    if (quotaExceeded(used, planQuota.limit)) {
+      throw quotaError(now, snapshot(used, "plan"));
     }
     if (quotaExceeded(attemptsToday, attemptLimit)) {
       console.warn("generate-ringtone: daily attempt cap reached", { user_id: userId, attempts: attemptsToday, limit: attemptLimit });
-      throw quotaError(now, { used_today: usedToday, daily_limit: dailyLimit }, MESSAGES.tooManyTries);
+      throw quotaError(now, snapshot(used, "attempts"));
     }
     const globalUsed = await countGlobalRenders(supabase, window);
     if (quotaExceeded(globalUsed, globalDailyLimit(config))) {
@@ -1074,12 +1068,12 @@ Deno.serve(async (req: Request) => {
 
     // Close the count-then-insert race before anything is billed.
     stage = "admission";
-    const admission = await admitAfterInsert(supabase, userId, generationId, window, dailyLimit, attemptLimit);
+    const admission = await admitAfterInsert(supabase, userId, generationId, window, planQuota.limit, attemptLimit);
     if (admission !== "ok") {
       console.warn("generate-ringtone: rejected after insert", { user_id: userId, generation_id: generationId, reason: admission });
-      throw admission === "daily_limit"
-        ? quotaError(now, { used_today: dailyLimit, daily_limit: dailyLimit })
-        : quotaError(now, { used_today: usedToday, daily_limit: dailyLimit }, MESSAGES.tooManyTries);
+      throw admission === "plan_limit"
+        ? quotaError(now, snapshot(planQuota.limit, "plan"))
+        : quotaError(now, snapshot(used, "attempts"));
     }
 
     // 10. TTS.
@@ -1229,7 +1223,7 @@ Deno.serve(async (req: Request) => {
       latency_ms: latencyMs,
     });
 
-    const quota = { used_today: usedToday + 1, daily_limit: dailyLimit };
+    const quota = snapshot(used + 1);
     reportCreated(analytics, { generationId, cached: false, durationMs: finalDurationMs, latencyMs, completedAt, quota });
     return jsonResponse(successBody({
       generationId,

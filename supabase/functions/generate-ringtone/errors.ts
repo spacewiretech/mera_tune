@@ -77,6 +77,7 @@ export const MESSAGES = Object.freeze({
   notPersonalizable: "This song cannot be personalized yet",
   nameTooLong: "This name does not fit this song. Please pick another song.",
   dailyLimit: "Daily limit reached. Please try again tomorrow.",
+  monthlyLimit: "You have made this month's ringtones. Your limit resets on the 1st.",
   tooManyTries: "Too many tries today. Please try again tomorrow.",
 });
 

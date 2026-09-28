@@ -44,7 +44,7 @@ class CreationLimitBottomSheet(
         val limit = quota.limitCount ?: quota.usedCount ?: 0
 
         bindTitle(sheetView.findViewById(R.id.limitTitle), variant)
-        sheetView.findViewById<TextView>(R.id.limitSubtitle).text = context.getString(
+        sheetView.findViewById<TextView>(R.id.limitSubtitle).text = countText(
             when (variant) {
                 CreationLimitPolicy.Variant.TRIAL -> R.string.home_limit_subtitle_trial
                 CreationLimitPolicy.Variant.MEMBER -> R.string.home_limit_subtitle_member
@@ -112,7 +112,7 @@ class CreationLimitBottomSheet(
                 titleView.setText(R.string.home_limit_info_trial_title)
                 val monthlyLimit = quota.memberMonthlyLimit?.takeIf { it > 0 }
                 bodyView.text = if (monthlyLimit != null) {
-                    context.getString(R.string.home_limit_info_trial_body, monthlyLimit)
+                    countText(R.string.home_limit_info_trial_body, monthlyLimit)
                 } else {
                     context.getString(R.string.home_limit_info_trial_body_generic)
                 }
@@ -125,7 +125,7 @@ class CreationLimitBottomSheet(
                     return
                 }
                 titleView.text = context.getString(R.string.home_limit_info_member_title, resetDate)
-                bodyView.text = context.getString(R.string.home_limit_info_member_body, limit)
+                bodyView.text = countText(R.string.home_limit_info_member_body, limit)
             }
 
             CreationLimitPolicy.Variant.DAILY -> {
@@ -134,6 +134,13 @@ class CreationLimitBottomSheet(
             }
         }
     }
+
+    /**
+     * [resId] with its `%1$d` count in Latin digits, like every other number in the app
+     * (`getString` would use the locale's digits, e.g. Devanagari in Marathi).
+     */
+    private fun countText(resId: Int, count: Int): String =
+        String.format(Locale.ROOT, context.getString(resId), count)
 
     /** The app language (month names follow it). */
     private fun appLocale(): Locale =

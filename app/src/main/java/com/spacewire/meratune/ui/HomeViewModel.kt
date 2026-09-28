@@ -122,6 +122,12 @@ class HomeViewModel(
     private var homeViewTracked = false
     private var myRingtonesJob: Job? = null
 
+    /** The running tunes load; a newer load cancels it, so an older category list never lands last. */
+    private var tunesJob: Job? = null
+
+    /** Every active tune from the last All load: a search started on a category chip lists these. */
+    private var allTunes: List<Tune>? = null
+
     /** The locally saved personalized ringtone for the name tab (re-read on resume and after a set). */
     private var savedPersonalizedTune: Tune? = readSavedPersonalizedTune()
 
@@ -274,7 +280,12 @@ class HomeViewModel(
     }
 
     fun onSearchQueryChanged(query: String) {
-        _uiState.update { state -> state.copy(searchQuery = query).withFilteredTunes() }
+        val state = _uiState.value
+        if (HomeTuneFilter.searchMovesToAllTunes(state.searchQuery, query, state.selectedCategoryId)) {
+            searchAllTunes(query)
+        } else {
+            _uiState.update { it.copy(searchQuery = query).withFilteredTunes() }
+        }
 
         searchTrackingJob?.cancel()
         pendingSearchQuery = null
@@ -322,12 +333,52 @@ class HomeViewModel(
         }
     }
 
+    /**
+     * The first character of a search typed on a category or the name chip: Home moves to All Tunes
+     * and searches every active tune (a move the user did not tap, so no `category_filtered`). It
+     * reuses the tunes already loaded for All (the name chip's list, or the last All load) and only
+     * fetches when there are none.
+     */
+    private fun searchAllTunes(query: String) {
+        val state = _uiState.value
+        val loadedAll = if (
+            categoryIdForFetch(state.selectedCategoryId) == null && !state.isLoadingTunes && state.errorMessage == null
+        ) {
+            state.tunes
+        } else {
+            allTunes
+        }
+        if (loadedAll == null) {
+            _uiState.update {
+                it.copy(searchQuery = query, selectedCategoryId = Category.ALL_CATEGORY_ID, tunes = emptyList())
+                    .withFilteredTunes()
+            }
+            loadTunes(null, AnalyticsTrigger.SEARCH)
+            return
+        }
+        // A category load still running would replace the list with that category's tunes.
+        tunesJob?.cancel()
+        val activeId = resolveActiveKey(loadedAll, state.myRingtones)
+        _uiState.update {
+            it.copy(
+                searchQuery = query,
+                selectedCategoryId = Category.ALL_CATEGORY_ID,
+                tunes = loadedAll,
+                activeRingtoneId = activeId,
+                isLoadingTunes = false,
+                errorMessage = null,
+            ).withFilteredTunes()
+        }
+    }
+
     private fun loadTunes(categoryId: String?, trigger: String) {
-        viewModelScope.launch {
+        tunesJob?.cancel()
+        tunesJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoadingTunes = true, errorMessage = null) }
 
             runCatching { repository.fetchActiveTunes(categoryId) }
                 .onSuccess { tunes ->
+                    if (categoryId == null) allTunes = tunes
                     val activeId = resolveActiveKey(tunes, _uiState.value.myRingtones)
                     _uiState.update { state ->
                         state.copy(

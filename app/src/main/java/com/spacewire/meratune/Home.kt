@@ -251,7 +251,7 @@ class Home : AppCompatActivity() {
         nameTabCta = findViewById(R.id.nameTabCreateButton)
         nameTabCtaProgress = findViewById(R.id.nameTabCreateProgress)
         tunesBasePaddingBottom = tunesRecycler.paddingBottom
-        nameTabCta.setOnClickListener { onCreateCtaTapped(nameTabCta, nameTabCtaProgress) }
+        nameTabCta.setOnClickListener { onCreateCtaTapped(nameTabCta, nameTabCtaProgress, fromNameTabCta = true) }
         // The label can wrap (long name, large font), so the list's room follows the CTA's height.
         nameTabCtaContainer.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
             if (bottom - top != oldBottom - oldTop) tunesRecycler.post { applyTunesBottomPadding() }
@@ -260,16 +260,17 @@ class Home : AppCompatActivity() {
 
     /**
      * The empty state's and the name tab's "Make {name} tune" CTA ([button], with its [progress]
-     * spinner). No trial yet: the paywall. A member whose creation quota is used up gets the limit
+     * spinner; [fromNameTabCta] for the name tab's floating one, which always makes the user's own
+     * name). No trial yet: the paywall. A member whose creation quota is used up gets the limit
      * sheet instead of the create form; an unknown quota lets the server decide.
      */
-    private fun onCreateCtaTapped(button: TextView, progress: View) {
+    private fun onCreateCtaTapped(button: TextView, progress: View, fromNameTabCta: Boolean = false) {
         if (isNavigating) return
         isNavigating = true
         val state = viewModel.uiState.value
-        // The trimmed query, or the profile first name under the "{name} Tunes" chip.
-        val prefillName = state.emptyStateName
-        val fromNameChip = state.searchQuery.isBlank() && state.isMyNameSelected
+        // Empty state: the trimmed query, or the profile first name under the "{name} Tunes" chip.
+        val prefillName = if (fromNameTabCta) state.profileFirstName.trim() else state.emptyStateName
+        val fromNameChip = fromNameTabCta || (state.searchQuery.isBlank() && state.isMyNameSelected)
         viewModel.flushPendingSearchTracking()
         mixpanelAnalytics().trackCreateRingtoneCtaTapped(
             source = if (fromNameChip) AnalyticsSource.MY_NAME_CHIP else AnalyticsSource.SEARCH_BAR,
@@ -292,6 +293,12 @@ class Home : AppCompatActivity() {
             }
             if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
                 isNavigating = false
+                return@launch
+            }
+            // The server's plan is fresher than the stored status: `default` = neither trial nor
+            // active there (e.g. autopay cancelled since login), so the paywall, as for non-members.
+            if (quota?.plan == GenerationQuota.PLAN_DEFAULT) {
+                startActivity(SubscriptionActivity.intent(this@Home))
                 return@launch
             }
             if (quota != null && CreationLimitPolicy.isExhausted(quota, System.currentTimeMillis())) {
@@ -343,10 +350,10 @@ class Home : AppCompatActivity() {
         createCta.text = createCtaLabel(name)
     }
 
-    /** The floating CTA over a non-empty "{name} Tunes" list, with the same label as the empty state's. */
+    /** The floating CTA over a non-empty "{name} Tunes" list: "Make {first name} tune", whatever the search. */
     private fun bindNameTabCta(state: HomeUiState) {
         nameTabCtaWanted = state.showNameTabCreateCta
-        if (nameTabCtaWanted) nameTabCta.text = createCtaLabel(state.emptyStateName)
+        if (nameTabCtaWanted) nameTabCta.text = createCtaLabel(state.profileFirstName.trim())
         updateNameTabCtaVisibility()
     }
 

@@ -1,5 +1,6 @@
 package com.spacewire.meratune.ui
 
+import com.spacewire.meratune.data.Category
 import com.spacewire.meratune.data.Tune
 import com.spacewire.meratune.util.ActiveRingtoneResolver
 
@@ -56,6 +57,16 @@ object HomeTuneFilter {
         val listed = filter(ownRows, query, nameFilter = null) + filter(catalog, query, firstName)
         return withActiveFirst(listed.distinctBy { it.rowKey }, activeKey)
     }
+
+    /**
+     * A search searches every active tune: typing the first character of a [query] while a chip
+     * other than All Tunes is selected ([selectedCategoryId]) moves Home to All Tunes. A chip
+     * picked after that still narrows the results (the query was not blank then).
+     */
+    fun searchMovesToAllTunes(previousQuery: String, query: String, selectedCategoryId: String?): Boolean =
+        previousQuery.isBlank() &&
+            query.isNotBlank() &&
+            (selectedCategoryId ?: Category.ALL_CATEGORY_ID) != Category.ALL_CATEGORY_ID
 
     /** [tunes] with the [activeKey] row ([Tune.rowKey]) moved to the top; unchanged without one. */
     fun withActiveFirst(tunes: List<Tune>, activeKey: String?): List<Tune> {

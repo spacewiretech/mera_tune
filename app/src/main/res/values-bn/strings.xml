@@ -256,7 +256,7 @@
     <string name="home_limit_info_member_title">আপনার সীমা %1$s তারিখে রিসেট হবে!</string>
     <string name="home_limit_info_member_body">তখন আপনি আবার %1$dটি রিংটোন বানাতে পারবেন।</string>
     <string name="home_limit_info_daily_title">কাল আবার রিংটোন বানান!</string>
-    <string name="home_limit_info_daily_body">আপনার সীমা রাত ১২টায় রিসেট হবে।</string>
+    <string name="home_limit_info_daily_body">আপনার সীমা রাত 12টায় রিসেট হবে।</string>
     <string name="home_limit_explore">আরও টিউন দেখুন</string>
     <string name="processing_error_quota_monthly">এই মাসের সীমা শেষ। %1$s থেকে আবার চেষ্টা করুন।</string>
 </resources>

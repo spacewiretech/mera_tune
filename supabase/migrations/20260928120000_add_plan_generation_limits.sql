@@ -2,7 +2,9 @@
 -- Plan-based creation quotas for generate-ringtone (generate-ringtone/quota.ts planQuotaFor), also
 -- reported by name-ringtones mine mode: users.status trial gets generate_trial_daily_limit fresh
 -- renders per IST day, active gets generate_member_monthly_limit per IST calendar month, and any
--- other status (token auth) keeps generate_daily_limit. Cached ringtones never count. The per-day
+-- other status (token auth) gets generate_daily_limit, capped at the trial limit (only trial and
+-- active users may create, so a non-member never gets more than a trial). Cached ringtones never
+-- count. The per-day
 -- attempt cap (generate_daily_attempt_limit), the legacy user_id limit and the global cap are
 -- unchanged.
 --
@@ -17,5 +19,5 @@ INSERT INTO public.app_config (key, value, description) VALUES
 ON CONFLICT (key) DO NOTHING;
 
 UPDATE public.app_config
-SET description = 'Fresh renders per user per IST day (token auth) for users whose status is not trial or active'
+SET description = 'Fresh renders per user per IST day (token auth) for users whose status is not trial or active; never above generate_trial_daily_limit'
 WHERE key = 'generate_daily_limit';

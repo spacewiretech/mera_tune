@@ -168,7 +168,10 @@ export function memberMonthlyLimit(config: Record<string, string>): number {
  * The fresh-render limit of a caller, from users.status (trimmed, case-insensitive):
  *   trial   -> { trial, day, generate_trial_daily_limit (2) }
  *   active  -> { member, month, generate_member_monthly_limit (50) }
- *   other   -> { default, day, generate_daily_limit (5) }: none / expired / cancelled / blank.
+ *   other   -> { default, day, the lower of generate_daily_limit (5) and the trial limit }:
+ *              none / expired / cancelled / blank. Only trial and active users may create, so a
+ *              non-member (e.g. a trial whose autopay was cancelled while the app still shows
+ *              trial) never gets more than a trial.
  * A legacy `user_id` caller (old app versions, no session token) is always limited per IST day, to
  * the lower of generate_legacy_daily_limit (3) and a daily plan's own limit; for the monthly member
  * plan the legacy limit alone applies, so a guessable user_id never unlocks the monthly allowance.
@@ -180,13 +183,14 @@ export function planQuotaFor(
   authMode: AuthMode,
 ): PlanQuota {
   const normalized = String(status ?? "").trim().toLowerCase();
+  const trialLimit = parsePositiveInt(config.generate_trial_daily_limit, DEFAULT_TRIAL_DAILY_LIMIT);
   let quota: PlanQuota;
   if (normalized === "trial") {
-    quota = { plan: "trial", period: "day", limit: parsePositiveInt(config.generate_trial_daily_limit, DEFAULT_TRIAL_DAILY_LIMIT) };
+    quota = { plan: "trial", period: "day", limit: trialLimit };
   } else if (normalized === "active") {
     quota = { plan: "member", period: "month", limit: memberMonthlyLimit(config) };
   } else {
-    quota = { plan: "default", period: "day", limit: dailyLimitFor(config, "token") };
+    quota = { plan: "default", period: "day", limit: Math.min(dailyLimitFor(config, "token"), trialLimit) };
   }
   if (authMode === "token") return quota;
   const legacyLimit = dailyLimitFor(config, "legacy_user_id");

@@ -175,8 +175,9 @@ Deno.test("planQuotaFor: users.status picks the plan (token auth)", () => {
   assertEquals(DEFAULT_MEMBER_MONTHLY_LIMIT, 50);
   assertEquals(planQuotaFor({}, "trial", "token"), { plan: "trial", period: "day", limit: 2 });
   assertEquals(planQuotaFor({}, "active", "token"), { plan: "member", period: "month", limit: 50 });
+  // Non-members never get more than a trial: min(generate_daily_limit 5, trial 2).
   for (const status of ["none", "expired", "cancelled", "", "   ", "pending", null, undefined]) {
-    assertEquals(planQuotaFor({}, status, "token"), { plan: "default", period: "day", limit: 5 }, String(status));
+    assertEquals(planQuotaFor({}, status, "token"), { plan: "default", period: "day", limit: 2 }, String(status));
   }
   // Trimmed and case-insensitive.
   assertEquals(planQuotaFor({}, " Trial ", "token").plan, "trial");
@@ -193,14 +194,33 @@ Deno.test("planQuotaFor: app_config overrides and bad values fall back to the de
   };
   assertEquals(planQuotaFor(config, "trial", "token"), { plan: "trial", period: "day", limit: 4 });
   assertEquals(planQuotaFor(config, "active", "token"), { plan: "member", period: "month", limit: 100 });
-  assertEquals(planQuotaFor(config, "none", "token"), { plan: "default", period: "day", limit: 7 });
+  // generate_daily_limit 7 is capped at the trial limit 4.
+  assertEquals(planQuotaFor(config, "none", "token"), { plan: "default", period: "day", limit: 4 });
+  assertEquals(planQuotaFor({ generate_daily_limit: "1" }, "cancelled", "token").limit, 1);
   assertEquals(memberMonthlyLimit(config), 100);
   for (const bad of ["0", "-1", "abc", "", "2.5"]) {
     const garbage = { generate_trial_daily_limit: bad, generate_member_monthly_limit: bad, generate_daily_limit: bad };
     assertEquals(planQuotaFor(garbage, "trial", "token").limit, 2, bad);
     assertEquals(planQuotaFor(garbage, "active", "token").limit, 50, bad);
-    assertEquals(planQuotaFor(garbage, "expired", "token").limit, 5, bad);
+    assertEquals(planQuotaFor(garbage, "expired", "token").limit, 2, bad);
     assertEquals(memberMonthlyLimit(garbage), 50, bad);
+  }
+});
+
+Deno.test("planQuotaFor: a non-member never gets more than a trial", () => {
+  const configs: Record<string, string>[] = [
+    {},
+    { generate_daily_limit: "9" },
+    { generate_trial_daily_limit: "6" },
+    { generate_daily_limit: "1" },
+  ];
+  for (const config of configs) {
+    const trial = planQuotaFor(config, "trial", "token").limit;
+    for (const status of ["none", "expired", "cancelled", ""]) {
+      for (const mode of ["token", "legacy_user_id"] as const) {
+        assert(planQuotaFor(config, status, mode).limit <= trial, `${JSON.stringify(config)} ${status} ${mode}`);
+      }
+    }
   }
 });
 
@@ -208,11 +228,11 @@ Deno.test("planQuotaFor: legacy user_id callers are limited per day, never above
   // Defaults: legacy 3/day.
   assertEquals(planQuotaFor({}, "trial", "legacy_user_id"), { plan: "trial", period: "day", limit: 2 });
   assertEquals(planQuotaFor({}, "active", "legacy_user_id"), { plan: "member", period: "day", limit: 3 });
-  assertEquals(planQuotaFor({}, "none", "legacy_user_id"), { plan: "default", period: "day", limit: 3 });
+  assertEquals(planQuotaFor({}, "none", "legacy_user_id"), { plan: "default", period: "day", limit: 2 });
   // A daily plan below the legacy limit keeps its own limit; above it, the legacy limit wins.
   assertEquals(planQuotaFor({ generate_trial_daily_limit: "10" }, "trial", "legacy_user_id").limit, 3);
   const generousLegacy = { generate_legacy_daily_limit: "8", generate_daily_limit: "5" };
-  assertEquals(planQuotaFor(generousLegacy, "none", "legacy_user_id").limit, 5);
+  assertEquals(planQuotaFor(generousLegacy, "none", "legacy_user_id").limit, 2);
   assertEquals(planQuotaFor(generousLegacy, "trial", "legacy_user_id").limit, 2);
   // The monthly allowance never applies to a legacy caller: the legacy daily limit does.
   assertEquals(planQuotaFor(generousLegacy, "active", "legacy_user_id"), { plan: "member", period: "day", limit: 8 });
@@ -258,7 +278,7 @@ Deno.test("quotaSnapshot: the contract shape, old names mirroring used / limit",
     member_monthly_limit: 50,
   });
   const fallback = quotaSnapshot(planQuotaFor({}, "none", "token"), 0, now, 80);
-  assertEquals([fallback.plan, fallback.period, fallback.limit, fallback.member_monthly_limit], ["default", "day", 5, 80]);
+  assertEquals([fallback.plan, fallback.period, fallback.limit, fallback.member_monthly_limit], ["default", "day", 2, 80]);
   assert(!("exceeded" in trial) && !("exceeded" in member));
 });
 

@@ -190,6 +190,9 @@ object AnalyticsTrigger {
     const val CATEGORY_CHANGE = "category_change"
     const val RESET = "reset"
     const val HINDI_FALLBACK = "hindi_fallback"
+
+    /** Home: a search started on a category chip loads every tune (no All list loaded yet). */
+    const val SEARCH = "search"
 }
 
 /** `permission` values for `permission_prompt_answered`. */

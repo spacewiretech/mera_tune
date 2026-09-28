@@ -10,6 +10,9 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
  * 200 { mode: "name" | "mine", ringtones: RingtoneOut[] } (see rows.ts), or
  * { error, error_code } with generate-ringtone's codes: 400 INVALID_REQUEST / INVALID_NAME /
  * NAME_REJECTED, 401 UNAUTHORIZED, 405 INVALID_REQUEST, 500 INTERNAL.
+ * Mine mode also returns `quota`: generate-ringtone's quota object for the caller's plan (quota.ts
+ * planQuotaFor / quotaSnapshot), its `used` counted with the same query (quota-db.ts), never with
+ * `exceeded`. It is omitted when that count fails; the ringtones are still returned.
  *
  * Auth and name normalization are generate-ringtone's own code (request.ts, names.ts). The name
  * is never logged. Own rows need a session token (`readsOwnRows`): a bare legacy `user_id` gets
@@ -18,6 +21,15 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createServiceClient, type ServiceClient } from "../_shared/supabase-client.ts";
 import { ApiError, safeDetail } from "../generate-ringtone/errors.ts";
 import { sanitizeName } from "../generate-ringtone/names.ts";
+import {
+  type AuthMode,
+  memberMonthlyLimit,
+  planQuotaFor,
+  type QuotaSnapshot,
+  quotaSnapshot,
+  quotaWindow,
+} from "../generate-ringtone/quota.ts";
+import { countUserFreshRenders } from "../generate-ringtone/quota-db.ts";
 import { authenticateCaller, getConfig, requireUser } from "../generate-ringtone/request.ts";
 import {
   GENERATION_COLUMNS,
@@ -152,6 +164,25 @@ async function myRingtones(supabase: ServiceClient, userId: number, limit: numbe
   });
 }
 
+/** The caller's creation quota for mine mode; null (logged, no user data) when the count fails. */
+async function mineQuota(
+  supabase: ServiceClient,
+  config: Record<string, string>,
+  userId: number,
+  status: string,
+  authMode: AuthMode,
+): Promise<QuotaSnapshot | null> {
+  const now = new Date();
+  const planQuota = planQuotaFor(config, status, authMode);
+  try {
+    const used = await countUserFreshRenders(supabase, userId, quotaWindow(now, planQuota.period));
+    return quotaSnapshot(planQuota, used, now, memberMonthlyLimit(config));
+  } catch (err) {
+    console.warn("name-ringtones: quota count failed", { detail: safeDetail(err) });
+    return null;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return errorResponse(new ApiError(405, "INVALID_REQUEST", "Use POST"));
@@ -178,14 +209,17 @@ Deno.serve(async (req: Request) => {
     const config = await getConfig(supabase);
     const { userId, authMode } = await authenticateCaller(supabase, config, request.credentials);
     const includeOwn = readsOwnRows(request.mode, authMode);
-    await requireUser(supabase, userId);
+    const user = await requireUser(supabase, userId);
 
-    const ringtones = name
-      ? await nameRingtones(supabase, userId, name, request.limit, includeOwn)
-      : await myRingtones(supabase, userId, request.limit);
+    const [ringtones, quota]: [RingtoneOut[], QuotaSnapshot | null] = name
+      ? [await nameRingtones(supabase, userId, name, request.limit, includeOwn), null]
+      : await Promise.all([
+        myRingtones(supabase, userId, request.limit),
+        mineQuota(supabase, config, userId, user.status, authMode),
+      ]);
 
     console.log("name-ringtones: ok", { mode, count: ringtones.length, latency_ms: Date.now() - startedAt });
-    return jsonResponse({ mode: request.mode, ringtones });
+    return jsonResponse(quota ? { mode: request.mode, ringtones, quota } : { mode: request.mode, ringtones });
   } catch (err) {
     if (err instanceof ApiError) {
       if (err.status >= 500) console.error("name-ringtones: failed", { mode, code: err.code, status: err.status });

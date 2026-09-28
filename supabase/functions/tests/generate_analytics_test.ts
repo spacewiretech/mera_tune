@@ -21,6 +21,13 @@ import {
   ringtoneCreatedProps,
   runInBackground,
 } from "../generate-ringtone/analytics.ts";
+import { type PlanQuota, type QuotaSnapshot, quotaSnapshot } from "../generate-ringtone/quota.ts";
+
+const DEFAULT_PLAN: PlanQuota = { plan: "default", period: "day", limit: 5 };
+const MEMBER_PLAN: PlanQuota = { plan: "member", period: "month", limit: 50 };
+function quota(used: number, plan: PlanQuota = DEFAULT_PLAN): QuotaSnapshot {
+  return quotaSnapshot(plan, used, new Date("2026-09-28T10:00:00.000Z"), 50);
+}
 
 const TUNE_ID = "7f1c2a9e-0000-4000-8000-000000000001";
 const GENERATION_ID = "0b6f0e4e-0000-4000-8000-000000000002";
@@ -110,7 +117,7 @@ Deno.test("ringtoneCreatedProps: spec props, voice as male/female, source creati
       cached: false,
       audioDurationMs: 28_500,
       latencyMs: 21_400,
-      quota: { used_today: 2, daily_limit: 5 },
+      quota: quota(2),
     }),
     {
       tune_id: TUNE_ID,
@@ -127,8 +134,25 @@ Deno.test("ringtoneCreatedProps: spec props, voice as male/female, source creati
       duration_minutes: 0.4,
       quota_used_today: 2,
       quota_daily_limit: 5,
+      quota_plan: "default",
+      quota_period: "day",
       source: GENERATION_SOURCE,
     },
+  );
+});
+
+Deno.test("ringtoneCreatedProps: a member's quota props carry the month's count and limit", () => {
+  const props = ringtoneCreatedProps({
+    ...SHARED,
+    tune: TUNE,
+    cached: false,
+    audioDurationMs: 28_500,
+    latencyMs: 21_400,
+    quota: quota(17, MEMBER_PLAN),
+  });
+  assertEquals(
+    [props.quota_used_today, props.quota_daily_limit, props.quota_plan, props.quota_period],
+    [17, 50, "member", "month"],
   );
 });
 
@@ -142,7 +166,7 @@ Deno.test("ringtoneCreatedProps: unknown audio length, voice and ids are omitted
     cached: true,
     audioDurationMs: null,
     latencyMs: 310,
-    quota: { used_today: 0, daily_limit: 5 },
+    quota: quota(0),
   }));
   for (const key of ["duration_ms", "voice", "category", "client_request_id", "app_version"]) {
     assert(!(key in cleaned), `${key} should be omitted`);
@@ -160,7 +184,7 @@ Deno.test("generationFailedProps: code, retryable and quota for a quota rejectio
       code: "QUOTA_EXCEEDED",
       httpStatus: 429,
       latencyMs: 640,
-      quota: { used_today: 5, daily_limit: 5 },
+      quota: quotaSnapshot(MEMBER_PLAN, 50, new Date("2026-09-28T10:00:00.000Z"), 50, "plan"),
     }),
     {
       tune_id: TUNE_ID,
@@ -175,8 +199,10 @@ Deno.test("generationFailedProps: code, retryable and quota for a quota rejectio
       retryable: false,
       http_status: 429,
       latency_ms: 640,
-      quota_used_today: 5,
-      quota_daily_limit: 5,
+      quota_used_today: 50,
+      quota_daily_limit: 50,
+      quota_plan: "member",
+      quota_period: "month",
     },
   );
 });
@@ -195,7 +221,7 @@ Deno.test("generationFailedProps: before the tune loads only the requested id is
   assertEquals(cleaned.tune_id, TUNE_ID);
   assertEquals(cleaned.sample_id, TUNE_ID);
   assertEquals(cleaned.retryable, true);
-  for (const key of ["category", "voice", "generation_id", "quota_used_today", "quota_daily_limit"]) {
+  for (const key of ["category", "voice", "generation_id", "quota_used_today", "quota_daily_limit", "quota_plan", "quota_period"]) {
     assert(!(key in cleaned), `${key} should be omitted`);
   }
   assert(!("tune_id" in cleanProps(generationFailedProps({ ...SHARED, tune: null, code: "INVALID_NAME", httpStatus: 400, latencyMs: 5 }))));
@@ -242,12 +268,12 @@ Deno.test("every builder key survives cleanProps and stays inside the allowlist"
   const allowed = new Set([
     "tune_id", "sample_id", "category", "voice", "language", "generation_id", "client_request_id",
     "app_version", "cached", "duration_ms", "latency_ms", "duration_minutes", "quota_used_today",
-    "quota_daily_limit", "source", "failure_reason", "retryable", "http_status", "has_match",
-    "match_count", "exact_match", "name_length",
+    "quota_daily_limit", "quota_plan", "quota_period", "source", "failure_reason", "retryable", "http_status",
+    "has_match", "match_count", "exact_match", "name_length",
   ]);
   const all: MixpanelProps[] = [
-    ringtoneCreatedProps({ ...SHARED, tune: TUNE, cached: false, audioDurationMs: 1, latencyMs: 1, quota: { used_today: 1, daily_limit: 5 } }),
-    generationFailedProps({ ...SHARED, tune: TUNE, code: "QUOTA_EXCEEDED", httpStatus: 429, latencyMs: 1, quota: { used_today: 5, daily_limit: 5 } }),
+    ringtoneCreatedProps({ ...SHARED, tune: TUNE, cached: false, audioDurationMs: 1, latencyMs: 1, quota: quota(1) }),
+    generationFailedProps({ ...SHARED, tune: TUNE, code: "QUOTA_EXCEEDED", httpStatus: 429, latencyMs: 1, quota: quota(5) }),
     nameLookupProps({ ...SHARED, sampleId: TUNE_ID, nameLength: 5, exactMatch: false, matchCount: 1 }),
   ];
   for (const props of all) {

@@ -5,6 +5,11 @@
  * UNAUTHORIZED, where the server has no user). Pure builders, unit tested in
  * supabase/functions/tests/generate_analytics_test.ts. The name, its normalized form and the title
  * are never inputs here.
+ *
+ * Quota props (only when the response carries a quota snapshot): quota_plan (trial / member /
+ * default) and quota_period (day / month) name the caller's plan; quota_used_today and
+ * quota_daily_limit keep their names but carry the snapshot's used / limit for that period, so for
+ * a member they are the month's count and the monthly limit.
  */
 import type { MixpanelProps } from "../_shared/mixpanel.ts";
 import { normalizeVoiceGender } from "../_shared/tts-voices.ts";
@@ -139,8 +144,10 @@ export function ringtoneCreatedProps(input: SharedFacts & {
     duration_ms: input.audioDurationMs,
     latency_ms: input.latencyMs,
     duration_minutes: durationMinutes(input.latencyMs),
-    quota_used_today: input.quota.used_today,
-    quota_daily_limit: input.quota.daily_limit,
+    quota_used_today: input.quota.used,
+    quota_daily_limit: input.quota.limit,
+    quota_plan: input.quota.plan,
+    quota_period: input.quota.period,
     source: GENERATION_SOURCE,
   };
 }
@@ -159,8 +166,10 @@ export function generationFailedProps(input: SharedFacts & {
     retryable: isRetryableCode(input.code),
     http_status: input.httpStatus,
     latency_ms: input.latencyMs,
-    quota_used_today: input.quota?.used_today,
-    quota_daily_limit: input.quota?.daily_limit,
+    quota_used_today: input.quota?.used,
+    quota_daily_limit: input.quota?.limit,
+    quota_plan: input.quota?.plan,
+    quota_period: input.quota?.period,
   };
 }
 

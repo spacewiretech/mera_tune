@@ -2,15 +2,24 @@
  * Pure helpers for the generate-ringtone quota and idempotency rules. No I/O, so they are unit
  * tested in supabase/functions/tests/quota_test.ts.
  *
- * Quota day = IST calendar day (UTC+05:30, no DST). Three limits, all on rows created today:
- *   - fresh renders per user (generate_daily_limit / generate_legacy_daily_limit): cached=false
+ * Quota day = IST calendar day, quota month = IST calendar month (UTC+05:30, no DST). Three limits:
+ *   - fresh renders per user, by plan (planQuotaFor, from users.status): cached=false
  *     generated_ringtones rows that are ready, or processing and younger than STALE_PROCESSING_MS
- *     (a row stuck in processing longer than that is treated as abandoned);
- *   - attempts per user (generate_daily_attempt_limit): cached=false rows that may have billed
- *     Gemini (processing, ready, or failed with an ATTEMPT_FAILURE_CODES code), so renders that
- *     failed after Gemini billed them are bounded too, but rate-limited re-posts are not;
- *   - global (generate_global_daily_limit): ringtone_renders rows counted like fresh renders, plus
- *     failed rows whose error_code says Gemini had already been billed (BILLED_FAILURE_CODES).
+ *     (a row stuck in processing longer than that is treated as abandoned), counted over the
+ *     plan's period:
+ *       trial   (status trial)   generate_trial_daily_limit per IST day (default 2);
+ *       member  (status active)  generate_member_monthly_limit per IST month (default 50);
+ *       default (anything else)  generate_daily_limit per IST day (default 5).
+ *     Legacy `user_id` callers are held to a per-day limit whatever the plan (see planQuotaFor);
+ *   - attempts per user per IST day, for every plan (generate_daily_attempt_limit): cached=false
+ *     rows that may have billed Gemini (processing, ready, or failed with an ATTEMPT_FAILURE_CODES
+ *     code), so renders that failed after Gemini billed them are bounded too, but rate-limited
+ *     re-posts are not. For a monthly plan it is the abuse guard that stops a member spending the
+ *     month in one day;
+ *   - global per IST day (generate_global_daily_limit): ringtone_renders rows counted like fresh
+ *     renders, plus failed rows whose error_code says Gemini had already been billed
+ *     (BILLED_FAILURE_CODES).
+ * Cached hits (sample name, render cache) never count toward any of them.
  */
 export const IST_OFFSET_MS = 330 * 60 * 1000;
 export const DAY_MS = 24 * 60 * 60 * 1000;
@@ -25,6 +34,8 @@ export const INFLIGHT_RENDER_MS = 90 * 1000;
 
 export const DEFAULT_DAILY_LIMIT = 5;
 export const DEFAULT_LEGACY_DAILY_LIMIT = 3;
+export const DEFAULT_TRIAL_DAILY_LIMIT = 2;
+export const DEFAULT_MEMBER_MONTHLY_LIMIT = 50;
 export const DEFAULT_DAILY_ATTEMPT_LIMIT = 12;
 export const DEFAULT_GLOBAL_DAILY_LIMIT = 2000;
 
@@ -49,6 +60,15 @@ export const QUOTA_REJECTED_CODE = "QUOTA_EXCEEDED";
 
 export type AuthMode = "token" | "legacy_user_id";
 
+/** trial = users.status trial; member = users.status active; default = any other status. */
+export type QuotaPlan = "trial" | "member" | "default";
+/** day = IST calendar day; month = IST calendar month. */
+export type QuotaPeriod = "day" | "month";
+/** Fresh renders allowed per `period` on `plan`. */
+export type PlanQuota = { plan: QuotaPlan; period: QuotaPeriod; limit: number };
+/** Which limit a QUOTA_EXCEEDED hit: the plan's, or the per-IST-day attempt cap behind every plan. */
+export type QuotaExceededReason = "plan" | "attempts";
+
 /** UTC instant of 00:00 IST on the IST calendar day that contains `now`. */
 export function istDayStart(now: Date = new Date()): Date {
   const shifted = new Date(now.getTime() + IST_OFFSET_MS);
@@ -64,6 +84,35 @@ export function istNextMidnight(now: Date = new Date()): Date {
 /** Whole seconds until the quota resets; never less than 1. */
 export function secondsUntilIstMidnight(now: Date = new Date()): number {
   const remainingMs = istNextMidnight(now).getTime() - now.getTime();
+  return Math.max(1, Math.ceil(remainingMs / 1000));
+}
+
+/** UTC instant of 00:00 IST on the 1st of the IST calendar month that contains `now`. */
+export function istMonthStart(now: Date = new Date()): Date {
+  const shifted = new Date(now.getTime() + IST_OFFSET_MS);
+  return new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), 1) - IST_OFFSET_MS);
+}
+
+/** UTC instant of 00:00 IST on the 1st of the IST calendar month after the one containing `now`. */
+export function istNextMonthStart(now: Date = new Date()): Date {
+  const shifted = new Date(now.getTime() + IST_OFFSET_MS);
+  // Date.UTC rolls month 12 over into January of the next year.
+  return new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth() + 1, 1) - IST_OFFSET_MS);
+}
+
+/** Start of the quota period containing `now`: rows created at/after it count. */
+export function periodStart(now: Date, period: QuotaPeriod): Date {
+  return period === "month" ? istMonthStart(now) : istDayStart(now);
+}
+
+/** End of the quota period containing `now`, i.e. when the plan limit resets. */
+export function periodEnd(now: Date, period: QuotaPeriod): Date {
+  return period === "month" ? istNextMonthStart(now) : istNextMidnight(now);
+}
+
+/** Whole seconds until the plan limit resets; never less than 1. */
+export function secondsUntilPeriodEnd(now: Date, period: QuotaPeriod): number {
+  const remainingMs = periodEnd(now, period).getTime() - now.getTime();
   return Math.max(1, Math.ceil(remainingMs / 1000));
 }
 
@@ -111,9 +160,55 @@ export function dailyLimitFor(config: Record<string, string>, authMode: AuthMode
     : parsePositiveInt(config.generate_legacy_daily_limit, DEFAULT_LEGACY_DAILY_LIMIT);
 }
 
+export function memberMonthlyLimit(config: Record<string, string>): number {
+  return parsePositiveInt(config.generate_member_monthly_limit, DEFAULT_MEMBER_MONTHLY_LIMIT);
+}
+
+/**
+ * The fresh-render limit of a caller, from users.status (trimmed, case-insensitive):
+ *   trial   -> { trial, day, generate_trial_daily_limit (2) }
+ *   active  -> { member, month, generate_member_monthly_limit (50) }
+ *   other   -> { default, day, generate_daily_limit (5) }: none / expired / cancelled / blank.
+ * A legacy `user_id` caller (old app versions, no session token) is always limited per IST day, to
+ * the lower of generate_legacy_daily_limit (3) and a daily plan's own limit; for the monthly member
+ * plan the legacy limit alone applies, so a guessable user_id never unlocks the monthly allowance.
+ * `plan` still names the caller's plan in that case.
+ */
+export function planQuotaFor(
+  config: Record<string, string>,
+  status: string | null | undefined,
+  authMode: AuthMode,
+): PlanQuota {
+  const normalized = String(status ?? "").trim().toLowerCase();
+  let quota: PlanQuota;
+  if (normalized === "trial") {
+    quota = { plan: "trial", period: "day", limit: parsePositiveInt(config.generate_trial_daily_limit, DEFAULT_TRIAL_DAILY_LIMIT) };
+  } else if (normalized === "active") {
+    quota = { plan: "member", period: "month", limit: memberMonthlyLimit(config) };
+  } else {
+    quota = { plan: "default", period: "day", limit: dailyLimitFor(config, "token") };
+  }
+  if (authMode === "token") return quota;
+  const legacyLimit = dailyLimitFor(config, "legacy_user_id");
+  return {
+    plan: quota.plan,
+    period: "day",
+    limit: quota.period === "day" ? Math.min(legacyLimit, quota.limit) : legacyLimit,
+  };
+}
+
 /** Attempts per user per IST day; never below the fresh-render limit it backs up. */
 export function attemptLimitFor(config: Record<string, string>, dailyLimit: number): number {
   return Math.max(parsePositiveInt(config.generate_daily_attempt_limit, DEFAULT_DAILY_ATTEMPT_LIMIT), dailyLimit);
+}
+
+/**
+ * The attempt cap stays per IST day on every plan. A daily plan's limit is its floor, as before; a
+ * monthly limit is not a per-day number, so a member gets the configured cap (default 12) as an
+ * abuse guard.
+ */
+export function attemptLimitForPlan(config: Record<string, string>, planQuota: PlanQuota): number {
+  return attemptLimitFor(config, planQuota.period === "day" ? planQuota.limit : 0);
 }
 
 export function globalDailyLimit(config: Record<string, string>): number {
@@ -159,8 +254,8 @@ export function retryableRequestFilter(processingSinceIso: string): string {
 }
 
 /**
- * Post-insert admission: `orderedIds` are today's counted rows in creation order (at most `limit`
- * of them). The request is admitted when its own row is among the first `limit`, so of several
+ * Post-insert admission: `orderedIds` are the period's counted rows in creation order (at most
+ * `limit` of them). The request is admitted when its own row is among the first `limit`, so of several
  * parallel requests that all passed the pre-insert count, only the earliest ones proceed. Fewer
  * than `limit` rows means there is room whether or not our row was read back (e.g. a clock-skew
  * edge at IST midnight), so that also admits.
@@ -171,23 +266,74 @@ export function withinLimit(orderedIds: ReadonlyArray<string>, ownId: string, li
 }
 
 export type QuotaWindow = {
-  /** ISO instant: rows created at/after this are "today". */
+  /** ISO instant: rows created at/after this are "today" (attempt and global caps). */
   dayStartIso: string;
+  /** ISO instant: fresh renders created at/after this count toward the plan (= dayStartIso for day plans). */
+  periodStartIso: string;
   /** ISO instant: processing rows created after this still count as in flight. */
   processingSinceIso: string;
   /** ISO instant: processing renders created after this block duplicates. */
   inflightSinceIso: string;
 };
 
-export function quotaWindow(now: Date = new Date()): QuotaWindow {
+export function quotaWindow(now: Date = new Date(), period: QuotaPeriod = "day"): QuotaWindow {
   return {
     dayStartIso: istDayStart(now).toISOString(),
+    periodStartIso: periodStart(now, period).toISOString(),
     processingSinceIso: new Date(now.getTime() - STALE_PROCESSING_MS).toISOString(),
     inflightSinceIso: new Date(now.getTime() - INFLIGHT_RENDER_MS).toISOString(),
   };
 }
 
-export type QuotaSnapshot = { used_today: number; daily_limit: number };
+/**
+ * The `quota` object of generate-ringtone responses (success and error bodies) and of
+ * name-ringtones mine mode. `used_today` / `daily_limit` are the pre-plan names, kept for older
+ * app versions: always the same numbers as `used` / `limit`, even for a monthly plan.
+ */
+export type QuotaSnapshot = {
+  used_today: number;
+  daily_limit: number;
+  plan: QuotaPlan;
+  period: QuotaPeriod;
+  /** The caller's fresh renders counted in the current period. */
+  used: number;
+  limit: number;
+  /** ISO instant the period ends: next 00:00 IST, or 00:00 IST on the 1st of next month. */
+  resets_at: string;
+  /** The member plan's monthly limit, whatever the caller's plan (the app's trial copy uses it). */
+  member_monthly_limit: number;
+  /** Only in QUOTA_EXCEEDED bodies. */
+  exceeded?: QuotaExceededReason;
+};
+
+export function quotaSnapshot(
+  planQuota: PlanQuota,
+  used: number,
+  now: Date,
+  memberMonthly: number,
+  exceeded?: QuotaExceededReason,
+): QuotaSnapshot {
+  const snapshot: QuotaSnapshot = {
+    used_today: used,
+    daily_limit: planQuota.limit,
+    plan: planQuota.plan,
+    period: planQuota.period,
+    used,
+    limit: planQuota.limit,
+    resets_at: periodEnd(now, planQuota.period).toISOString(),
+    member_monthly_limit: memberMonthly,
+  };
+  if (exceeded) snapshot.exceeded = exceeded;
+  return snapshot;
+}
+
+/**
+ * QUOTA_EXCEEDED retry_after_seconds: the plan limit resets at the end of its period (day or
+ * month); the attempt cap behind every plan at the next IST midnight.
+ */
+export function quotaRetryAfterSeconds(now: Date, quota: QuotaSnapshot): number {
+  return quota.exceeded === "attempts" ? secondsUntilIstMidnight(now) : secondsUntilPeriodEnd(now, quota.period);
+}
 
 export function quotaExceeded(usedToday: number, dailyLimit: number): boolean {
   return usedToday >= dailyLimit;

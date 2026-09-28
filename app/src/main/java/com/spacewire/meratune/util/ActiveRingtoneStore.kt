@@ -205,7 +205,8 @@ internal object ActiveRingtoneResolver {
         val copy = saved.personalizedTune
         if (copy != null) {
             val listed = mine.firstOrNull { it.generationId != null && sameRingtone(it, copy) }
-            // A copy without a generation id (a failed claim) has the base tune's row key: only
+            // A copy without a generation id (saved by a build that had the name ringtones step,
+            // when its claim failed) has the base tune's row key: only
             // the same file in [mine] is it, never another own copy of that base tune.
             return (listed ?: copy.takeIf { !it.generationId.isNullOrBlank() })?.rowKey
         }

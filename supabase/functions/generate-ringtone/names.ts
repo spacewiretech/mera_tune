@@ -201,3 +201,13 @@ export function normalizeAuthoredName(raw: string | null | undefined): string {
   if (!raw) return "";
   return normalizeForKey(displayName(raw));
 }
+
+/**
+ * Per-user ringtone title from tune.title_template: every `{name}` is replaced by the display
+ * form, a template without the placeholder gets the name appended. Null without a template.
+ */
+export function buildTitle(template: string | null | undefined, display: string): string | null {
+  const trimmed = template?.trim();
+  if (!trimmed) return null;
+  return trimmed.includes("{name}") ? trimmed.split("{name}").join(display) : `${trimmed} ${display}`;
+}

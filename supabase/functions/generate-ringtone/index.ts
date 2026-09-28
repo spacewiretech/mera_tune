@@ -23,7 +23,9 @@ import {
   runInBackground,
   type TuneFacts,
 } from "./analytics.ts";
-import { normalizeAuthoredName, sanitizeName, spokenName } from "./names.ts";
+import { buildTitle, normalizeAuthoredName, sanitizeName, spokenName } from "./names.ts";
+import { authenticateCaller, getConfig, optionalString, parseCredentials, requireUser } from "./request.ts";
+import { normalizeCategory, type TuneCategory } from "../_shared/tune-category.ts";
 import {
   ApiError,
   MESSAGES,
@@ -117,9 +119,6 @@ type GenerateRequest = {
   appVersion: string | null;
 };
 
-/** Strings, never null: the app's `Category` model has non-null defaults and rejects explicit null. */
-type TuneCategory = { id: string; name: string; image_url: string };
-
 type TuneRow = {
   id: string;
   name: string;
@@ -212,23 +211,8 @@ function errorResponse(err: ApiError): Response {
   return jsonResponse(body, err.status);
 }
 
-async function getConfig(supabase: SupabaseClient): Promise<Record<string, string>> {
-  const { data, error } = await supabase.from("app_config").select("key, value");
-  if (error) throw new Error(`Failed to load app_config: ${error.message}`);
-  const config: Record<string, string> = {};
-  for (const row of data ?? []) config[String(row.key)] = String(row.value ?? "");
-  return config;
-}
-
 function secret(envName: string, config: Record<string, string>, configKey: string): string {
   return Deno.env.get(envName)?.trim() || config[configKey]?.trim() || "";
-}
-
-function optionalString(value: unknown, maxLength: number): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  return trimmed.slice(0, maxLength);
 }
 
 function parseBody(raw: unknown): GenerateRequest {
@@ -252,23 +236,7 @@ function parseBody(raw: unknown): GenerateRequest {
     throw new ApiError(400, "INVALID_REQUEST", "client_request_id is too long");
   }
 
-  let userId: number | null = null;
-  if (body.user_id !== undefined && body.user_id !== null && body.user_id !== "") {
-    const parsed = typeof body.user_id === "number" ? body.user_id : Number(String(body.user_id).trim());
-    if (!Number.isInteger(parsed) || parsed <= 0) {
-      throw new ApiError(400, "INVALID_REQUEST", "user_id must be a positive integer");
-    }
-    userId = parsed;
-  }
-
-  const userToken = optionalString(body.user_token, 512);
-  if (body.user_token !== undefined && body.user_token !== null && typeof body.user_token !== "string") {
-    throw new ApiError(400, "INVALID_REQUEST", "user_token must be a string");
-  }
-
-  if (!userId && !userToken) {
-    throw new ApiError(401, "UNAUTHORIZED", "Please log in again");
-  }
+  const { userId, userToken } = parseCredentials(body);
 
   return {
     userId,
@@ -278,18 +246,6 @@ function parseBody(raw: unknown): GenerateRequest {
     language,
     clientRequestId,
     appVersion: optionalString(body.app_version, MAX_APP_VERSION_LENGTH),
-  };
-}
-
-function normalizeCategory(raw: unknown): TuneCategory | null {
-  const value = Array.isArray(raw) ? raw[0] : raw;
-  if (!value || typeof value !== "object") return null;
-  const record = value as Record<string, unknown>;
-  if (record.id === undefined || record.id === null) return null;
-  return {
-    id: String(record.id),
-    name: record.name === undefined || record.name === null ? "" : String(record.name),
-    image_url: typeof record.image_url === "string" ? record.image_url : "",
   };
 }
 
@@ -340,12 +296,6 @@ function assertPersonalizable(tune: TuneRow): void {
     });
     throw new ApiError(422, "TUNE_NOT_PERSONALIZABLE", MESSAGES.notPersonalizable);
   }
-}
-
-function buildTitle(template: string | null, display: string): string | null {
-  const trimmed = template?.trim();
-  if (!trimmed) return null;
-  return trimmed.includes("{name}") ? trimmed.split("{name}").join(display) : `${trimmed} ${display}`;
 }
 
 function inProgressError(): ApiError {
@@ -849,35 +799,13 @@ Deno.serve(async (req: Request) => {
 
     // 2. Auth.
     stage = "auth";
-    let userId: number;
-    let authMode: AuthMode;
-    if (body.userToken) {
-      const session = await resolveUserIdFromToken(supabase, body.userToken);
-      if (!session) throw new ApiError(401, "UNAUTHORIZED", "Session expired. Please log in again.");
-      if (body.userId !== null && body.userId !== session.userId) {
-        throw new ApiError(401, "UNAUTHORIZED", "Session does not match this account. Please log in again.");
-      }
-      userId = session.userId;
-      authMode = "token";
-    } else {
-      if (!isFlagEnabled(config, "generate_allow_legacy_user_id", false) || body.userId === null) {
-        throw new ApiError(401, "UNAUTHORIZED", "Please log in again");
-      }
-      userId = body.userId;
-      authMode = "legacy_user_id";
-    }
+    const { userId, authMode } = await authenticateCaller(supabase, config, body);
     analytics.userId = userId;
 
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("id, status")
-      .eq("id", userId)
-      .maybeSingle();
-    if (userError) throw new Error(`user lookup failed: ${userError.message}`);
-    if (!user) throw new ApiError(401, "UNAUTHORIZED", "Account not found. Please log in again.");
+    const user = await requireUser(supabase, userId);
 
     if (isFlagEnabled(config, "generate_require_subscription", false)) {
-      const status = String(user.status ?? "none").toLowerCase();
+      const status = user.status.toLowerCase();
       if (BLOCKED_SUBSCRIPTION_STATUSES.has(status)) {
         throw new ApiError(403, "SUBSCRIPTION_REQUIRED", "A subscription is required to create ringtones");
       }

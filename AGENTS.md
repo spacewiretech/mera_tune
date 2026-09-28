@@ -355,3 +355,11 @@ User ID is the database primary key (`user.id.toString()`), same as Mixpanel and
 5. Add the app's SHA-1 (debug and Play App Signing) in Firebase Console → Project settings → Your apps, so Analytics and Ads attribution match the signed builds.
 6. Debug builds: `adb shell setprop debug.firebase.analytics.app com.spacewire.meratune`, then confirm `purchase` in Logcat (`FirebasePurchase`) and in Firebase DebugView / GA4 DebugView. Purchase value is the trial auth amount in INR.
 7. In Google Ads: optimize App campaigns for **Purchase** (trial). Do not import Mixpanel or Meta events into Google Ads; Firebase `purchase` is the conversion source.
+
+## Name ringtones lookup (`name-ringtones`)
+
+Read-only Edge Function behind the create flow's "already exists" list and the Home "{name} Tunes" list. **Deploy it before or with the app build that calls it** (`supabase functions deploy name-ringtones`; `verify_jwt = true` in `supabase/config.toml`). No migration or secret: it reads `ringtone_renders` / `generated_ringtones` with the service role and uses the existing `idx_ringtone_renders_name_lang_ready` index.
+
+- Auth and name normalization are generate-ringtone's own code (`generate-ringtone/request.ts`, `names.ts`), so both functions accept the same credentials and name keys.
+- `POST { user_id, user_token, name }`: up to 20 ready ringtones that already sing the name (stock tunes whose `sample_name` is the name, then renders on the tune's current cache key, newest first, one per song and voice). `POST { user_id, user_token, mine: true }`: the caller's own ready ringtones (max 50). Rows never carry user ids; `generation_id` is only the caller's own.
+- App: `NameRingtonesRepository.fetchNameRingtones(name)` / `fetchMyRingtones()`. Posting `generate-ringtone` with a listed row's tune id and the same name is a cache hit (no Gemini call, no quota) that records it for the user. Server tests: `supabase/functions/tests/name_ringtones_test.ts`.

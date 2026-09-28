@@ -422,6 +422,12 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/generate-ringtone/index.ts"
 
+# Read-only lookup of ready name ringtones (create flow) and the caller's own ones (Home).
+[functions.name-ringtones]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/name-ringtones/index.ts"
+
 # Cashfree calls this webhook without a Supabase JWT; it authenticates requests by HMAC signature.
 # Production runs it with verify_jwt = false, so a deploy from this repo must keep it that way.
 [functions.cashfree-webhook]

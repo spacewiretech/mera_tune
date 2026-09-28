@@ -192,14 +192,14 @@ class RingtoneGenerationRepository {
         )
 
         val response: HttpResponse = try {
-            httpClient.post("$functionsBaseUrl/generate-ringtone") {
+            httpClient.post("$functionsBaseUrl/$FUNCTION") {
                 contentType(ContentType.Application.Json)
                 header("Authorization", "Bearer ${BuildConfig.SUPABASE_KEY}")
                 header("apikey", BuildConfig.SUPABASE_KEY)
                 setBody(request)
             }
         } catch (error: Throwable) {
-            throw mapTransportError(error, httpStatus = null)
+            throw mapEdgeTransportError(error, httpStatus = null, tag = TAG, function = FUNCTION)
         }
 
         val status = response.status.value
@@ -219,7 +219,7 @@ class RingtoneGenerationRepository {
         } catch (error: NoTransformationFoundException) {
             null
         } catch (error: Throwable) {
-            throw mapTransportError(error, httpStatus = status)
+            throw mapEdgeTransportError(error, httpStatus = status, tag = TAG, function = FUNCTION)
         }
 
         if (body == null) {
@@ -292,48 +292,55 @@ class RingtoneGenerationRepository {
         )
     }
 
-    private fun mapTransportError(error: Throwable, httpStatus: Int?): Throwable {
-        return when (error) {
-            is CancellationException -> error
-            is RingtoneGenerationException -> error
-            is HttpRequestTimeoutException,
-            is ConnectTimeoutException,
-            is SocketTimeoutException,
-            -> {
-                Log.w(TAG, "generate-ringtone timed out: ${error.javaClass.simpleName}")
-                RingtoneGenerationException(
-                    code = GenerationErrorCode.TIMEOUT,
-                    message = "Request timed out",
-                    httpStatus = httpStatus,
-                )
-            }
-
-            is IOException -> {
-                Log.w(TAG, "generate-ringtone network error: ${error.javaClass.simpleName}")
-                RingtoneGenerationException(
-                    code = GenerationErrorCode.NETWORK,
-                    message = "Network error",
-                    httpStatus = httpStatus,
-                )
-            }
-
-            else -> {
-                Log.e(TAG, "generate-ringtone unexpected error", error)
-                RingtoneGenerationException(
-                    code = GenerationErrorCode.UNKNOWN,
-                    message = error.message ?: "Unexpected error",
-                    httpStatus = httpStatus,
-                )
-            }
-        }
-    }
-
     private companion object {
         const val TAG = "RingtoneGen"
+        const val FUNCTION = "generate-ringtone"
         // Past generate-ringtone's worst case (TTS 55 s + mix 60 s + upload 20 s) and the 150 s Edge
         // request limit: by then the server has answered and reported its own outcome, so an app-side
         // TIMEOUT does not double a server ringtone_created / ringtone_generation_failed.
         const val REQUEST_TIMEOUT_MS = 155_000L
         const val CONNECT_TIMEOUT_MS = 15_000L
+    }
+}
+
+/**
+ * Transport or decoding failure of an Edge Function call as a [RingtoneGenerationException]
+ * (`TIMEOUT`, `NETWORK`, else `UNKNOWN`). [CancellationException] and an already mapped
+ * [RingtoneGenerationException] pass through unchanged. Shared by the `generate-ringtone` and
+ * `name-ringtones` repositories.
+ */
+internal fun mapEdgeTransportError(error: Throwable, httpStatus: Int?, tag: String, function: String): Throwable {
+    return when (error) {
+        is CancellationException -> error
+        is RingtoneGenerationException -> error
+        is HttpRequestTimeoutException,
+        is ConnectTimeoutException,
+        is SocketTimeoutException,
+        -> {
+            Log.w(tag, "$function timed out: ${error.javaClass.simpleName}")
+            RingtoneGenerationException(
+                code = GenerationErrorCode.TIMEOUT,
+                message = "Request timed out",
+                httpStatus = httpStatus,
+            )
+        }
+
+        is IOException -> {
+            Log.w(tag, "$function network error: ${error.javaClass.simpleName}")
+            RingtoneGenerationException(
+                code = GenerationErrorCode.NETWORK,
+                message = "Network error",
+                httpStatus = httpStatus,
+            )
+        }
+
+        else -> {
+            Log.e(tag, "$function unexpected error", error)
+            RingtoneGenerationException(
+                code = GenerationErrorCode.UNKNOWN,
+                message = error.message ?: "Unexpected error",
+                httpStatus = httpStatus,
+            )
+        }
     }
 }

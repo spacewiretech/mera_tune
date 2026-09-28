@@ -64,6 +64,11 @@ class MixpanelAnalytics private constructor(context: Context) {
         val once = JSONObject()
         isoUtc(user.createdAt)?.let { once.put("\$created", it) }
         once.put("first_app_version", BuildConfig.VERSION_NAME)
+        // First touch again now that the profile is the user's (install_attributed may have run
+        // before login, on the anonymous id); set_once keeps whatever the profile already has.
+        AnalyticsStateStore(appContext).installAttribution?.initialProfileProperties?.forEach { (key, value) ->
+            once.putIfNotBlank(key, value)
+        }
         people.setOnce(once)
     }
 
@@ -141,23 +146,18 @@ class MixpanelAnalytics private constructor(context: Context) {
     }
 
     /** Once per fresh install. UTM values are campaign labels from the Play referrer. */
-    fun trackInstallAttributed(
-        utmSource: String?,
-        utmMedium: String?,
-        utmCampaign: String?,
-        hasGclid: Boolean,
-    ) {
-        val props = JSONObject()
-        props.putIfNotBlank("utm_source", utmSource?.take(MAX_TEXT_LENGTH))
-        props.putIfNotBlank("utm_medium", utmMedium?.take(MAX_TEXT_LENGTH))
-        props.putIfNotBlank("utm_campaign", utmCampaign?.take(MAX_TEXT_LENGTH))
-        props.put("has_gclid", hasGclid)
+    /**
+     * The install's store-link [attribution] (already saved by [InstallReferrerTracker]): its
+     * `acquisition_source` / `utm_*` become super properties, so the rest of the journey carries
+     * them, then `install_attributed`, then the first-touch `initial_*` profile properties.
+     */
+    fun trackInstallAttributed(attribution: InstallAttribution) {
+        mixpanel.registerSuperProperties(attributionProps(attribution.eventProperties))
+        val props = attributionProps(attribution.eventProperties)
+        props.put("has_gclid", attribution.hasGclid)
         track("install_attributed", props)
 
-        val once = JSONObject()
-        once.putIfNotBlank("initial_utm_source", utmSource?.take(MAX_TEXT_LENGTH))
-        once.putIfNotBlank("initial_utm_medium", utmMedium?.take(MAX_TEXT_LENGTH))
-        once.putIfNotBlank("initial_utm_campaign", utmCampaign?.take(MAX_TEXT_LENGTH))
+        val once = attributionProps(attribution.initialProfileProperties)
         if (once.length() > 0) mixpanel.people.setOnce(once)
     }
 
@@ -948,6 +948,9 @@ class MixpanelAnalytics private constructor(context: Context) {
 
     private fun PaymentApp.analyticsSlug(): String = PaymentAppSlug.of(this)
 
+    private fun attributionProps(values: Map<String, String>): JSONObject =
+        JSONObject().apply { values.forEach { (key, value) -> putIfNotBlank(key, value.take(MAX_TEXT_LENGTH)) } }
+
     /** Convention: never send null or blank string properties; omit them instead. */
     private fun JSONObject.putIfNotBlank(key: String, value: String?) {
         if (!value.isNullOrBlank()) put(key, value)
@@ -985,7 +988,8 @@ class MixpanelAnalytics private constructor(context: Context) {
 
         /**
          * `app_language` only once the user has picked a language. `user_state` is only as fresh as
-         * the last user object the app stored; logged out is `locked`.
+         * the last user object the app stored; logged out is `locked`. The install's store-link
+         * attribution (`acquisition_source`, `utm_*`) once read, so a logout's reset keeps it.
          */
         private fun superProperties(context: Context, isLoggedIn: Boolean, status: String?): JSONObject {
             val props = JSONObject()
@@ -998,6 +1002,9 @@ class MixpanelAnalytics private constructor(context: Context) {
             if (profileStore.hasSelectedLanguage()) {
                 profileStore.getProfile().selectedLanguage.takeIf { it.isNotBlank() }
                     ?.let { props.put("app_language", it) }
+            }
+            AnalyticsStateStore(context).installAttribution?.eventProperties?.forEach { (key, value) ->
+                if (value.isNotBlank()) props.put(key, value.take(MAX_TEXT_LENGTH))
             }
             return props
         }

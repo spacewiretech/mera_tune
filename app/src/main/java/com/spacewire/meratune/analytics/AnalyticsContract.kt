@@ -350,6 +350,35 @@ class AnalyticsStateStore(context: Context) {
             prefs.edit().putBoolean(KEY_INSTALL_REFERRER_DONE, value).apply()
         }
 
+    /** This install's store-link attribution; `null` before the referrer was read, or never read. */
+    var installAttribution: InstallAttribution?
+        get() = prefs.getString(KEY_ATTRIBUTION_SOURCE, null)?.let { source ->
+            InstallAttribution(
+                source = source,
+                utmSource = prefs.getString(KEY_ATTRIBUTION_UTM_SOURCE, null),
+                utmMedium = prefs.getString(KEY_ATTRIBUTION_UTM_MEDIUM, null),
+                utmCampaign = prefs.getString(KEY_ATTRIBUTION_UTM_CAMPAIGN, null),
+                utmTerm = prefs.getString(KEY_ATTRIBUTION_UTM_TERM, null),
+                utmContent = prefs.getString(KEY_ATTRIBUTION_UTM_CONTENT, null),
+                hasGclid = prefs.getBoolean(KEY_ATTRIBUTION_HAS_GCLID, false),
+            )
+        }
+        set(value) {
+            val editor = prefs.edit()
+            if (value == null) {
+                ATTRIBUTION_KEYS.forEach(editor::remove)
+            } else {
+                editor.putString(KEY_ATTRIBUTION_SOURCE, value.source)
+                    .putString(KEY_ATTRIBUTION_UTM_SOURCE, value.utmSource)
+                    .putString(KEY_ATTRIBUTION_UTM_MEDIUM, value.utmMedium)
+                    .putString(KEY_ATTRIBUTION_UTM_CAMPAIGN, value.utmCampaign)
+                    .putString(KEY_ATTRIBUTION_UTM_TERM, value.utmTerm)
+                    .putString(KEY_ATTRIBUTION_UTM_CONTENT, value.utmContent)
+                    .putBoolean(KEY_ATTRIBUTION_HAS_GCLID, value.hasGclid)
+            }
+            editor.apply()
+        }
+
     /** Wall clock of the last move to the background; null while in the foreground. */
     var backgroundedAtWallMs: Long?
         get() = prefs.getLong(KEY_BACKGROUNDED_AT_WALL_MS, -1L).takeIf { it >= 0L }
@@ -377,6 +406,18 @@ class AnalyticsStateStore(context: Context) {
     companion object {
         const val PREFS_NAME = "analytics_state"
         private const val KEY_INSTALL_REFERRER_DONE = "install_referrer_done"
+        private const val KEY_ATTRIBUTION_SOURCE = "attribution_source"
+        private const val KEY_ATTRIBUTION_UTM_SOURCE = "attribution_utm_source"
+        private const val KEY_ATTRIBUTION_UTM_MEDIUM = "attribution_utm_medium"
+        private const val KEY_ATTRIBUTION_UTM_CAMPAIGN = "attribution_utm_campaign"
+        private const val KEY_ATTRIBUTION_UTM_TERM = "attribution_utm_term"
+        private const val KEY_ATTRIBUTION_UTM_CONTENT = "attribution_utm_content"
+        private const val KEY_ATTRIBUTION_HAS_GCLID = "attribution_has_gclid"
+        private val ATTRIBUTION_KEYS = listOf(
+            KEY_ATTRIBUTION_SOURCE, KEY_ATTRIBUTION_UTM_SOURCE, KEY_ATTRIBUTION_UTM_MEDIUM,
+            KEY_ATTRIBUTION_UTM_CAMPAIGN, KEY_ATTRIBUTION_UTM_TERM, KEY_ATTRIBUTION_UTM_CONTENT,
+            KEY_ATTRIBUTION_HAS_GCLID,
+        )
         private const val KEY_BACKGROUNDED_AT_WALL_MS = "backgrounded_at_wall_ms"
         private const val KEY_STARTUP_PERMISSION_PREFIX = "startup_permission_"
     }

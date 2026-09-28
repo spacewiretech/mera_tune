@@ -7,22 +7,16 @@ import android.os.Looper
 import com.android.installreferrer.api.InstallReferrerClient
 import com.android.installreferrer.api.InstallReferrerClient.InstallReferrerResponse
 import com.android.installreferrer.api.InstallReferrerStateListener
-import java.net.URLDecoder
-import java.util.Locale
 
 /**
- * Reads the Play install referrer once per fresh install and sends `install_attributed`. Only the
- * whitelisted `utm_*` keys leave the device; `gclid` is reduced to `has_gclid`. Main thread only.
+ * Reads the Play install referrer once per fresh install, saves its [InstallAttribution] (so every
+ * later event and a later identify carry it) and sends `install_attributed`. Only the `utm_*` keys
+ * leave the device; `gclid` / `fbclid` only decide the source. Main thread only.
  */
 object InstallReferrerTracker {
 
     private const val MAX_ATTEMPTS = 3
     private const val RETRY_DELAY_MS = 10_000L
-    private const val UTM_SOURCE = "utm_source"
-    private const val UTM_MEDIUM = "utm_medium"
-    private const val UTM_CAMPAIGN = "utm_campaign"
-    private const val GCLID = "gclid"
-    private val KEPT_KEYS = setOf(UTM_SOURCE, UTM_MEDIUM, UTM_CAMPAIGN, GCLID)
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private var inFlight = false
@@ -90,15 +84,13 @@ object InstallReferrerTracker {
     }
 
     private fun report(context: Context, referrer: String) {
-        AnalyticsStateStore(context).installReferrerDone = true
+        val attribution = InstallAttribution.fromReferrer(referrer)
+        val stateStore = AnalyticsStateStore(context)
+        // Saved before sending: the super properties and the identify-time set_once read it.
+        stateStore.installAttribution = attribution
+        stateStore.installReferrerDone = true
         inFlight = false
-        val params = parseReferrer(referrer)
-        MixpanelAnalytics.getInstance(context).trackInstallAttributed(
-            utmSource = params[UTM_SOURCE],
-            utmMedium = params[UTM_MEDIUM],
-            utmCampaign = params[UTM_CAMPAIGN],
-            hasGclid = params.containsKey(GCLID),
-        )
+        MixpanelAnalytics.getInstance(context).trackInstallAttributed(attribution)
     }
 
     private fun wasUpdatedSinceInstall(context: Context): Boolean = try {
@@ -121,22 +113,4 @@ object InstallReferrerTracker {
     private fun end(client: InstallReferrerClient) {
         runCatching { client.endConnection() }
     }
-
-    /** Whitelisted, non-blank keys only. Some referrers arrive URL-encoded as a whole. */
-    private fun parseReferrer(referrer: String): Map<String, String> {
-        val query = if ('=' !in referrer && referrer.contains("%3D", ignoreCase = true)) decode(referrer) else referrer
-        return query.split('&').mapNotNull { pair ->
-            val key = pair.substringBefore('=', "").trim().lowercase(Locale.ROOT)
-            if (key !in KEPT_KEYS) return@mapNotNull null
-            val value = decode(pair.substringAfter('=')).trim()
-            if (value.isEmpty()) null else key to value
-        }.toMap()
-    }
-
-    private fun decode(value: String): String =
-        try {
-            URLDecoder.decode(value, "UTF-8")
-        } catch (_: IllegalArgumentException) {
-            value
-        }
 }

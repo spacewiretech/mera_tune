@@ -24,7 +24,7 @@ Every app event also carries the super properties below. Server events carry `pl
 |---|---|---|
 | `app_opened` | First foreground in the process (`cold`), or back after ≥ 5 min in the background (`warm`). Decided when the entry screen is created, so that screen's own events come after it. A return into a new process (killed during a UPI, Settings, picker or camera trip) is an open only after ≥ 5 min, as `warm`. Shorter trips and the incoming-call overlay don't count (`AnalyticsLifecycleCallbacks`) | `start_type`, `entry_screen` |
 | `screen_viewed` | Fresh `onCreate` (no saved state) of one of the 13 slugged screens; also the `onNewIntent` re-entry of Home (Ready "Home par jayen") and the create form (processing "Change language"). A Home that was just created and hasn't resumed yet skips its `onNewIntent` track (`HomeScreenViewGate`), so one Home visit never counts twice | `screen_name`, `previous_screen` |
-| `install_attributed` | First foreground after a **fresh** install, once (Play Install Referrer). Skipped when the package was updated since install, so upgrading users never send it | `utm_source`, `utm_medium`, `utm_campaign`, `has_gclid` |
+| `install_attributed` | First foreground after a **fresh** install, once (Play Install Referrer; see [Install attribution](#install-attribution-store-links)). Skipped when the package was updated since install, so upgrading users never send it | `acquisition_source` (`meta` / `google_ads` / `paid_other` / `organic`), `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `has_gclid` |
 | `permission_prompt_answered` | Startup prompts on a fresh Home (`StartupPermissionRequester`; first answer per permission, then only changes). A new member goes from the member screen straight into the create flow, so their startup prompts come on the first Home visit, and only for permissions still missing. Set-flow prompts (`RingtoneSetController`): during Home Set; on the create path only on the Ready screen (chuno asks none), where the storage prompt (Android 8/9) and WRITE_SETTINGS are asked up front (before the download), then the per-mode contacts / phone prompts. The Set flow skips a permission the system denied without showing a prompt | `permission`, `granted`, `permanently_denied` (denied runtime permissions only), `prompt_context` (`startup` / `set_ringtone`) |
 | `external_link_opened` | Terms / privacy link in the footer of phone entry, OTP entry and name entry; Profile help / privacy / delete-account rows. Only after the browser opened | `link` (`terms` / `privacy_policy` / `help_support` / `delete_account`), `source` (`phone_entry` / `otp_entry` / `name_entry` / `profile`) |
 | `logged_out` | `MixpanelAnalytics.logout()`, before `reset()`, only when logged in | `source` (`profile` / `subscription` / `ringtone_processing`), `reason` (`user_initiated` / `session_expired`) |
@@ -168,6 +168,7 @@ Create-flow funnel: `create_ringtone_cta_tapped → ringtone_creation_started �
 - `is_logged_in` — updated on identify and logout
 - `user_state` — `locked` / `trial` / `active` / `cancelled` / `expired` from the `AuthStore` status (`none`, unknown and logged out → `locked`). Set at init and updated on identify (signup, login, trial verify), at `trial_payment_completed` and at logout
 - `app_language` — storage value, only once the user has picked a language
+- `acquisition_source`, `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content` — the install's store-link attribution, from the first foreground after a fresh install on (see [Install attribution](#install-attribution-store-links)); kept across logout
 
 **`user_state` goes stale:** it is only as fresh as the last user object the app stored. Webhook changes (renewal, cancel, expiry) reach it only at the next login or trial verify, so a converted or cancelled user can still send `trial`. For the current state use the `subscription_status` profile property, which the server keeps up to date; `subscription_status` itself is not a super property for the same reason.
 
@@ -194,7 +195,7 @@ People updates use `set`, `set_once` and `unset` only. There are no increments (
 | `$created`, `first_app_version` | set_once | Identify; `$created` also at `sign_up_completed` |
 | `subscription_status` | set | Identify (`users.status`); `trial` at `trial_payment_completed` / `trial_payment_succeeded`; `active` at `subscription_paid`; `cancelled` at `subscription_cancelled` only when the user was downgraded |
 | `phone_state_granted`, `contacts_granted`, `notifications_enabled`, `write_settings_granted`, `call_control_granted` | set | `app_opened` (identified users) |
-| `initial_utm_source`, `initial_utm_medium`, `initial_utm_campaign` | set_once | `install_attributed` |
+| `initial_acquisition_source`, `initial_utm_source`, `initial_utm_medium`, `initial_utm_campaign`, `initial_utm_term`, `initial_utm_content` | set_once | `install_attributed`, and again at every identify (login / signup / trial verify) |
 | `app_language` | set | Language selected |
 | `last_ringtone_category` | set | `ringtone_created` (server) or `ringtone_set` |
 | `meratune_ringtone_active` | set | `true` at `ringtone_set`, `false` at `ringtone_replaced_externally` |
@@ -249,6 +250,22 @@ Meta `Subscribe` (Conversions API) is sent from the same `SUBSCRIPTION_PAYMENT_S
 ### Verification
 
 After adding events, confirm in Mixpanel Live View filtered by `build_type = debug` (debug builds log to Logcat); server events have no `build_type`, so find them by `platform = server` and the test user's `distinct_id`. Server tests: `deno test --allow-read supabase/functions/tests` (webhook, Mixpanel helper, generation analytics). Add Lexicon descriptions in Mixpanel Data Management.
+
+## Install attribution (store links)
+
+Campaign links are **Play Store links** with the UTMs inside `referrer`, the same format as Astrolok's. For MeraTune:
+
+```
+https://play.google.com/store/apps/details?id=com.spacewire.meratune&referrer=utm_source%3DMeta%2Bads%26utm_medium%3Donline%26utm_term%3D16%2Bsep%2B-%2B8th%26utm_content%3DMT_name_ringtone_Hindi_28SEP26%26utm_campaign%3DMeraTune%2B%257C%2BHindi
+```
+
+Build it like this: write the UTMs as a query with spaces as `+` and `|` as `%7C` (`utm_source=Meta+ads&utm_medium=online&utm_term=…&utm_content=…&utm_campaign=MeraTune+%7C+Hindi`), then percent-encode that whole query once (`=` → `%3D`, `&` → `%26`, `+` → `%2B`, `%7C` → `%257C`) and put it after `&referrer=`. Keys the app keeps: `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`; `gclid` / `fbclid` only decide the source and never leave the device.
+
+- **How it reaches the app.** Google hands the `referrer` back through the Play Install Referrer API on the first foreground after the install (`InstallReferrerTracker`, up to 3 tries per process, available for 90 days). `InstallAttribution` parses it and resolves `acquisition_source`: `google_ads` (`gclid`, or `utm_source` `adwords` / `google-ads`), then `meta` (`fbclid`, or a `utm_source` like `Meta ads`, `meta`, `facebook`, `apps.facebook.com`, `instagram`, `ig`, `fb…`), then `paid_other` (a `cpc` / `ppc` / `paid` / `cpm` / `cpi` medium), else `organic` (a plain store visit is `utm_source=google-play&utm_medium=organic`). Same precedence as Astrolok, without referrals.
+- **What Mixpanel gets.** The result is saved in `analytics_state.xml` first, then `acquisition_source` and the `utm_*` values are registered as **super properties** (every later app event: onboarding, paywall, trial, create flow, set), re-registered after a logout's `reset()`; `install_attributed` is sent; and the first touch is written once to the profile (`initial_acquisition_source`, `initial_utm_*`, `set_once`), again at the next identify so it lands on the user's profile even when `install_attributed` ran before login. Values are capped at 255 characters.
+- **Journey reports.** App funnels (for example `install_attributed → sign_up_completed → subscription_initiated → trial_payment_completed → ringtone_created → ringtone_set`) can be filtered or broken down by the event properties `utm_campaign` / `acquisition_source`. Server events (`trial_payment_succeeded`, `subscription_paid`, `subscription_cancelled`, `trial_expired`, `ringtone_created`) have no app super properties: break them down by the **user profile** properties `initial_utm_campaign` / `initial_acquisition_source` instead.
+- **Only fresh installs are attributed.** A user who already has the app gets the Play Store "Open" button, and the store passes nothing to the app, so re-engagement clicks are not attributed. There is deliberately no App Link / custom-scheme deep link (Astrolok removed its own for the same reasons: domain verification, `assetlinks.json` and a hosting rule, for no Android-only gain). Installs from before this build keep only the `initial_utm_source` / `_medium` / `_campaign` the earlier `install_attributed` set.
+- **Meta and Google "App install" campaigns** control the store hand-off and set their own referrer (Meta: `utm_source=apps.facebook.com` with an encrypted `utm_content`), so custom UTMs do not survive there: the source still resolves (`meta` / `google_ads`) but campaign-level breakdown comes from Ads Manager. Custom UTMs survive when the ad's destination is this store link (traffic / link-click ads, posts, influencers).
 
 ## Meta (Facebook) App Events
 

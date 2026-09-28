@@ -241,10 +241,4 @@
     <string name="permission_blocked_storage_message">ಸ್ಟೋರೇಜ್ ಅನುಮತಿ ಆಫ್ ಆಗಿದೆ, ಆದ್ದರಿಂದ ರಿಂಗ್‌ಟೋನ್ ಉಳಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ. ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಅನುಮತಿಸಿ, ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</string>
     <string name="permission_open_settings">ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ</string>
     <string name="permission_set_audio_only">ಕೇವಲ ರಿಂಗ್‌ಟೋನ್ ಹೊಂದಿಸಿ</string>
-    <!-- lane B: existing name ringtones step (create flow) -->
-    <string name="name_ringtones_title">%1$s ಅವರ ರಿಂಗ್‌ಟೋನ್ ಸಿಕ್ಕಿತು!</string>
-    <string name="name_ringtones_subtitle">ನಿಮ್ಮ ನೆಚ್ಚಿನ ರಾಗವನ್ನು ಕೇಳಿ ಮತ್ತು ಆರಿಸಿ.</string>
-    <string name="name_ringtones_make_tune">ನಿಮ್ಮ ಟ್ಯೂನ್ ಮಾಡಿ</string>
-    <string name="name_ringtones_make_tune_caption">ಇಷ್ಟವಾಗಲಿಲ್ಲವೇ? ಹೊಸದನ್ನು ರಚಿಸಿ!</string>
-    <string name="name_ringtones_set_a11y">%1$s ಹೊಂದಿಸಿ</string>
 </resources>

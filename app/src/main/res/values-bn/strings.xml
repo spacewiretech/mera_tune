@@ -241,10 +241,4 @@
     <string name="permission_blocked_storage_message">স্টোরেজের অনুমতি বন্ধ আছে, তাই রিংটোন সেভ করা যাবে না। সেটিংসে অনুমতি দিন, তারপর আবার চেষ্টা করুন।</string>
     <string name="permission_open_settings">সেটিংস খুলুন</string>
     <string name="permission_set_audio_only">শুধু রিংটোন সেট করুন</string>
-    <!-- lane B: existing name ringtones step (create flow) -->
-    <string name="name_ringtones_title">%1$s-এর রিংটোন পাওয়া গেছে!</string>
-    <string name="name_ringtones_subtitle">আপনার প্রিয় সুর শুনুন আর বেছে নিন।</string>
-    <string name="name_ringtones_make_tune">নিজের টিউন বানান</string>
-    <string name="name_ringtones_make_tune_caption">পছন্দ হয়নি? একটা নতুন বানান!</string>
-    <string name="name_ringtones_set_a11y">%1$s সেট করুন</string>
 </resources>

@@ -20,13 +20,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
-import java.util.UUID
 
 @Serializable
 internal data class NameRingtonesRequest(
     @SerialName("user_id") val userId: Long,
     @SerialName("user_token") val userToken: String?,
-    val name: String? = null,
     val mine: Boolean? = null,
     val limit: Int? = null,
 )
@@ -36,9 +34,13 @@ internal data class NameRingtonesResponse(
     val mode: String? = null,
     /** Kept as raw elements so one malformed row is dropped instead of failing the list. */
     val ringtones: List<JsonElement>? = null,
+    val quota: GenerationQuota? = null,
     val error: String? = null,
     @SerialName("error_code") val errorCode: String? = null,
 )
+
+/** The caller's own ready ringtones, newest first, and their creation [quota] (`null` from a server without it). */
+data class MyRingtones(val ringtones: List<Tune>, val quota: GenerationQuota?)
 
 /** One `ringtones[]` entry of `name-ringtones`; [tune] is the base tune in the `Tune` shape. */
 @Serializable
@@ -57,12 +59,15 @@ internal object NameRingtonesParser {
         coerceInputValues = true
     }
 
+    /** The ringtones of a `name-ringtones` response; fails like [parseResult]. */
+    fun parse(status: Int, body: String): List<Tune> = parseResult(status, body).ringtones
+
     /**
-     * The ringtones of a `name-ringtones` response as ready-to-play [Tune]s. Throws
-     * [RingtoneGenerationException] for an error body (server `error_code`, `fromServer` true),
-     * a gateway timeout, an unreadable body or a success without `ringtones`.
+     * The ringtones of a `name-ringtones` response as ready-to-play [Tune]s, with its `quota`.
+     * Throws [RingtoneGenerationException] for an error body (server `error_code`, `fromServer`
+     * true), a gateway timeout, an unreadable body or a success without `ringtones`.
      */
-    fun parse(status: Int, body: String): List<Tune> {
+    fun parseResult(status: Int, body: String): MyRingtones {
         if (status == 408 || status == 504) {
             throw RingtoneGenerationException(
                 code = GenerationErrorCode.TIMEOUT,
@@ -101,7 +106,7 @@ internal object NameRingtonesParser {
             message = "Server response is missing ringtones",
             httpStatus = status,
         )
-        return toTunes(rows)
+        return MyRingtones(toTunes(rows), response.quota)
     }
 
     /**
@@ -132,9 +137,8 @@ internal object NameRingtonesParser {
  * when not logged in, `TIMEOUT` / `NETWORK` for transport, the server `error_code` otherwise);
  * [kotlinx.coroutines.CancellationException] propagates untouched.
  *
- * A [fetchNameRingtones] row the caller has not made yet has `generationId == null`. Posting
- * `generate-ringtone` with its tune id and the same name is a cached hit (no quota) that records
- * it in the caller's own list and returns its generation id.
+ * The app only reads mine mode (Home's "{name} Tunes" chip and its creation quota); the server's
+ * name mode is unused since the create flow's existing name ringtones step was removed.
  */
 class NameRingtonesRepository(context: Context) {
 
@@ -152,45 +156,14 @@ class NameRingtonesRepository(context: Context) {
 
     private val endpoint = "${BuildConfig.SUPABASE_URL.trimEnd('/')}/functions/v1/$FUNCTION"
 
-    private val generationRepository by lazy { RingtoneGenerationRepository() }
-
     /**
-     * Ready ringtones that already sing [name] (at most 20): stock tunes whose sample name is
-     * [name], then personalized renders newest first, one per song and voice. Empty when none.
-     * An invalid or blocked name fails with `INVALID_NAME` / `NAME_REJECTED`.
+     * The logged-in user's own ready ringtones, newest first, one per song and name (at most 50),
+     * and their creation quota.
      */
-    suspend fun fetchNameRingtones(name: String): List<Tune> =
-        post(MODE_NAME) { userId, token -> NameRingtonesRequest(userId = userId, userToken = token, name = name) }
-
-    /** The logged-in user's own ready ringtones, newest first, one per song and name (at most 50). */
-    suspend fun fetchMyRingtones(): List<Tune> =
+    suspend fun fetchMyRingtones(): MyRingtones =
         post(MODE_MINE) { userId, token -> NameRingtonesRequest(userId = userId, userToken = token, mine = true) }
 
-    /**
-     * Records a [fetchNameRingtones] row the caller has not made yet (`generationId == null`) in
-     * their own list: `generate-ringtone` with the row's tune id and the same [name] is a cache hit
-     * (no Gemini call, no quota). Returns the row with the caller's generation id and the server's
-     * title / URL. [language] is a `Languages.storageValue` with TTS enabled (the cache key carries
-     * no language). Fails like [RingtoneGenerationRepository.generate].
-     */
-    suspend fun claim(row: Tune, name: String, language: String): Tune {
-        val userId = authStore.getUserId()
-        if (userId <= 0L) {
-            throw RingtoneGenerationException(GenerationErrorCode.UNAUTHORIZED, "Not logged in")
-        }
-        val generated = generationRepository.generate(
-            userId = userId,
-            userToken = authStore.getApiToken(),
-            tuneId = row.id,
-            name = name,
-            language = language,
-            clientRequestId = UUID.randomUUID().toString(),
-        )
-        Log.d(TAG, "claim ok cached=${generated.cached}")
-        return generated.toTune(row, fallbackTitle = row.name)
-    }
-
-    private suspend fun post(mode: String, build: (Long, String?) -> NameRingtonesRequest): List<Tune> {
+    private suspend fun post(mode: String, build: (Long, String?) -> NameRingtonesRequest): MyRingtones {
         val userId = authStore.getUserId()
         if (userId <= 0L) {
             throw RingtoneGenerationException(GenerationErrorCode.UNAUTHORIZED, "Not logged in")
@@ -210,7 +183,7 @@ class NameRingtonesRepository(context: Context) {
         }
 
         return try {
-            NameRingtonesParser.parse(status, body).also { Log.d(TAG, "$mode ok count=${it.size}") }
+            NameRingtonesParser.parseResult(status, body).also { Log.d(TAG, "$mode ok count=${it.ringtones.size}") }
         } catch (error: RingtoneGenerationException) {
             Log.w(TAG, "$FUNCTION $mode failed status=$status code=${error.code.name}")
             throw error
@@ -220,7 +193,6 @@ class NameRingtonesRepository(context: Context) {
     private companion object {
         const val TAG = "NameRingtones"
         const val FUNCTION = "name-ringtones"
-        const val MODE_NAME = "name"
         const val MODE_MINE = "mine"
         const val REQUEST_TIMEOUT_MS = 20_000L
         const val CONNECT_TIMEOUT_MS = 10_000L

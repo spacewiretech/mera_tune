@@ -172,7 +172,7 @@ class HomeViewModel(
         myRingtonesJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoadingMyRingtones = true) }
             val mine = try {
-                nameRingtonesRepository.fetchMyRingtones()
+                nameRingtonesRepository.fetchMyRingtones().ringtones
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {

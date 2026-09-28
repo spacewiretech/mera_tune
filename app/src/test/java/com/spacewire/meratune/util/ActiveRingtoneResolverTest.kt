@@ -92,7 +92,8 @@ class ActiveRingtoneResolverTest {
 
     @Test
     fun `name ringtones set of an unclaimed row never marks the base catalog tune`() {
-        // NameRingtonesActivity sets a row as listed when its claim fails: personalized, no generation id.
+        // A personalized copy saved without a generation id (the removed name ringtones step set a row
+        // as listed when its claim failed): the saved entry stays on devices that used it.
         val unclaimed = tune("base", "Jai Shri Lakshya", url = "https://cdn.example/r/lakshya.mp3")
         val saved = SavedActiveRingtone(tuneId = "base", personalized = true, personalizedTune = unclaimed)
         assertEquals(

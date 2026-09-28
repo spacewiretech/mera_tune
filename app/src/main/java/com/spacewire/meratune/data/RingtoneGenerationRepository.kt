@@ -78,11 +78,51 @@ enum class GenerationErrorCode(val retryable: Boolean) {
     }
 }
 
+/**
+ * `quota` of `generate-ringtone` and of `name-ringtones` (mine mode): the caller's fresh renders
+ * (a cached ringtone never counts) against their plan's limit.
+ *
+ * - [plan]: [PLAN_TRIAL] (users.status `trial`, per IST day), [PLAN_MEMBER] (`active`, per IST
+ *   calendar month) or [PLAN_DEFAULT] (any other status, per IST day).
+ * - [used] / [limit]: this [period]'s numbers ([PERIOD_DAY] or [PERIOD_MONTH]). [usedToday] /
+ *   [dailyLimit] carry the same numbers under their pre-plan names (a server before plans sends
+ *   only those), so read [usedCount] / [limitCount].
+ * - [resetsAt]: ISO-8601 instant the period ends (IST midnight, or 00:00 IST on the 1st).
+ * - [memberMonthlyLimit]: the member plan's monthly limit, for the trial copy.
+ * - [exceeded] (QUOTA_EXCEEDED errors only): [EXCEEDED_PLAN] = the plan limit above,
+ *   [EXCEEDED_ATTEMPTS] = the per-day attempt cap that backs every plan (resets at IST midnight).
+ */
 @Serializable
 data class GenerationQuota(
     @SerialName("used_today") val usedToday: Int? = null,
     @SerialName("daily_limit") val dailyLimit: Int? = null,
-)
+    val plan: String? = null,
+    val period: String? = null,
+    val used: Int? = null,
+    val limit: Int? = null,
+    @SerialName("resets_at") val resetsAt: String? = null,
+    @SerialName("member_monthly_limit") val memberMonthlyLimit: Int? = null,
+    val exceeded: String? = null,
+) {
+    val usedCount: Int?
+        get() = used ?: usedToday
+
+    val limitCount: Int?
+        get() = limit ?: dailyLimit
+
+    val isMonthly: Boolean
+        get() = period == PERIOD_MONTH
+
+    companion object {
+        const val PLAN_TRIAL = "trial"
+        const val PLAN_MEMBER = "member"
+        const val PLAN_DEFAULT = "default"
+        const val PERIOD_DAY = "day"
+        const val PERIOD_MONTH = "month"
+        const val EXCEEDED_PLAN = "plan"
+        const val EXCEEDED_ATTEMPTS = "attempts"
+    }
+}
 
 /** [fromServer]: the response body carried a server `error_code`. */
 class RingtoneGenerationException(

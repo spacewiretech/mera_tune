@@ -91,6 +91,19 @@ class ActiveRingtoneResolverTest {
     }
 
     @Test
+    fun `name ringtones set of an unclaimed row never marks the base catalog tune`() {
+        // NameRingtonesActivity sets a row as listed when its claim fails: personalized, no generation id.
+        val unclaimed = tune("base", "Jai Shri Lakshya", url = "https://cdn.example/r/lakshya.mp3")
+        val saved = SavedActiveRingtone(tuneId = "base", personalized = true, personalizedTune = unclaimed)
+        assertEquals(
+            ActiveRingtoneResolver.UNLISTED_PERSONALIZED_KEY,
+            resolve(saved, systemTitle = "Jai Shri Lakshya", mine = emptyList()),
+        )
+        // Once the user's own list has that ringtone, the set title picks its row.
+        assertEquals(lakshya.rowKey, resolve(saved, systemTitle = "Jai Shri Lakshya"))
+    }
+
+    @Test
     fun `replaced default falls back to the system title, catalog first`() {
         val saved = SavedActiveRingtone(tuneId = "base", personalized = true, personalizedTune = lakshya)
         assertNull(resolve(saved, savedIsSystemDefault = false))

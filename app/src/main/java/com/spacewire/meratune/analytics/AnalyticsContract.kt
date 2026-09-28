@@ -133,7 +133,7 @@ object PaymentAppSlug {
     }
 }
 
-/** `user_state` super property, from the AuthStore status. */
+/** `user_state` super property (also sent on the subscription events), from the AuthStore status. */
 object UserState {
     const val LOCKED = "locked"
     const val TRIAL = "trial"
@@ -149,6 +149,9 @@ object UserState {
         EXPIRED -> EXPIRED
         else -> LOCKED
     }
+
+    /** Logged out is always [LOCKED]; otherwise [fromStatus]. */
+    fun derive(isLoggedIn: Boolean, status: String?): String = if (isLoggedIn) fromStatus(status) else LOCKED
 }
 
 /** `creation_limit_reached.limit_type`; trial / cycle limits do not exist yet. */

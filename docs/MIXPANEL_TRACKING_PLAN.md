@@ -105,7 +105,7 @@ Amounts are server config in `app_config`, read by `create-subscription`, `verif
 | `subscription_recurring_amount` | `299` | Seeded as `249`, raised to `299` by `20260813140000_add_cashfree_plan_id.sql` |
 | `subscription_interval_months` | `1` | Seeded as `3`. Confirm prod is `1`: the paywall's "/month" copy assumes it |
 
-`create-subscription` returns the auth and recurring amounts. They feed `subscription_started.auth_amount` / `recurring_amount`, `trial_payment_completed.amount` (fallback `3.0`), the Meta and Firebase purchase value, and the paywall and member-screen price labels (the defaults 3 / 299 show until that response).
+`create-subscription` returns the auth and recurring amounts. They feed `subscription_initiated.auth_amount` / `recurring_amount` (and the same two properties on `subscription_failed`), `trial_payment_completed.amount` (fallback `3.0`), the Meta and Firebase purchase value, and the paywall and member-screen price labels (the defaults 3 / 299 show until that response).
 
 ### Cashfree Dashboard → Webhooks
 
@@ -236,7 +236,7 @@ This is the business funnel Mixpanel is built to measure, as implemented from th
 otp_sent
   → sign_up_completed                                  (returning users: login_completed)
       → subscription_screen_viewed                     ← entry_point
-          → subscription_started
+          → subscription_initiated
               → trial_payment_completed (app)          ← attribution; Meta Purchase / Firebase purchase
                 trial_payment_succeeded (server)       ← same moment; count trials here
                   → create_ringtone_cta_tapped         ← member screen: source = membership_welcome
@@ -256,13 +256,13 @@ After the trial verifies, the paywall opens the member screen ("Aap ab member ha
 
 Server steps carry `platform = "server"` and none of the app super properties, so do not filter this funnel on `platform`, `build_type` or `user_state`. Both sides share `distinct_id = users.id`.
 
-Finer steps between those: `app_opened` / `install_attributed` before `otp_sent`; `subscription_cta_tapped` before `subscription_started`; on Home Set, `ringtone_set_started → set_mode_selected` right before `ringtone_set`; `subscription_renewal_notified` before `subscription_paid`.
+Finer steps between those: `app_opened` / `install_attributed` before `otp_sent`; `subscription_cta_tapped` before `subscription_initiated`; on Home Set, `ringtone_set_started → set_mode_selected` right before `ringtone_set`; `subscription_renewal_notified` before `subscription_paid`.
 
 Exits and failures:
 
 - `otp_sent` → `otp_verification_failed` (`failure_reason`, `otp_entry_method`, `attempt`); other auth stages → `auth_failed` (`stage`, `failure_reason`)
 - `subscription_screen_viewed` → `paywall_dismissed` (`entry_point`, `dismiss_method`, `attempt`, `video_completed`)
-- `subscription_cta_tapped` / `subscription_started` → `subscription_failed` (`stage` = `precheck` | `create` | `checkout` | `verify`; one more `verify` per manual Pending re-check) and `mandate_auth_failed` (server)
+- `subscription_cta_tapped` / `subscription_initiated` → `subscription_failed` (`stage` = `precheck` | `create` | `checkout` | `verify`; one more `verify` per manual Pending re-check) and `mandate_auth_failed` (server)
 - `trial_payment_succeeded` → `trial_expired` (`reason`, `ringtones_created`) or `subscription_cancelled` (`cancelled_during_trial`)
 - `ringtone_generation_started` → `ringtone_generation_failed` (`failure_reason` = lower-cased `error_code` / `GenerationErrorCode`, or `user_cancelled`) → `generation_error_action_taken`; `quota_exceeded` also sends `creation_limit_reached`
 - `ringtone_set_started` → `ringtone_set_failed` (`stage`, `failure_reason`). On the create path a flow can also stay open (see [Create-path split](#create-path-split))
@@ -292,8 +292,8 @@ Exits and failures:
 ### Suggested Mixpanel Insights funnels
 
 1. **OTP → account:** `otp_sent` → `sign_up_completed` or `login_completed` (break down `otp_verification_failed` by `failure_reason`, `otp_entry_method`; `auth_failed` by `stage`, `failure_reason`)
-2. **Trial conversion:** `subscription_screen_viewed` → `subscription_cta_tapped` → `subscription_started` → `trial_payment_succeeded` (break down by `entry_point`, `payment_app`); drop-off: `paywall_dismissed` (by `dismiss_method`)
-3. **Checkout drop-off:** `subscription_started` → `subscription_failed` (break down by `stage`, `failure_reason`, `payment_app`) and `mandate_auth_failed` (`failure_reason`, `upi_handle`). Count users, not events: each manual Pending re-check adds a `verify` failure
+2. **Trial conversion:** `subscription_screen_viewed` → `subscription_cta_tapped` → `subscription_initiated` → `trial_payment_succeeded` (break down by `entry_point`, `payment_app`); drop-off: `paywall_dismissed` (by `dismiss_method`)
+3. **Checkout drop-off:** `subscription_initiated` → `subscription_failed` (break down by `stage`, `failure_reason`, `payment_app`) and `mandate_auth_failed` (`failure_reason`, `upi_handle`). Count users, not events: each manual Pending re-check adds a `verify` failure
 4. **Activation:** `trial_payment_succeeded` → `create_ringtone_cta_tapped` (`source = membership_welcome`) → `ringtone_created` → `ringtone_set`
 5. **Create flow:** `ringtone_creation_started` → `sample_list_viewed` → `sample_selected` → `set_mode_selected` → `ringtone_generation_started` → `ringtone_created` → `ringtone_set` (break down by `entry_point`, `language`, `fallback_level`, `cached`, `set_mode`)
 6. **Generation health:** `ringtone_generation_started` → `ringtone_generation_failed` (break down by `failure_reason`, `retryable`, `http_status`, `platform`; watch `latency_ms` / `duration_minutes` on `ringtone_created`)
@@ -360,13 +360,17 @@ Screen slugs (12): `language_selection`, `phone_entry`, `otp_entry`, `name_entry
 | Event | Trigger | Properties |
 |-------|---------|------------|
 | `subscription_screen_viewed` | Paywall opens (`SubscriptionActivity`, no saved state, together with Meta `ViewContent`) | `previous_screen`, `user_status` (`AuthStore` status), `installed_app_count`, `entry_point` |
-| `paywall_dismissed` | The paywall finishes without converting, through system back or the header close X: `onPause` with `isFinishing`, once. Back on the Pending / Failed states only returns to the paywall state and is not a dismissal. Suppressed for the programmatic finishes (verify success, logout, not logged in); back and the X are ignored while a verify runs | `entry_point`, `dismiss_method` (`system_back` / `close_button`), `attempt` (0 before any CTA tap), `video_completed` |
+| `paywall_dismissed` | The paywall finishes without converting, through system back or the Home button on the video card: `onPause` with `isFinishing`, once. Both go to Home (`leaveToHome`: remembers the browse choice, then `PaywallUiPolicy.homeButtonRoute` finishes onto the Home below, clears the task down to it, or starts it when the paywall is the task root), so back never closes the app from the paywall; back on Home then closes it. Back on the Pending / Failed states only returns to the paywall state and is not a dismissal. Suppressed for the programmatic finishes (verify success, logout, not logged in); back and the Home button are ignored while a verify runs | `entry_point`, `dismiss_method` (`system_back` / `home_button`), `attempt` (0 before any CTA tap), `video_completed` |
 | `subscription_cta_tapped` | Paywall CTA ("Tune banayein", `tryNowButton`) tapped (ignored while a payment is processing) | `payment_app`, `payment_app_installed` (always `false` for `upi_id`, which is not an app), `attempt`, `video_completed` |
 | `payment_app_selected` | Row picked in the payment-app sheet (the installed apps, then the UPI ID row) | `payment_app`, `previous_payment_app` |
-| `subscription_started` | Create-subscription API succeeds, **before** Cashfree checkout opens: the UPI app intent, or for `upi_id` the hosted web checkout (same session, same verify / failure callbacks) | `payment_app`, `auth_amount`, `recurring_amount` (both from `app_config`, see [Prices](#prices-app_config)), `attempt` |
+| `subscription_initiated` (named `subscription_started` until 2026-09-28) | Create-subscription API succeeds, **before** Cashfree checkout opens: the UPI app intent, or for `upi_id` the hosted web checkout (same session, same verify / failure callbacks) | `payment_app`, `auth_amount` (e.g. `3`), `recurring_amount` (e.g. `299`; both from `app_config` via create-subscription, see [Prices](#prices-app_config); always sent, the paywall defaults 3 / 299 if the response has none), `attempt`, `user_state` |
 | `trial_payment_completed` | `verifySubscription` returns `active == true` with a user. Once per paywall (`verifyInFlight`): from the Cashfree verify callback, its re-run when the paywall was recreated during the UPI switch (id from saved state or the Cashfree response) or while the verify request ran (`verify_pending` in saved state re-runs it; Cashfree delivers the callback only once), or a manual "Payment Status Dekhein" re-check on the Pending state. The member screen opens next (`finishWithoutDismiss`); a returned user who still needs a subscription is routed as before (`AuthNavigator`) | `payment_app`, `subscription_id`, `amount` (auth amount, default `3.0`), `currency` (`"INR"`), `attempt`, `previous_status` (`AuthStore` status when the paywall opened) |
-| `subscription_failed` | Precheck, create, checkout or verify failure. See [Paywall states](#paywall-states) for what the user sees after each | `stage`, `failure_reason`, `payment_app`, `cf_error_code` (lower-cased Cashfree SDK code), `http_status`, `cashfree_status` (verify pending only), `attempt` |
+| `subscription_failed` | Precheck, create, checkout or verify failure. See [Paywall states](#paywall-states) for what the user sees after each | `stage`, `failure_reason`, `payment_app`, `cf_error_code` (lower-cased Cashfree SDK code), `http_status`, `cashfree_status` (verify pending only), `attempt`, `auth_amount`, `recurring_amount` (the amounts the paywall shows: create-subscription's once it answered, else the defaults `3` / `299`; always sent), `user_state` |
 | `subscription_video_ended` | Paywall video completes or errors, each at most once per paywall | `end_reason` (`completed` / `error`), `error_code` (ExoPlayer code name without `ERROR_CODE_`), `duration_ms` |
+
+`user_state` on `subscription_initiated` and `subscription_failed` is an event property derived like the super property (`UserState.derive`: the `AuthStore` status when logged in, else `locked`), read when the event fires. It has the same staleness as the super property (see [Super properties](#super-properties)).
+
+**Rename (2026-09-28, first release after 1.2.3 / versionCode 5):** `subscription_started` → `subscription_initiated`, same trigger and properties plus `user_state`; `subscription_failed` keeps its name and gains `auth_amount`, `recurring_amount` and `user_state`. Builds up to 1.2.3 send `subscription_started` without `user_state`, and `subscription_failed` without the amounts. Funnels that span the change need both names (or a Mixpanel Custom Event merging them); segment by `app_version`. Meta `InitiatedCheckout` is unchanged.
 
 `subscription_failed.failure_reason` is bounded (anything outside `[a-z0-9_]{1,64}` is dropped):
 
@@ -399,7 +403,7 @@ The paywall has three states inside `SubscriptionActivity` (`PaywallUiPolicy`): 
 | Verify with no logged-in user or no subscription id | `subscription_failed` `verify` (`not_logged_in` / `missing_subscription_id`) | The current state stays (no request is made) |
 | "Payment Status Dekhein" on Pending: runs the same `verifySubscription` once (ignored while one is in flight) | Active: `trial_payment_completed` (+ Meta `Purchase`, Firebase `purchase`). Otherwise one `subscription_failed` `verify` per tap | Active: the member screen. Otherwise Pending stays, with a toast |
 
-There is no automatic re-check. Back on Pending or Failed returns to the paywall and is not a `paywall_dismissed`; only back and the close X on the paywall state are dismissals.
+There is no automatic re-check. Back on Pending or Failed returns to the paywall and is not a `paywall_dismissed`; only back and the Home button on the paywall state are dismissals (both go to Home).
 
 ### Home and catalog
 
@@ -455,7 +459,7 @@ The app does not send `ringtone_created`, and sends `ringtone_generation_failed`
 | `ringtone_generation_failed` (app) | An attempt ends without a ringtone **and without a server `error_code`** (`GenerationErrorCode.appReportsFailure`): the user backs out (`user_cancelled`), transport failure (`network`, `timeout` incl. HTTP 408 / 504), unreadable response (`invalid_response`, `unknown`), the 90 s busy budget used up (`timeout`). Also `unauthorized` (not logged in, or a 401 / 403 the server could not attribute) | `tune_id`, `sample_id`, `category`, `language`, `voice`, `failure_reason`, `http_status` (omitted without a response), `retryable`, `can_retry` (the error screen offers Retry), `client_ms`, `total_client_ms`, `attempt`, `quota_used_today`, `quota_daily_limit` (when the last response had them), `client_request_id` |
 | `creation_limit_reached` | The processing screen gets `QUOTA_EXCEEDED` (shown as the limit screen); once per failed attempt. The server also sends `ringtone_generation_failed` (`quota_exceeded`) | `limit_type` (`daily`), `quota_used_today`, `quota_daily_limit` |
 | `generation_error_action_taken` | Button on the processing error screen; first tap per error | `action` (`retry` / `login_again` / `subscribe` / `change_language` / `choose_another`), `failure_reason`, `attempt`, `tune_id`, `language` |
-| `ringtone_ready_action_tapped` | Ready-screen "Home par jayen" button or the header back arrow (system back is not tracked); first tap only (both leave the screen). "Ringtone set karein" is not an action here (it runs the set flow and, after success, turns into a disabled "Ringtone set ho gayi") | `action` (`go_home` / `back_button`), `tune_id`, `generation_id`, `is_set` ("Home par jayen" is always shown, so `go_home` can have `is_set = false`) |
+| `ringtone_ready_action_tapped` | Ready-screen "Home par jayen" button or the header back arrow (system back is not tracked); first tap only (both leave the screen). "Ringtone set karein" is not an action here (it runs the set flow); after success it turns into "Ringtone set ho gayi", whose tap goes Home and sends `go_home` with `is_set = true`, like "Home par jayen" | `action` (`go_home` / `back_button`), `tune_id`, `generation_id`, `is_set` ("Home par jayen" is always shown, so `go_home` can have `is_set = false`) |
 
 `fallback_level` = `hindi` when the requested language has no songs but Hindi does: the picker shows the empty state (`load_state = empty`, `sample_count` = 0) with a Hindi offer, and the content load after the user accepts it (`trigger = hindi_fallback`) also sends `hindi`. `any` when neither has songs (empty state).
 
@@ -644,7 +648,7 @@ Mixpanel is the product analytics source of truth. Ads conversions use other too
 | `sign_up_completed` | `CompleteRegistration` | — |
 | `login_completed` | identify only | identify only |
 | `subscription_screen_viewed` | `ViewContent` | — |
-| `subscription_started` | `InitiatedCheckout` | — |
+| `subscription_initiated` (was `subscription_started`) | `InitiatedCheckout` | — |
 | `trial_payment_completed` | `Purchase` | `purchase` (Ads conversion) |
 | `trial_payment_succeeded` | — (Meta `Purchase` comes from the app) | — |
 | `subscription_paid` | `Subscribe` (Conversions API, webhook; only when `META_DATASET_ID` / `META_CONVERSIONS_API_ACCESS_TOKEN` are set, currently unset) | — |
@@ -723,7 +727,7 @@ Names and values from the name-ringtone spec for features that are not built yet
 | Signup | `SignUpNameActivity.kt` |
 | Post-auth destination | `util/AuthNavigator.kt` |
 | Language | `LanguageSelectionActivity.kt` |
-| Paywall / trial / failures / video / logout / close X | `SubscriptionActivity.kt`, `ui/PaymentAppBottomSheet.kt`, `model/PaymentApp.kt` (installed apps, UPI ID option), `PaymentAppSlug` in `analytics/AnalyticsContract.kt` |
+| Paywall / trial / failures / video / logout / Home button and back | `SubscriptionActivity.kt`, `ui/PaymentAppBottomSheet.kt`, `model/PaymentApp.kt` (installed apps, UPI ID option), `PaymentAppSlug` in `analytics/AnalyticsContract.kt` |
 | Paywall Pending / Failed rules | `ui/PaywallUiPolicy.kt` (`PaywallUiState`, `VerifyTrigger`) |
 | Member screen (`membership_welcome`, post-purchase CTA) | `MembershipWelcomeActivity.kt` |
 | Subscription failure mapping | `data/SubscriptionRepository.kt` (`SubscriptionFailureReason`) |
@@ -756,7 +760,7 @@ Names and values from the name-ringtone spec for features that are not built yet
 |----------|-------|
 | Session and shell | 6 (`app_opened`, `screen_viewed`, `install_attributed`, `permission_prompt_answered`, `external_link_opened`, `logged_out`) |
 | Auth and onboarding | 6 (`otp_sent`, `auth_failed`, `otp_verification_failed`, `sign_up_completed`, `login_completed`, `language_selected`) |
-| Subscription (app) | 8 (`subscription_screen_viewed`, `paywall_dismissed`, `subscription_cta_tapped`, `payment_app_selected`, `subscription_started`, `trial_payment_completed`, `subscription_failed`, `subscription_video_ended`) |
+| Subscription (app) | 8 (`subscription_screen_viewed`, `paywall_dismissed`, `subscription_cta_tapped`, `payment_app_selected`, `subscription_initiated`, `trial_payment_completed`, `subscription_failed`, `subscription_video_ended`) |
 | Home and catalog | 8 (`home_viewed`, `home_load_failed`, `tune_played`, `tune_play_ended`, `search_performed`, `category_filtered`, `create_ringtone_cta_tapped`, `ringtone_replaced_externally`) |
 | Ringtone activation (app) | 11 (`ringtone_creation_started`, `unavailable_language_tapped`, `sample_list_viewed`, `sample_previewed`, `sample_selected`, `voice_filtered`, `ringtone_generation_started`, `ringtone_generation_failed`, `creation_limit_reached`, `generation_error_action_taken`, `ringtone_ready_action_tapped`) |
 | Set flow | 4 (`ringtone_set_started`, `set_mode_selected`, `ringtone_set_failed`, `ringtone_set`) |
@@ -776,8 +780,9 @@ The UI refresh adds and removes no events (still 57) and changes no server code.
 | `screen_viewed` | New slug `membership_welcome` (12 screens). The create form after a purchase has `previous_screen = membership_welcome`. Home `onNewIntent` no longer double-tracks a just-created Home |
 | `create_ringtone_cta_tapped` | New `source = membership_welcome` (member screen CTA and its 3 rows) |
 | `ringtone_creation_started` | New `entry_point = post_purchase`; `ready_screen` is no longer sent. No new properties |
-| `paywall_dismissed` | New `dismiss_method = close_button`. Back on Pending / Failed is not a dismissal |
-| `subscription_failed` | Same values. There is no automatic re-check; each manual "Payment Status Dekhein" re-check that doesn't activate sends one `verify` failure |
+| `paywall_dismissed` | New `dismiss_method = home_button` (the Home button that replaced the close X). System back on the paywall now goes to Home like that button (still `system_back`) instead of closing the app. Back on Pending / Failed is not a dismissal |
+| `subscription_initiated` | Renamed from `subscription_started` (2026-09-28); `auth_amount` / `recurring_amount` always sent; new `user_state` |
+| `subscription_failed` | Same values, plus `auth_amount`, `recurring_amount` and `user_state` (2026-09-28). There is no automatic re-check; each manual "Payment Status Dekhein" re-check that doesn't activate sends one `verify` failure |
 | `trial_payment_completed` (+ Meta `Purchase`, Firebase `purchase`) | Same handler, once per paywall; now also reachable from the Pending re-check. The member screen opens next instead of Home |
 | `sample_previewed` / `sample_selected` | A row tap only previews; `sample_selected` moves to the first "chuno" tap |
 | `voice_filtered`, `category_filtered` (`song_picker`) | Unchanged (the picker keeps its voice and category chips) |
@@ -806,4 +811,4 @@ The UI refresh adds and removes no events (still 57) and changes no server code.
 9. **Funnels:** build the Insights funnels listed in [Conversion funnel](#conversion-funnel).
 10. **Create flow:** run one generation end to end (with `generate-ringtone` deployed) and confirm Live View shows `create_ringtone_cta_tapped (source=search_bar) → ringtone_creation_started (entry_point=search_bar) → sample_list_viewed → sample_previewed → sample_selected → ringtone_set_started (source=creation_flow, no generation_id) → set_mode_selected → ringtone_generation_started → name_lookup_completed → ringtone_created (platform=server, cached=false) → ringtone_set (generation_id, personalized=true)`, with no second `ringtone_set_started` on Ready, that `ringtone_created` appears once and only from the server, and that no property contains the typed name.
 11. **Post-purchase:** pay the trial and confirm `trial_payment_completed → screen_viewed (membership_welcome) → create_ringtone_cta_tapped (source=membership_welcome) → screen_viewed (create_form, previous_screen=membership_welcome) → ringtone_creation_started (entry_point=post_purchase)`. After "Home par jayen", exactly one `screen_viewed (home)`.
-12. **Paywall states:** UPI cancel → one `subscription_failed (checkout, user_cancelled)` and back on the paywall. A checkout whose verify is not active yet → one `subscription_failed (verify, pending)` and Pending; each "Payment Status Dekhein" tap → one `subscription_failed (verify)` or `trial_payment_completed`. Back on Pending / Failed → no `paywall_dismissed`. Close X → `paywall_dismissed (dismiss_method=close_button)`.
+12. **Paywall states:** UPI cancel → one `subscription_failed (checkout, user_cancelled)` and back on the paywall. A checkout whose verify is not active yet → one `subscription_failed (verify, pending)` and Pending; each "Payment Status Dekhein" tap → one `subscription_failed (verify)` or `trial_payment_completed`. Back on Pending / Failed → no `paywall_dismissed`. Home button → `paywall_dismissed (dismiss_method=home_button)` and Home; system back on the paywall → `paywall_dismissed (dismiss_method=system_back)` and Home; back on Home closes the app.

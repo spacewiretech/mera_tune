@@ -23,6 +23,21 @@ class AnalyticsDerivationTest {
     }
 
     @Test
+    fun userStateLoggedOutIsLockedWhateverTheStatus() {
+        listOf("trial", "active", "cancelled", "expired", "none", null).forEach {
+            assertEquals("status=$it", UserState.LOCKED, UserState.derive(isLoggedIn = false, status = it))
+        }
+    }
+
+    @Test
+    fun userStateLoggedInFollowsTheStatus() {
+        assertEquals(UserState.TRIAL, UserState.derive(isLoggedIn = true, status = "trial"))
+        assertEquals(UserState.EXPIRED, UserState.derive(isLoggedIn = true, status = "EXPIRED"))
+        assertEquals(UserState.LOCKED, UserState.derive(isLoggedIn = true, status = "none"))
+        assertEquals(UserState.LOCKED, UserState.derive(isLoggedIn = true, status = null))
+    }
+
+    @Test
     fun paywallFromProcessingIsLimitScreen() {
         listOf("none", "trial", "cancelled", null).forEach {
             assertEquals(PaywallEntryPoint.LIMIT_SCREEN, PaywallEntryPoint.derive(AnalyticsScreen.RINGTONE_PROCESSING, it))

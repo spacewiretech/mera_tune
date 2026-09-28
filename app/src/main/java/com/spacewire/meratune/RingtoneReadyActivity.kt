@@ -30,8 +30,9 @@ import com.spacewire.meratune.util.enableLightEdgeToEdge
 /**
  * Step 4: play the generated ringtone and set it. "Ringtone set karein" applies the set-mode
  * choice made at chuno ([SetChoice], no sheet); without one it runs the full single-shot flow.
- * "Home par jayen" is always available. `ReadyAction.CHANGE_SONG` / `MAKE_ANOTHER` and
- * `CreationEntryPoint.READY_SCREEN` are no longer sent from 1.3.0 (those buttons were removed).
+ * "Home par jayen" is always available; after a set, "Ringtone set ho gayi" goes Home too.
+ * `ReadyAction.CHANGE_SONG` / `MAKE_ANOTHER` and `CreationEntryPoint.READY_SCREEN` are no longer
+ * sent from 1.3.0 (those buttons were removed).
  */
 class RingtoneReadyActivity : AppCompatActivity() {
 
@@ -174,7 +175,11 @@ class RingtoneReadyActivity : AppCompatActivity() {
         findViewById<ImageButton>(R.id.forwardButton).setOnClickListener { previewPlayer.seekBy(SEEK_STEP_MS) }
 
         setRingtoneButton.setOnClickListener {
-            if (isSet) return@setOnClickListener
+            // After a successful set, "Ringtone set ho gayi" finishes the flow like "Home par jayen".
+            if (isSet) {
+                goHome()
+                return@setOnClickListener
+            }
             val choice = setChoice
             if (choice != null) {
                 if (ringtoneSetController.apply(generatedTune, choice, continuesFlow = !setFlowConsumed)) {
@@ -185,14 +190,17 @@ class RingtoneReadyActivity : AppCompatActivity() {
             }
         }
 
-        findViewById<TextView>(R.id.goHomeButton).setOnClickListener {
-            onActionTapped(ReadyAction.GO_HOME) {
-                startActivity(
-                    Intent(this, Home::class.java)
-                        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
-                )
-                finish()
-            }
+        findViewById<TextView>(R.id.goHomeButton).setOnClickListener { goHome() }
+    }
+
+    /** "Home par jayen", and "Ringtone set ho gayi" after a set (then `is_set` = true). */
+    private fun goHome() {
+        onActionTapped(ReadyAction.GO_HOME) {
+            startActivity(
+                Intent(this, Home::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            )
+            finish()
         }
     }
 
@@ -215,10 +223,9 @@ class RingtoneReadyActivity : AppCompatActivity() {
         Haptics.confirm(setRingtoneButton)
     }
 
-    /** After a successful set the primary CTA becomes a disabled "Ringtone set ho gayi". */
+    /** After a successful set the primary CTA becomes "Ringtone set ho gayi", which goes Home. */
     private fun renderSetButton() {
         setRingtoneButton.setText(if (isSet) R.string.ready_set_done else R.string.ready_set_ringtone)
-        setRingtoneButton.isEnabled = !isSet
         CtaButtons.setEndIcon(setRingtoneButton, if (isSet) R.drawable.ic_check_white else R.drawable.ic_music_notes_white)
     }
 

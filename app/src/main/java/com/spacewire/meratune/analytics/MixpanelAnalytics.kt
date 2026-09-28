@@ -321,18 +321,24 @@ class MixpanelAnalytics private constructor(context: Context) {
         track("payment_app_selected", props)
     }
 
-    fun trackSubscriptionStarted(
+    /**
+     * Create-subscription succeeded, before the Cashfree checkout opens (named
+     * `subscription_started` until 2026-09-28). [authAmount] / [recurringAmount] are the amounts
+     * the paywall shows (the server's, else the 3 / 299 defaults).
+     */
+    fun trackSubscriptionInitiated(
         paymentApp: PaymentApp,
-        authAmount: Double?,
-        recurringAmount: Double?,
+        authAmount: Double,
+        recurringAmount: Double,
         attempt: Int? = null,
     ) {
         val props = JSONObject()
         props.put("payment_app", paymentApp.analyticsSlug())
-        authAmount?.let { props.put("auth_amount", it) }
-        recurringAmount?.let { props.put("recurring_amount", it) }
+        props.put("auth_amount", authAmount)
+        props.put("recurring_amount", recurringAmount)
         props.putOpt("attempt", attempt)
-        track("subscription_started", props)
+        props.put("user_state", currentUserState())
+        track("subscription_initiated", props)
     }
 
     fun trackTrialPaymentCompleted(
@@ -356,12 +362,15 @@ class MixpanelAnalytics private constructor(context: Context) {
 
     /**
      * [failureReason] must be a bounded snake_case value (see the tracking plan); anything else is
-     * dropped. [cfErrorCode] / [cashfreeStatus] are lower-cased Cashfree codes.
+     * dropped. [cfErrorCode] / [cashfreeStatus] are lower-cased Cashfree codes. [authAmount] /
+     * [recurringAmount] are the amounts the paywall shows at the failure.
      */
     fun trackSubscriptionFailed(
         stage: String,
         failureReason: String?,
         paymentApp: PaymentApp?,
+        authAmount: Double,
+        recurringAmount: Double,
         cfErrorCode: String? = null,
         httpStatus: Int? = null,
         cashfreeStatus: String? = null,
@@ -375,6 +384,9 @@ class MixpanelAnalytics private constructor(context: Context) {
         props.putOpt("http_status", httpStatus)
         props.putEnum("cashfree_status", cashfreeStatus)
         props.putOpt("attempt", attempt)
+        props.put("auth_amount", authAmount)
+        props.put("recurring_amount", recurringAmount)
+        props.put("user_state", currentUserState())
         track("subscription_failed", props)
     }
 
@@ -890,6 +902,13 @@ class MixpanelAnalytics private constructor(context: Context) {
         if (!superProps.has("app_language")) mixpanel.unregisterSuperProperty("app_language")
     }
 
+    /**
+     * `user_state` from the stored session, derived like the super property. Sent explicitly on
+     * the subscription events: the super property is only refreshed on identify / logout.
+     */
+    private fun currentUserState(): String =
+        AuthStore(appContext).let { UserState.derive(it.isLoggedIn(), it.getStatus()) }
+
     private fun registerUserState(userState: String) {
         mixpanel.registerSuperProperties(JSONObject().put("user_state", userState))
     }
@@ -959,7 +978,7 @@ class MixpanelAnalytics private constructor(context: Context) {
                 .put("app_version", BuildConfig.VERSION_NAME)
                 .put("build_type", BuildConfig.BUILD_TYPE)
                 .put("is_logged_in", isLoggedIn)
-                .put("user_state", if (isLoggedIn) UserState.fromStatus(status) else UserState.LOCKED)
+                .put("user_state", UserState.derive(isLoggedIn, status))
             val profileStore = ProfileStore(context)
             if (profileStore.hasSelectedLanguage()) {
                 profileStore.getProfile().selectedLanguage.takeIf { it.isNotBlank() }

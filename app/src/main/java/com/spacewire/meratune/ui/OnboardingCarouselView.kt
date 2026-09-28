@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.os.Parcel
 import android.os.Parcelable
-import android.transition.AutoTransition
+import android.transition.Fade
 import android.transition.TransitionManager
 import android.util.AttributeSet
 import android.util.SparseArray
@@ -40,7 +40,8 @@ import kotlin.math.max
  *   index is adopted only while [sharedIndexSet] is false, so a lower screen restored later (older
  *   index) does not rewind the slide the top screen restored.
  * - Purely decorative: not focusable and hidden from accessibility, like the designs' fake UI.
- * - [setImeVisible] hides it while the keyboard is open and in landscape.
+ * - [setImeVisible] hides it while the keyboard is open (invisible, keeping a fitted slot so the
+ *   form stays right above the keyboard) and in landscape (gone).
  * - [fitHeightTo] sizes it to the space the rest of the screen leaves (see there).
  */
 class OnboardingCarouselView @JvmOverloads constructor(
@@ -173,14 +174,24 @@ class OnboardingCarouselView @JvmOverloads constructor(
     /**
      * Hides the carousel while the keyboard is open, and always in landscape, so the form stays
      * on screen. Pass the IME state from every insets pass, including the first.
+     *
+     * With the keyboard open it turns INVISIBLE, not GONE: its slot keeps being fitted (down to 0),
+     * so the content still fills the smaller viewport and the form stays anchored right above the
+     * keyboard. GONE made the content shorter than the viewport, so the form jumped to the top of
+     * the screen. Only the carousel fades: animating the siblings' bounds suppressed the scroll
+     * view's layout mid-change and left a stale scroll offset (the form far above the keyboard).
      */
     fun setImeVisible(visible: Boolean) {
         imeVisible = visible
-        val target = if (visible || isLandscape()) GONE else VISIBLE
+        val target = when {
+            isLandscape() -> GONE
+            visible -> INVISIBLE
+            else -> VISIBLE
+        }
         if (visibility == target) return
         val sceneRoot = parent as? ViewGroup
         if (sceneRoot != null && isLaidOut && ValueAnimator.areAnimatorsEnabled()) {
-            TransitionManager.beginDelayedTransition(sceneRoot, AutoTransition().setDuration(IME_TRANSITION_MS))
+            TransitionManager.beginDelayedTransition(sceneRoot, Fade().setDuration(IME_TRANSITION_MS).addTarget(this))
         }
         visibility = target
         fitDirty = true
@@ -189,8 +200,9 @@ class OnboardingCarouselView @JvmOverloads constructor(
     /**
      * Sizes the carousel from the space left in [viewport] (the scroll view whose content is this
      * view's parent): `available = viewport height - height of the rest of the content`, clamped to
-     * `onboarding_carousel_min_height..onboarding_carousel_max_height`. On short screens it
-     * shrinks so the form fits, down to the minimum, after which the page scrolls.
+     * `onboarding_carousel_min_height..onboarding_carousel_max_height` ([AuthImeLayout.carouselHeight];
+     * the minimum is 0 while the keyboard is open and the carousel is invisible). On short screens
+     * it shrinks so the form fits, down to the minimum, after which the page scrolls.
      *
      * The height is set explicitly (review #9): inside a scroll view a 0dp/weighted child would be
      * measured without a height limit and keep the slide's intrinsic size. It is recomputed when
@@ -227,7 +239,7 @@ class OnboardingCarouselView @JvmOverloads constructor(
         val naturalHeight = contentBottom + content.paddingBottom
         val rest = naturalHeight - height
         val viewportHeight = viewport.height - viewport.paddingTop - viewport.paddingBottom
-        val target = (viewportHeight - rest).coerceIn(minFittedHeight, maxFittedHeight)
+        val target = AuthImeLayout.carouselHeight(viewportHeight, rest, minFittedHeight, maxFittedHeight, imeVisible)
 
         val params = layoutParams ?: return false
         if (params.height == target) return false

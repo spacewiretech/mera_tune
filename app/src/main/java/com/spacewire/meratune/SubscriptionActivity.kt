@@ -95,6 +95,15 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
     private var dismissTracked = false
     private var logoutHandled = false
 
+    /**
+     * System back on the paywall itself leaves to Home like the Home button (the browse choice is
+     * remembered), so back never closes the app from here. Registered first: [verifyBackBlocker]
+     * and [stateBackCallback] win while they are enabled.
+     */
+    private val paywallBackCallback = object : OnBackPressedCallback(true) {
+        override fun handleOnBackPressed() = leaveToHome(PaywallDismissMethod.SYSTEM_BACK)
+    }
+
     /** Enabled only while a verify runs: back would finish the paywall and cancel the conversion. */
     private val verifyBackBlocker = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() = Unit
@@ -115,10 +124,17 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
     /** Failed lists the bank / funds / details reasons only after a `payment_failed` checkout. */
     private var failedShowsReasons = false
     private var pendingRecurringAmount: Double? = null
-    private var authAmountLabel = DEFAULT_AUTH_AMOUNT
-    private var recurringAmountLabel = DEFAULT_RECURRING_AMOUNT
 
-    /** `paywall_dismissed.dismiss_method` for the next finish (the Home button sets its own). */
+    /**
+     * The amounts the paywall shows and the subscription events send: create-subscription's
+     * values once it answered, else the defaults 3 / 299.
+     */
+    private var shownAuthAmount = DEFAULT_AUTH_AMOUNT
+    private var shownRecurringAmount = DEFAULT_RECURRING_AMOUNT
+    private val authAmountLabel: String get() = formatRupee(shownAuthAmount)
+    private val recurringAmountLabel: String get() = formatRupee(shownRecurringAmount)
+
+    /** `paywall_dismissed.dismiss_method` for the next finish (set by [leaveToHome]). */
     private var dismissMethod = PaywallDismissMethod.SYSTEM_BACK
     private var pendingRingAnimator: ObjectAnimator? = null
     /** Set in onStart / cleared in onStop; lifecycle.currentState is still CREATED inside onStart. */
@@ -148,6 +164,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         super.onCreate(savedInstanceState)
         enableLightEdgeToEdge()
         setContentView(R.layout.activity_subscription)
+        onBackPressedDispatcher.addCallback(this, paywallBackCallback)
         onBackPressedDispatcher.addCallback(this, verifyBackBlocker)
         onBackPressedDispatcher.addCallback(this, stateBackCallback)
 
@@ -284,22 +301,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
 
     private fun setupActions() {
         findViewById<View>(R.id.homeButton).setOnClickListener {
-            // Like back: ignored while a verify runs, else a finish with the onPause dismissal.
-            if (verifyInFlight || isFinishing) return@setOnClickListener
-            AuthStore(this).markBrowsingWithoutTrial()
-            dismissMethod = PaywallDismissMethod.HOME_BUTTON
-            when (PaywallUiPolicy.homeButtonRoute(entryPoint, isTaskRoot)) {
-                HomeButtonRoute.FINISH -> Unit
-                HomeButtonRoute.CLEAR_TOP_TO_HOME -> startActivity(
-                    Intent(this, Home::class.java)
-                        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
-                )
-                HomeButtonRoute.NEW_TASK_TO_HOME -> startActivity(
-                    Intent(this, Home::class.java)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
-                )
-            }
-            finish()
+            leaveToHome(PaywallDismissMethod.HOME_BUTTON)
         }
 
         pendingCheckButton.setOnClickListener {
@@ -372,6 +374,29 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
                 bindSelectedPaymentApp()
             }.show()
         }
+    }
+
+    /**
+     * The Home button and system back on the paywall: remembers the browse choice and reaches Home
+     * (a finish with the onPause `paywall_dismissed` carrying [method]). Ignored while a verify
+     * runs, which would otherwise cancel the conversion.
+     */
+    private fun leaveToHome(method: String) {
+        if (verifyInFlight || isFinishing) return
+        AuthStore(this).markBrowsingWithoutTrial()
+        dismissMethod = method
+        when (PaywallUiPolicy.homeButtonRoute(entryPoint, isTaskRoot)) {
+            HomeButtonRoute.FINISH -> Unit
+            HomeButtonRoute.CLEAR_TOP_TO_HOME -> startActivity(
+                Intent(this, Home::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            )
+            HomeButtonRoute.NEW_TASK_TO_HOME -> startActivity(
+                Intent(this, Home::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
+            )
+        }
+        finish()
     }
 
     private fun setupSubscriptionVideo() {
@@ -509,10 +534,10 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
                     pendingSubscriptionId = response.subscriptionId
                     pendingAuthAmount = response.authAmount
                     bindPricing(response.authAmount, response.recurringAmount)
-                    mixpanelAnalytics().trackSubscriptionStarted(
+                    mixpanelAnalytics().trackSubscriptionInitiated(
                         paymentApp = selectedPaymentApp,
-                        authAmount = response.authAmount,
-                        recurringAmount = response.recurringAmount,
+                        authAmount = shownAuthAmount,
+                        recurringAmount = shownRecurringAmount,
                         attempt = attempt,
                     )
                     metaAnalytics().trackSubscriptionStarted(
@@ -540,11 +565,11 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         }
     }
 
-    /** Server amounts from create-subscription; null keeps the current (default 3 / 299) label. */
+    /** Server amounts from create-subscription; null keeps the current (default 3 / 299) amount. */
     private fun bindPricing(authAmount: Double?, recurringAmount: Double?) {
-        authAmount?.let { authAmountLabel = formatRupee(it) }
+        authAmount?.let { shownAuthAmount = it }
         recurringAmount?.let {
-            recurringAmountLabel = formatRupee(it)
+            shownRecurringAmount = it
             pendingRecurringAmount = it
         }
         originalPrice.text = getString(R.string.price_rupee, recurringAmountLabel)
@@ -664,7 +689,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
                         // verifyInFlight stays set: the three conversions below fire once per paywall.
                         AuthStore(this@SubscriptionActivity).saveUser(user)
                         ProfileStore(this@SubscriptionActivity).saveUser(user.name.orEmpty(), user.phone)
-                        val amount = pendingAuthAmount ?: 3.0
+                        val amount = pendingAuthAmount ?: DEFAULT_AUTH_AMOUNT
                         val analytics = mixpanelAnalytics()
                         analytics.identifyUser(user)
                         analytics.trackTrialPaymentCompleted(
@@ -777,6 +802,8 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
             stage = stage,
             failureReason = reason,
             paymentApp = paymentApp,
+            authAmount = shownAuthAmount,
+            recurringAmount = shownRecurringAmount,
             cfErrorCode = cfErrorCode,
             httpStatus = httpStatus,
             cashfreeStatus = cashfreeStatus,
@@ -853,9 +880,10 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
     }
 
     /**
-     * System back on the paywall and the Home button ([dismissMethod]) are the ways this screen is
-     * dismissed; [verifyBackBlocker] swallows back (and the Home button is ignored) while a verify
-     * runs, back on Pending / Failed only returns to the paywall, and a paid user is never counted.
+     * System back on the paywall and the Home button ([dismissMethod]; both go to Home) are the ways
+     * this screen is dismissed; [verifyBackBlocker] swallows back (and the Home button is ignored)
+     * while a verify runs, back on Pending / Failed only returns to the paywall, and a paid user is
+     * never counted.
      */
     override fun onPause() {
         super.onPause()
@@ -909,8 +937,8 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         private const val STATE_FAILED_REASONS = "failed_reasons"
         private const val STATE_FAQ_EXPANDED = "faq_expanded"
         private const val STATE_PENDING_RECURRING_AMOUNT = "pending_recurring_amount"
-        private const val DEFAULT_AUTH_AMOUNT = "3"
-        private const val DEFAULT_RECURRING_AMOUNT = "299"
+        private const val DEFAULT_AUTH_AMOUNT = 3.0
+        private const val DEFAULT_RECURRING_AMOUNT = 299.0
         private const val STATE_FADE_MS = 150L
         private const val PENDING_RING_ROTATION_MS = 1_200L
 

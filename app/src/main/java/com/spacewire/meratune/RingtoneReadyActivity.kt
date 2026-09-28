@@ -92,7 +92,8 @@ class RingtoneReadyActivity : AppCompatActivity() {
         analyticsSource = AnalyticsSource.CREATION_FLOW,
         categoryForTune = { tune -> tune.category?.name.orEmpty() },
         onSuccess = { tune, uri ->
-            ActiveRingtoneStore(this).save(tune.id, uri, personalized = true)
+            // The copy itself (title, file, generation id), so Home marks it Active, not the base tune.
+            ActiveRingtoneStore(this).save(tune, uri, personalized = true)
             markSet()
         },
     )

@@ -64,11 +64,17 @@ class Home : AppCompatActivity() {
     /** Keeps `onNewIntent` from re-tracking a `screen_viewed(home)` the lifecycle already sent. */
     private val screenViewGate = HomeScreenViewGate()
 
-    /** Tunes with a `tune_played` in this visit (cleared on pause); feeds `ringtone_set_started.was_previewed`. */
+    /**
+     * Rows ([Tune.rowKey]) with a `tune_played` in this visit (cleared on pause); feeds
+     * `ringtone_set_started.was_previewed`.
+     */
     private val previewedTuneIds = mutableSetOf<String>()
 
     /** `source` of the current preview's `tune_played`, repeated on its `tune_play_ended`. */
     private var playSource = AnalyticsSource.HOME
+
+    /** `tune_id` of the current preview: the player id is the row key, the base tune id for an own ringtone. */
+    private var playTuneId: String? = null
 
     private val previewPlayer: PreviewPlayerController by lazy {
         PreviewPlayerController(
@@ -94,7 +100,7 @@ class Home : AppCompatActivity() {
                 }
 
                 override fun onSessionEnded(stats: PlaybackSessionStats) {
-                    mixpanelAnalytics().trackTunePlayEnded(playSource, stats)
+                    mixpanelAnalytics().trackTunePlayEnded(playSource, stats, tuneId = playTuneId ?: stats.id)
                 }
             },
         )
@@ -104,7 +110,7 @@ class Home : AppCompatActivity() {
         activity = this,
         analyticsSource = AnalyticsSource.HOME,
         categoryForTune = { tune -> tune.category?.name.orEmpty() },
-        onSuccess = { tune, uri -> viewModel.onRingtoneSet(tune.id, uri) },
+        onSuccess = { tune, uri -> viewModel.onRingtoneSet(tune, uri) },
     )
     private val startupPermissionRequester = StartupPermissionRequester(this)
 
@@ -155,11 +161,12 @@ class Home : AppCompatActivity() {
                 if (AuthNavigator.needsSubscription(this)) {
                     openPaywall()
                 } else {
+                    // An own ringtone (name chip) sets its own file: personalized, with its generation id.
                     ringtoneSetController.start(
                         tune,
                         SetEntryContext(
-                            rank = viewModel.uiState.value.rankOf(tune.id),
-                            wasPreviewed = tune.id in previewedTuneIds,
+                            rank = viewModel.uiState.value.rankOf(tune.rowKey),
+                            wasPreviewed = tune.rowKey in previewedTuneIds,
                         ),
                     )
                 }
@@ -271,7 +278,7 @@ class Home : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
                     findViewById<ProgressBar>(R.id.loadingIndicator).visibility =
-                        if (state.isLoading) View.VISIBLE else View.GONE
+                        if (state.showLoadingIndicator) View.VISIBLE else View.GONE
 
                     val errorView = findViewById<TextView>(R.id.errorText)
                     if (state.errorMessage != null) {
@@ -306,20 +313,22 @@ class Home : AppCompatActivity() {
 
     private fun togglePlayback(tune: Tune) {
         val state = viewModel.uiState.value
-        // Keyed on the UI state, not isPlaying: a buffering or system-paused tune still shows pause.
-        if (state.playingTuneId == tune.id) {
-            viewModel.onPlayToggle(tune.id)
+        // Keyed on the row (an own ringtone shares its base tune id), not isPlaying: a buffering or
+        // system-paused tune still shows pause.
+        val rowKey = tune.rowKey
+        if (state.playingTuneId == rowKey) {
+            viewModel.onPlayToggle(rowKey)
             stopPlayback()
             return
         }
 
         stopPlayback()
-        viewModel.onPlayToggle(tune.id)
+        viewModel.onPlayToggle(rowKey)
 
         val playbackUrl = tune.tuneUrl.trim()
         if (playbackUrl.isBlank()) {
             showPlaybackError("Empty tune URL for ${tune.name}")
-            viewModel.onPlayToggle(tune.id)
+            viewModel.onPlayToggle(rowKey)
             return
         }
 
@@ -327,18 +336,19 @@ class Home : AppCompatActivity() {
 
         val fromSearch = state.searchQuery.isNotBlank()
         playSource = if (fromSearch) AnalyticsSource.SEARCH_RESULTS else AnalyticsSource.HOME
+        playTuneId = tune.id
         mixpanelAnalytics().trackTunePlayed(
             tuneId = tune.id,
             category = tune.category?.name.orEmpty(),
             source = playSource,
-            rank = state.rankOf(tune.id),
+            rank = state.rankOf(rowKey),
             categoryFilter = state.selectedCategoryName,
             fromSearch = fromSearch,
-            isActiveRingtone = tune.id == state.activeRingtoneId,
+            isActiveRingtone = rowKey == state.activeRingtoneId,
         )
-        previewedTuneIds += tune.id
+        previewedTuneIds += rowKey
 
-        previewPlayer.play(tune.id, playbackUrl)
+        previewPlayer.play(rowKey, playbackUrl)
     }
 
     /** While the keyboard is open the empty state drops its logo and scrolls to the CTA. */
@@ -383,6 +393,7 @@ class Home : AppCompatActivity() {
         isNavigating = false
         viewModel.refreshProfileName()
         viewModel.refreshActiveRingtone()
+        viewModel.refreshMyRingtones()
     }
 
     private fun resetHomeForReturn() {

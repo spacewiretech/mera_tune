@@ -15,8 +15,9 @@ data class Category(
         const val ALL_CATEGORY_ID = "__all__"
 
         /**
-         * The synthetic Home "{name} Tunes" chip (after All Tunes): every active tune whose title
-         * contains the profile's first name. Never a DB id.
+         * The synthetic Home "{name} Tunes" chip (after All Tunes): the user's own created
+         * ringtones, then every active tune whose title contains the profile's first name. Never a
+         * DB id.
          */
         const val MY_NAME_CATEGORY_ID = "__my_name__"
 
@@ -56,12 +57,21 @@ data class Tune(
             }
         }
 
+    /**
+     * Home list / player / Active key. A personalized copy shares its base tune's [id] (and so do
+     * several copies of one song for different names), so it is keyed by its [generationId]; a
+     * catalog tune by its [id]. Not serialized (no backing field).
+     */
+    val rowKey: String
+        get() = generationId?.let { GENERATION_ROW_KEY_PREFIX + it } ?: id
+
     /** Serializes this tune for an `Intent` extra (the project has no Parcelize plugin). */
     fun toIntentJson(): String = intentJson.encodeToString(serializer(), this)
 
     companion object {
         const val VOICE_MALE = "male"
         const val VOICE_FEMALE = "female"
+        private const val GENERATION_ROW_KEY_PREFIX = "generation:"
 
         private val intentJson = Json {
             ignoreUnknownKeys = true

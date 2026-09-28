@@ -18,6 +18,8 @@ class TuneAdapter(
 ) : RecyclerView.Adapter<TuneAdapter.TuneViewHolder>() {
 
     private var items: List<Tune> = emptyList()
+
+    /** Row keys ([Tune.rowKey]): an own ringtone shares its base tune id with the catalog tune. */
     private var playingTuneId: String? = null
     private var activeRingtoneId: String? = null
     private var playbackProgress: Float = 0f
@@ -38,7 +40,7 @@ class TuneAdapter(
 
         playbackProgress = nextProgress
         val playingId = playingTuneId ?: return
-        val index = items.indexOfFirst { it.id == playingId }
+        val index = items.indexOfFirst { it.rowKey == playingId }
         if (index >= 0) {
             notifyItemChanged(index, PAYLOAD_PROGRESS)
         }
@@ -56,7 +58,7 @@ class TuneAdapter(
 
     override fun onBindViewHolder(holder: TuneViewHolder, position: Int, payloads: MutableList<Any>) {
         if (payloads.contains(PAYLOAD_PROGRESS)) {
-            holder.updateProgress(playingTuneId == items[position].id, playbackProgress)
+            holder.updateProgress(playingTuneId == items[position].rowKey, playbackProgress)
         } else {
             super.onBindViewHolder(holder, position, payloads)
         }
@@ -81,7 +83,7 @@ class TuneAdapter(
 
             CategoryUiHelper.bindArt(thumbnailContainer, thumbnailIcon, tune.category)
 
-            val isPlaying = playingTuneId == tune.id
+            val isPlaying = playingTuneId == tune.rowKey
             playButton.setImageResource(
                 if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play,
             )
@@ -95,7 +97,7 @@ class TuneAdapter(
         }
 
         private fun bindSetButton(tune: Tune) {
-            val isActive = activeRingtoneId == tune.id
+            val isActive = activeRingtoneId == tune.rowKey
             if (isActive) {
                 setButton.text = itemView.context.getString(R.string.active_ringtone)
                 setButton.setTextColor(ContextCompat.getColor(itemView.context, R.color.white))

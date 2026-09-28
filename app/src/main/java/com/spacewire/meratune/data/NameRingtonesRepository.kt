@@ -20,6 +20,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import java.util.UUID
 
 @Serializable
 internal data class NameRingtonesRequest(
@@ -151,6 +152,8 @@ class NameRingtonesRepository(context: Context) {
 
     private val endpoint = "${BuildConfig.SUPABASE_URL.trimEnd('/')}/functions/v1/$FUNCTION"
 
+    private val generationRepository by lazy { RingtoneGenerationRepository() }
+
     /**
      * Ready ringtones that already sing [name] (at most 20): stock tunes whose sample name is
      * [name], then personalized renders newest first, one per song and voice. Empty when none.
@@ -162,6 +165,30 @@ class NameRingtonesRepository(context: Context) {
     /** The logged-in user's own ready ringtones, newest first, one per song and name (at most 50). */
     suspend fun fetchMyRingtones(): List<Tune> =
         post(MODE_MINE) { userId, token -> NameRingtonesRequest(userId = userId, userToken = token, mine = true) }
+
+    /**
+     * Records a [fetchNameRingtones] row the caller has not made yet (`generationId == null`) in
+     * their own list: `generate-ringtone` with the row's tune id and the same [name] is a cache hit
+     * (no Gemini call, no quota). Returns the row with the caller's generation id and the server's
+     * title / URL. [language] is a `Languages.storageValue` with TTS enabled (the cache key carries
+     * no language). Fails like [RingtoneGenerationRepository.generate].
+     */
+    suspend fun claim(row: Tune, name: String, language: String): Tune {
+        val userId = authStore.getUserId()
+        if (userId <= 0L) {
+            throw RingtoneGenerationException(GenerationErrorCode.UNAUTHORIZED, "Not logged in")
+        }
+        val generated = generationRepository.generate(
+            userId = userId,
+            userToken = authStore.getApiToken(),
+            tuneId = row.id,
+            name = name,
+            language = language,
+            clientRequestId = UUID.randomUUID().toString(),
+        )
+        Log.d(TAG, "claim ok cached=${generated.cached}")
+        return generated.toTune(row, fallbackTitle = row.name)
+    }
 
     private suspend fun post(mode: String, build: (Long, String?) -> NameRingtonesRequest): List<Tune> {
         val userId = authStore.getUserId()

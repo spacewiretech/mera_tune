@@ -30,6 +30,8 @@ class StringsParityTest {
         "home_", "empty_search_", "profile_",
         // Set flow: permanently denied permission dialog.
         "permission_",
+        // Create flow: existing name ringtones step.
+        "name_ringtones_",
     )
     private val locales = listOf("bn", "hi", "kn", "ml", "mr", "or", "ta", "te")
     private val placeholder = Regex("%(\\d+)\\$[sd]")

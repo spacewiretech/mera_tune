@@ -26,6 +26,11 @@ class ActiveRingtoneStore(context: Context) {
             .apply()
     }
 
+    /** [tune] as set: for a personalized copy ([personalized]), its base tune id is recorded. */
+    fun save(tune: com.spacewire.meratune.data.Tune, uri: Uri, personalized: Boolean = tune.generationId != null) {
+        save(tune.id, uri, personalized)
+    }
+
     fun resolveActiveTuneId(context: Context, tunes: List<com.spacewire.meratune.data.Tune>): String? {
         if (tunes.isEmpty()) return null
 

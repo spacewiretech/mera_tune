@@ -241,4 +241,10 @@
     <string name="permission_blocked_storage_message">ଷ୍ଟୋରେଜ୍ ଅନୁମତି ବନ୍ଦ ଅଛି, ତେଣୁ ରିଙ୍ଗଟୋନ୍ ସେଭ୍ ହୋଇପାରିବ ନାହିଁ। ସେଟିଂସରେ ଅନୁମତି ଦେଇ ପୁନର୍ବାର ଚେଷ୍ଟା କରନ୍ତୁ।</string>
     <string name="permission_open_settings">ସେଟିଂସ ଖୋଲନ୍ତୁ</string>
     <string name="permission_set_audio_only">କେବଳ ରିଙ୍ଗଟୋନ୍ ସେଟ୍ କରନ୍ତୁ</string>
+    <!-- lane B: existing name ringtones step (create flow) -->
+    <string name="name_ringtones_title">%1$s ପାଇଁ ରିଙ୍ଗଟୋନ୍ ମିଳିଗଲା!</string>
+    <string name="name_ringtones_subtitle">ଆପଣଙ୍କ ପସନ୍ଦର ସ୍ୱର ଶୁଣନ୍ତୁ ଏବଂ ବାଛନ୍ତୁ।</string>
+    <string name="name_ringtones_make_tune">ନିଜ ଟ୍ୟୁନ୍ ତିଆରି କରନ୍ତୁ</string>
+    <string name="name_ringtones_make_tune_caption">ପସନ୍ଦ ହେଲା ନାହିଁ? ନୂଆ ଟିଏ ତିଆରି କରନ୍ତୁ!</string>
+    <string name="name_ringtones_set_a11y">%1$s ସେଟ୍ କରନ୍ତୁ</string>
 </resources>

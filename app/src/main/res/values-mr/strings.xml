@@ -241,4 +241,10 @@
     <string name="permission_blocked_storage_message">स्टोरेजची परवानगी बंद आहे, त्यामुळे रिंगटोन सेव्ह करता येणार नाही. सेटिंग्जमध्ये परवानगी द्या, मग पुन्हा प्रयत्न करा.</string>
     <string name="permission_open_settings">सेटिंग्ज उघडा</string>
     <string name="permission_set_audio_only">फक्त रिंगटोन सेट करा</string>
+    <!-- lane B: existing name ringtones step (create flow) -->
+    <string name="name_ringtones_title">%1$s ची रिंगटोन मिळाली!</string>
+    <string name="name_ringtones_subtitle">तुमची आवडती धून ऐका आणि निवडा.</string>
+    <string name="name_ringtones_make_tune">तुमची ट्यून बनवा</string>
+    <string name="name_ringtones_make_tune_caption">आवडली नाही? नवीन तयार करा!</string>
+    <string name="name_ringtones_set_a11y">%1$s सेट करा</string>
 </resources>

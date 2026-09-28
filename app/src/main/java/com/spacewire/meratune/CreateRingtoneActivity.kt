@@ -8,9 +8,11 @@ import android.util.Log
 import android.view.View
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.doAfterTextChanged
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import com.spacewire.meratune.analytics.AnalyticsScreen
 import com.spacewire.meratune.analytics.CreationEntryPoint
@@ -18,7 +20,11 @@ import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.data.HomeRepository
 import com.spacewire.meratune.data.LanguageDefinition
 import com.spacewire.meratune.data.Languages
+import com.spacewire.meratune.data.NameRingtonesRepository
+import com.spacewire.meratune.data.RingtoneGenerationException
+import com.spacewire.meratune.ui.CtaButtons
 import com.spacewire.meratune.ui.FormOptionGroup
+import com.spacewire.meratune.ui.NameRingtonesPolicy
 import com.spacewire.meratune.util.GradientTextHelper
 import com.spacewire.meratune.util.InsetsUi
 import com.spacewire.meratune.util.NameInvalidReason
@@ -29,8 +35,13 @@ import com.spacewire.meratune.util.enableLightEdgeToEdge
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
-/** Step 1 of the personalized-ringtone flow: name + language. */
+/**
+ * Step 1 of the personalized-ringtone flow: name + language. Continue first looks up ringtones that
+ * already sing the name (loading on the CTA): when there are some, `NameRingtonesActivity` lists
+ * them; when there are none, or the lookup fails, the song picker opens as before.
+ */
 class CreateRingtoneActivity : AppCompatActivity() {
 
     private lateinit var languageGroup: FormOptionGroup
@@ -39,7 +50,14 @@ class CreateRingtoneActivity : AppCompatActivity() {
     private lateinit var nameError: TextView
     private lateinit var formTitle: TextView
     private lateinit var continueButton: TextView
+    private lateinit var continueProgress: ProgressBar
     private lateinit var comingSoonNote: TextView
+
+    private val nameRingtonesRepository by lazy { NameRingtonesRepository(this) }
+    private var lookupJob: Job? = null
+
+    /** The next step, when the lookup finished while this screen was not in front. */
+    private var pendingNextStep: Intent? = null
 
     /** Storage language value -> TTS enabled. `null` until loaded (or on failure = all enabled). */
     private var languageAvailability: Map<String, Boolean>? = null
@@ -64,6 +82,7 @@ class CreateRingtoneActivity : AppCompatActivity() {
         nameError = findViewById(R.id.nameError)
         formTitle = findViewById(R.id.formTitle)
         continueButton = findViewById(R.id.continueButton)
+        continueProgress = findViewById(R.id.continueProgress)
         comingSoonNote = findViewById(R.id.languageComingSoonNote)
 
         // The CTA lives in the scroll content; the keyboard raises the bottom padding so it stays reachable.
@@ -97,7 +116,13 @@ class CreateRingtoneActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        isNavigating = false
+        pendingNextStep?.let { next ->
+            pendingNextStep = null
+            startActivity(next)
+            return
+        }
+        // Still looking up existing ringtones: stay "navigating" until it opens the next step.
+        if (lookupJob?.isActive != true) isNavigating = false
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -237,7 +262,47 @@ class CreateRingtoneActivity : AppCompatActivity() {
             timeOnFormMs = (SystemClock.elapsedRealtime() - formShownAtMs).coerceAtLeast(0L),
             entryPoint = entryPoint,
         )
-        startActivity(ChooseSongActivity.intent(this, validation.display, languageKey))
+        lookUpExistingRingtones(validation.display, languageKey)
+    }
+
+    /**
+     * Ringtones that already sing [name] open `NameRingtonesActivity`; none, a failure or a lookup
+     * slower than [NAME_LOOKUP_TIMEOUT_MS] continue to the song picker exactly as before.
+     */
+    private fun lookUpExistingRingtones(name: String, language: String) {
+        lookupJob?.cancel()
+        setContinueLoading(true)
+        lookupJob = lifecycleScope.launch {
+            val existing = try {
+                withTimeoutOrNull(NAME_LOOKUP_TIMEOUT_MS) { nameRingtonesRepository.fetchNameRingtones(name) }
+                    .also { if (it == null) Log.w(TAG, "name-ringtones lookup timed out") }
+                    .orEmpty()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                val reason = (error as? RingtoneGenerationException)?.code?.name ?: error.javaClass.simpleName
+                Log.w(TAG, "name-ringtones lookup failed: $reason")
+                emptyList()
+            }
+            setContinueLoading(false)
+            val rows = NameRingtonesPolicy.rowsToShow(existing)
+            val next = if (rows.isEmpty()) {
+                ChooseSongActivity.intent(this@CreateRingtoneActivity, name, language)
+            } else {
+                NameRingtonesActivity.intent(this@CreateRingtoneActivity, name, language, rows)
+            }
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                startActivity(next)
+            } else {
+                pendingNextStep = next
+            }
+        }
+    }
+
+    /** Spinner on the CTA; the name field is locked meanwhile so the looked-up name is the one sent on. */
+    private fun setContinueLoading(loading: Boolean) {
+        CtaButtons.setLoading(continueButton, continueProgress, loading)
+        nameInput.isEnabled = !loading
     }
 
     /** Which [defaultLanguageKey] branch produced [selected], unless the user tapped a language. */
@@ -328,6 +393,9 @@ class CreateRingtoneActivity : AppCompatActivity() {
         private const val STATE_ENTRY_POINT = "state_entry_point"
         private const val STATE_REPORTED_UNAVAILABLE = "state_reported_unavailable_languages"
         private const val HINDI = "Hindi"
+
+        /** The lookup normally answers in well under a second; past this the form moves on. */
+        private const val NAME_LOOKUP_TIMEOUT_MS = 6_000L
 
         // `prefill_source`: where the name field's starting text came from.
         private const val PREFILL_SEARCH_QUERY = "search_query"

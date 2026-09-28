@@ -69,6 +69,11 @@ class RingtoneSetController(
     private val onSuccess: (Tune, Uri) -> Unit = { _, _ -> },
     /** [choose] finished: the base tune and the choice to apply on the final screen. */
     private val onChosen: (Tune, SetChoice) -> Unit = { _, _ -> },
+    /**
+     * `personalized` of a [start] flow. By default a tune with a generation id; a screen whose
+     * tunes all sing the user's name (so `tune_name` must not be the title) passes `{ true }`.
+     */
+    private val personalizedForTune: (Tune) -> Boolean = { tune -> tune.generationId != null },
 ) {
     // Must be lazy: controller is constructed during Activity init, before Context is attached.
     private val themeStore by lazy { CallThemeStore(activity) }
@@ -299,7 +304,7 @@ class RingtoneSetController(
         phase = Phase.SINGLE_SHOT
         pendingTune = tune
         pendingMode = RingtoneSetMode.AUDIO_ONLY
-        flowPersonalized = tune.isPersonalized
+        flowPersonalized = personalizedForTune(tune)
         flowStartedAtMs = SystemClock.elapsedRealtime()
         activity.mixpanelAnalytics().trackRingtoneSetStarted(
             source = analyticsSource,
@@ -1048,9 +1053,6 @@ class RingtoneSetController(
         unusedStagedPath = state.getString(STATE_UNUSED_STAGED_PATH)
         awaitingLaunchResult = true
     }
-
-    private val Tune.isPersonalized: Boolean
-        get() = generationId != null
 
     /** Contact results are `null` outside contact mode. */
     private data class ThemeSaveResult(

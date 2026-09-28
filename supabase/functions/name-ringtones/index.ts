@@ -12,7 +12,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
  * NAME_REJECTED, 401 UNAUTHORIZED, 405 INVALID_REQUEST, 500 INTERNAL.
  *
  * Auth and name normalization are generate-ringtone's own code (request.ts, names.ts). The name
- * is never logged.
+ * is never logged. Own rows need a session token (`readsOwnRows`): a bare legacy `user_id` gets
+ * 401 in mine mode and no generation ids in name mode.
  */
 import { createServiceClient, type ServiceClient } from "../_shared/supabase-client.ts";
 import { ApiError, safeDetail } from "../generate-ringtone/errors.ts";
@@ -25,6 +26,7 @@ import {
   nameModeRows,
   normalizeRows,
   parseRequest,
+  readsOwnRows,
   RENDER_COLUMNS,
   type RenderRow,
   type RingtoneOut,
@@ -71,6 +73,7 @@ async function nameRingtones(
   userId: number,
   name: { display: string; normalized: string },
   limit: number,
+  includeOwn: boolean,
 ): Promise<RingtoneOut[]> {
   const [renders, catalog, own] = await Promise.all([
     supabase
@@ -88,14 +91,16 @@ async function nameRingtones(
       .eq("is_personalizable", true)
       .not("sample_name", "is", null)
       .limit(CATALOG_SCAN_LIMIT),
-    supabase
-      .from("generated_ringtones")
-      .select(GENERATION_COLUMNS)
-      .eq("user_id", userId)
-      .eq("name_normalized", name.normalized)
-      .eq("status", "ready")
-      .order("created_at", { ascending: false })
-      .limit(OWN_NAME_SCAN_LIMIT),
+    includeOwn
+      ? supabase
+        .from("generated_ringtones")
+        .select(GENERATION_COLUMNS)
+        .eq("user_id", userId)
+        .eq("name_normalized", name.normalized)
+        .eq("status", "ready")
+        .order("created_at", { ascending: false })
+        .limit(OWN_NAME_SCAN_LIMIT)
+      : Promise.resolve({ data: [], error: null }),
   ]);
   if (renders.error) throw new Error(`render lookup failed: ${renders.error.message}`);
   if (catalog.error) throw new Error(`sample lookup failed: ${catalog.error.message}`);
@@ -171,11 +176,12 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createServiceClient();
     const config = await getConfig(supabase);
-    const { userId } = await authenticateCaller(supabase, config, request.credentials);
+    const { userId, authMode } = await authenticateCaller(supabase, config, request.credentials);
+    const includeOwn = readsOwnRows(request.mode, authMode);
     await requireUser(supabase, userId);
 
     const ringtones = name
-      ? await nameRingtones(supabase, userId, name, request.limit)
+      ? await nameRingtones(supabase, userId, name, request.limit, includeOwn)
       : await myRingtones(supabase, userId, request.limit);
 
     console.log("name-ringtones: ok", { mode, count: ringtones.length, latency_ms: Date.now() - startedAt });

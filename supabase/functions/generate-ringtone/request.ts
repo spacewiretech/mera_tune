@@ -2,6 +2,7 @@
  * Request parsing and caller authentication shared by generate-ringtone and name-ringtones, so
  * both accept exactly the same credentials: `user_token` (an api_token from verify-otp /
  * complete-signup) or, while app_config.generate_allow_legacy_user_id is on, a bare `user_id`.
+ * name-ringtones reads the caller's own rows only for `authMode === "token"` (rows.ts readsOwnRows).
  */
 import type { ServiceClient } from "../_shared/supabase-client.ts";
 import { resolveUserIdFromToken } from "../_shared/user-sessions.ts";

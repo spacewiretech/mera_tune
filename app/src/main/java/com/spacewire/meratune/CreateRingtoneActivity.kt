@@ -59,6 +59,13 @@ class CreateRingtoneActivity : AppCompatActivity() {
     /** The next step, when the lookup finished while this screen was not in front. */
     private var pendingNextStep: Intent? = null
 
+    /**
+     * Name + language of a Continue whose next step has not opened yet (lookup running, or done
+     * with [pendingNextStep] waiting). Saved, so a recreation (rotation, dark mode, font scale)
+     * resumes it without a second `ringtone_creation_started`.
+     */
+    private var continueRequest: Pair<String, String>? = null
+
     /** Storage language value -> TTS enabled. `null` until loaded (or on failure = all enabled). */
     private var languageAvailability: Map<String, Boolean>? = null
     private var userPickedLanguage = false
@@ -101,6 +108,7 @@ class CreateRingtoneActivity : AppCompatActivity() {
         }
 
         loadLanguageAvailability()
+        resumeContinue(savedInstanceState)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -118,6 +126,7 @@ class CreateRingtoneActivity : AppCompatActivity() {
         super.onResume()
         pendingNextStep?.let { next ->
             pendingNextStep = null
+            continueRequest = null
             startActivity(next)
             return
         }
@@ -134,6 +143,18 @@ class CreateRingtoneActivity : AppCompatActivity() {
         outState.putString(STATE_PREFILL_DISPLAY, prefillDisplay)
         outState.putString(STATE_ENTRY_POINT, entryPoint)
         outState.putStringArrayList(STATE_REPORTED_UNAVAILABLE, ArrayList(reportedUnavailableLanguages))
+        continueRequest?.let { (name, language) ->
+            outState.putString(STATE_CONTINUE_NAME, name)
+            outState.putString(STATE_CONTINUE_LANGUAGE, language)
+        }
+    }
+
+    /** A Continue cut short by recreation looks up again; its `ringtone_creation_started` was sent. */
+    private fun resumeContinue(savedInstanceState: Bundle?) {
+        val name = savedInstanceState?.getString(STATE_CONTINUE_NAME) ?: return
+        val language = savedInstanceState.getString(STATE_CONTINUE_LANGUAGE) ?: return
+        isNavigating = true
+        lookUpExistingRingtones(name, language)
     }
 
     private fun restoreAnalyticsState(savedInstanceState: Bundle?) {
@@ -271,6 +292,7 @@ class CreateRingtoneActivity : AppCompatActivity() {
      */
     private fun lookUpExistingRingtones(name: String, language: String) {
         lookupJob?.cancel()
+        continueRequest = name to language
         setContinueLoading(true)
         lookupJob = lifecycleScope.launch {
             val existing = try {
@@ -292,6 +314,7 @@ class CreateRingtoneActivity : AppCompatActivity() {
                 NameRingtonesActivity.intent(this@CreateRingtoneActivity, name, language, rows)
             }
             if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                continueRequest = null
                 startActivity(next)
             } else {
                 pendingNextStep = next
@@ -392,6 +415,8 @@ class CreateRingtoneActivity : AppCompatActivity() {
         private const val STATE_PREFILL_DISPLAY = "state_prefill_display"
         private const val STATE_ENTRY_POINT = "state_entry_point"
         private const val STATE_REPORTED_UNAVAILABLE = "state_reported_unavailable_languages"
+        private const val STATE_CONTINUE_NAME = "state_continue_name"
+        private const val STATE_CONTINUE_LANGUAGE = "state_continue_language"
         private const val HINDI = "Hindi"
 
         /** The lookup normally answers in well under a second; past this the form moves on. */

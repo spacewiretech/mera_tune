@@ -449,7 +449,7 @@ The app does not send `ringtone_created`, and sends `ringtone_generation_failed`
 
 | Event | Trigger | Properties |
 |-------|---------|------------|
-| `ringtone_creation_started` | Continue on the create form after the name passes `NameNormalizer.validate` (`CreateRingtoneActivity`); double taps ignored | `language`, `name_length`, `entry_point`, `language_source`, `prefill_source`, `name_edited`, `time_on_form_ms` |
+| `ringtone_creation_started` | Continue on the create form after the name passes `NameNormalizer.validate` (`CreateRingtoneActivity`); double taps ignored, and a lookup resumed after a recreation (rotation, dark mode) is not sent again | `language`, `name_length`, `entry_point`, `language_source`, `prefill_source`, `name_edited`, `time_on_form_ms` |
 | `unavailable_language_tapped` | Tap on a "coming soon" language (once per language per form) | `language` |
 | `sample_list_viewed` | Song picker reaches a terminal load state: content, empty (`sample_count` = 0) or error (`ChooseSongActivity`). After recreation the reload is silent if it lands on the state already reported, else it fires with `trigger = restored` | `language`, `sample_count`, `category_count`, `fallback_level` (`none` / `hindi` / `any`; omitted on error), `voice_filter` (`male` / `female`; omitted for "all"), `load_state` (`content` / `empty` / `error`), `trigger` (`initial` / `retry` / `hindi_fallback` / `restored`), `failure_reason` (error only, `LoadErrorMapper` values), `requested_language` |
 | `sample_previewed` | A row (or its art) tap in the picker starts preview playback, including a replay after the preview finished. A row tap only previews; it no longer selects | `sample_id`, `category`, `language`, `voice`, `rank` |

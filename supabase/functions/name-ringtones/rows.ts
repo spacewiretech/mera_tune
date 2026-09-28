@@ -15,6 +15,7 @@
  */
 import { ApiError } from "../generate-ringtone/errors.ts";
 import { buildTitle, normalizeAuthoredName } from "../generate-ringtone/names.ts";
+import type { AuthMode } from "../generate-ringtone/quota.ts";
 import { type Credentials, parseCredentials } from "../generate-ringtone/request.ts";
 import { normalizeVoiceGender } from "../_shared/tts-voices.ts";
 import { normalizeCategory, type TuneCategory } from "../_shared/tune-category.ts";
@@ -154,6 +155,19 @@ export function parseRequest(raw: unknown): NameRingtonesRequest {
     name: raw.name,
     limit: clampLimit(raw.limit, mode === "mine" ? MINE_MODE_MAX_ROWS : NAME_MODE_MAX_ROWS),
   };
+}
+
+/**
+ * Whether this caller may read their own generated_ringtones (which carry the names they typed,
+ * generation ids and file URLs). Only a session token proves who the caller is: a bare legacy
+ * `user_id` (generate_allow_legacy_user_id) is guessable and the anon key ships in the APK. So a
+ * legacy caller gets 401 in mine mode, and in name mode only the shared catalog / render rows,
+ * with no generation ids. generate-ringtone keeps accepting it (it acts as a user, reads nothing).
+ */
+export function readsOwnRows(mode: Mode, authMode: AuthMode): boolean {
+  if (authMode === "token") return true;
+  if (mode === "mine") throw new ApiError(401, "UNAUTHORIZED", "Please log in again");
+  return false;
 }
 
 export function toTuneRow(raw: unknown): TuneRow | null {

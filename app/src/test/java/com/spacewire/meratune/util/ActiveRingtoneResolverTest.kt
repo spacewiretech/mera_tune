@@ -99,8 +99,23 @@ class ActiveRingtoneResolverTest {
             ActiveRingtoneResolver.UNLISTED_PERSONALIZED_KEY,
             resolve(saved, systemTitle = "Jai Shri Lakshya", mine = emptyList()),
         )
-        // Once the user's own list has that ringtone, the set title picks its row.
+        // Once the user's own list has that ringtone (same base tune and file), it is that row.
         assertEquals(lakshya.rowKey, resolve(saved, systemTitle = "Jai Shri Lakshya"))
+        assertEquals(lakshya.rowKey, resolve(saved))
+    }
+
+    @Test
+    fun `unclaimed name ringtone never marks another own copy of the same base tune`() {
+        val unclaimed = tune("base", "Jai Shri Lakshya", url = "https://cdn.example/r/lakshya.mp3")
+        val saved = SavedActiveRingtone(tuneId = "base", personalized = true, personalizedTune = unclaimed)
+        val ayush = tune("base", "Jai Shri Ayush", url = "https://cdn.example/r/ayush.mp3", generationId = "g-ayush")
+        // The only own copy of that base tune sings another name: not the one that was set.
+        assertEquals(ActiveRingtoneResolver.UNLISTED_PERSONALIZED_KEY, resolve(saved, mine = listOf(ayush)))
+        assertEquals(
+            ActiveRingtoneResolver.UNLISTED_PERSONALIZED_KEY,
+            resolve(saved, systemTitle = "Jai Shri Ayush", mine = listOf(ayush)),
+        )
+        assertEquals(ActiveRingtoneResolver.UNLISTED_PERSONALIZED_KEY, resolve(saved, mine = listOf(ayush, priya)))
     }
 
     @Test

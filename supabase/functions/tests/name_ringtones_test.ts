@@ -2,7 +2,8 @@
 import { assert, assertEquals, assertThrows } from "jsr:@std/assert@1";
 import { ApiError } from "../generate-ringtone/errors.ts";
 import { buildTitle, sanitizeName } from "../generate-ringtone/names.ts";
-import { parseCredentials } from "../generate-ringtone/request.ts";
+import { authenticateCaller, parseCredentials } from "../generate-ringtone/request.ts";
+import type { ServiceClient } from "../_shared/supabase-client.ts";
 import {
   clampLimit,
   type GenerationRow,
@@ -14,6 +15,7 @@ import {
   normalizeRows,
   parseRequest,
   publicTune,
+  readsOwnRows,
   type RenderRow,
   sampleMatchIds,
   toGenerationRow,
@@ -121,6 +123,45 @@ Deno.test("parseRequest: credentials follow generate-ringtone's rules", () => {
   assertEquals(status({ user_token: "tok", mine: "yes" }), "400 INVALID_REQUEST");
   assertEquals(status({ user_id: "12", name: "Ram" }), null);
   assertEquals(parseCredentials({ user_id: " 12 ", user_token: "  " }), { userId: 12, userToken: null });
+});
+
+Deno.test("readsOwnRows: a session token reads own rows in both modes", () => {
+  assertEquals(readsOwnRows("mine", "token"), true);
+  assertEquals(readsOwnRows("name", "token"), true);
+});
+
+Deno.test("readsOwnRows: a bare legacy user_id is 401 in mine mode and gets no own rows by name", () => {
+  const err = assertThrows(() => readsOwnRows("mine", "legacy_user_id"), ApiError);
+  assertEquals(err.status, 401);
+  assertEquals(err.code, "UNAUTHORIZED");
+  assertEquals(readsOwnRows("name", "legacy_user_id"), false);
+});
+
+Deno.test("legacy user_id with the flag on authenticates, but still cannot read another user's list", async () => {
+  // The legacy branch never touches the client; a token would.
+  const noClient = {} as unknown as ServiceClient;
+  const config = { generate_allow_legacy_user_id: "true" };
+  const request = parseRequest({ user_id: 42, mine: true });
+  const caller = await authenticateCaller(noClient, config, request.credentials);
+  assertEquals(caller, { userId: 42, authMode: "legacy_user_id" });
+  assertThrows(() => readsOwnRows(request.mode, caller.authMode), ApiError, "log in");
+
+  const byName = parseRequest({ user_id: 42, name: "Ayush" });
+  const nameCaller = await authenticateCaller(noClient, config, byName.credentials);
+  assertEquals(readsOwnRows(byName.mode, nameCaller.authMode), false);
+});
+
+Deno.test("nameModeRows without own generations carries no generation ids", () => {
+  const rows = nameModeRows({
+    display: "Ayush",
+    sampleTuneIds: [],
+    renders: [render()],
+    tunesById: byId(tune({ sample_name: "Shyam" })),
+    ownGenerations: [],
+    limit: NAME_MODE_MAX_ROWS,
+  });
+  assertEquals(rows.length, 1);
+  assertEquals(rows[0].generation_id, null);
 });
 
 Deno.test("clampLimit: missing, zero, negative or non-integer means the max", () => {

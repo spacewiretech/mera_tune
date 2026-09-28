@@ -165,8 +165,9 @@ internal object ActiveRingtoneResolver {
      *   is in [catalog], as before.
      * - The saved personalized ringtone: the matching row of [mine] (same generation, or same base
      *   tune and ringtone url), else the saved copy's own key (Home lists that copy when [mine]
-     *   lacks it). A save without the copy is told apart among the user's copies of that base tune
-     *   by the system title (the set wrote the ringtone title), or is the only copy; else it is
+     *   lacks it), or [UNLISTED_PERSONALIZED_KEY] for a copy without a generation id. A save
+     *   without the copy is told apart among the user's copies of that base tune by the system
+     *   title (the set wrote the ringtone title), or is the only copy; else it is
      *   [UNLISTED_PERSONALIZED_KEY], so the base catalog tune is not marked.
      * - Anything else: the catalog tune, then the user's own ringtone, titled like the default.
      */
@@ -201,9 +202,12 @@ internal object ActiveRingtoneResolver {
     }
 
     private fun personalizedKey(saved: SavedActiveRingtone, systemTitle: () -> String, mine: List<Tune>): String? {
-        val copy = saved.personalizedTune?.takeIf { !it.generationId.isNullOrBlank() }
+        val copy = saved.personalizedTune
         if (copy != null) {
-            return (mine.firstOrNull { it.generationId != null && sameRingtone(it, copy) } ?: copy).rowKey
+            val listed = mine.firstOrNull { it.generationId != null && sameRingtone(it, copy) }
+            // A copy without a generation id (a failed claim) has the base tune's row key: only
+            // the same file in [mine] is it, never another own copy of that base tune.
+            return (listed ?: copy.takeIf { !it.generationId.isNullOrBlank() })?.rowKey
         }
 
         val copies = mine.filter { it.generationId != null && it.id == saved.tuneId }

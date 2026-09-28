@@ -235,4 +235,22 @@
     <string name="permission_blocked_storage_message">स्टोरेज की अनुमति बंद है, इसलिए रिंगटोन सेव नहीं हो सकती। सेटिंग्स में अनुमति दें, फिर दोबारा कोशिश करें।</string>
     <string name="permission_open_settings">सेटिंग्स खोलें</string>
     <string name="permission_set_audio_only">सिर्फ़ रिंगटोन सेट करें</string>
+    <!-- Creation limit sheet and monthly processing limit. UI refresh: native review pending -->
+    <string name="home_limit_title">आपकी %1$s पूरी हो गई!</string>
+    <string name="home_limit_name_trial">ट्रायल सीमा</string>
+    <string name="home_limit_name_member">मासिक सीमा</string>
+    <string name="home_limit_name_daily">दैनिक सीमा</string>
+    <string name="home_limit_subtitle_trial">आपने अपनी %1$d रिंगटोन बना ली है। और भी ट्यून एक्सप्लोर करें!</string>
+    <string name="home_limit_subtitle_member">आपने इस महीने की %1$d रिंगटोन बना ली है। और भी ट्यून एक्सप्लोर करें!</string>
+    <string name="home_limit_subtitle_daily">आपने आज की %1$d रिंगटोन बना ली है। और भी ट्यून एक्सप्लोर करें!</string>
+    <string name="home_limit_created">बन गई</string>
+    <string name="home_limit_info_trial_title">कल से आपका सब्सक्रिप्शन शुरू हो जाएगा!</string>
+    <string name="home_limit_info_trial_body">तब आप हर महीने %1$d रिंगटोन बना सकते हैं।</string>
+    <string name="home_limit_info_trial_body_generic">तब आप और भी रिंगटोन बना सकते हैं।</string>
+    <string name="home_limit_info_member_title">आपकी सीमा %1$s को रीसेट होगी!</string>
+    <string name="home_limit_info_member_body">तब आप फिर से %1$d रिंगटोन बना सकते हैं।</string>
+    <string name="home_limit_info_daily_title">कल फिर से रिंगटोन बनाएँ!</string>
+    <string name="home_limit_info_daily_body">आपकी सीमा रात 12 बजे रीसेट होगी।</string>
+    <string name="home_limit_explore">और ट्यून देखें</string>
+    <string name="processing_error_quota_monthly">इस महीने की सीमा पूरी हो गई। %1$s से दोबारा कोशिश करें।</string>
 </resources>

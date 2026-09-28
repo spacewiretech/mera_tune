@@ -241,4 +241,22 @@
     <string name="permission_blocked_storage_message">స్టోరేజ్ అనుమతి ఆఫ్‌లో ఉంది, కాబట్టి రింగ్‌టోన్ సేవ్ చేయలేము. సెట్టింగ్‌లలో అనుమతించి, మళ్ళీ ప్రయత్నించండి.</string>
     <string name="permission_open_settings">సెట్టింగ్‌లను తెరవండి</string>
     <string name="permission_set_audio_only">కేవలం రింగ్‌టోన్ సెట్ చేయండి</string>
+    <!-- Creation limit sheet and monthly processing limit. UI refresh: native review pending -->
+    <string name="home_limit_title">మీ %1$s పూర్తయింది!</string>
+    <string name="home_limit_name_trial">ట్రయల్ పరిమితి</string>
+    <string name="home_limit_name_member">నెలవారీ పరిమితి</string>
+    <string name="home_limit_name_daily">రోజువారీ పరిమితి</string>
+    <string name="home_limit_subtitle_trial">మీరు మీ %1$d రింగ్‌టోన్ సృష్టించారు. మరిన్ని ట్యూన్‌లను అన్వేషించండి!</string>
+    <string name="home_limit_subtitle_member">మీరు ఈ నెల %1$d రింగ్‌టోన్ సృష్టించారు. మరిన్ని ట్యూన్‌లను అన్వేషించండి!</string>
+    <string name="home_limit_subtitle_daily">మీరు ఈ రోజు %1$d రింగ్‌టోన్ సృష్టించారు. మరిన్ని ట్యూన్‌లను అన్వేషించండి!</string>
+    <string name="home_limit_created">సృష్టించబడింది</string>
+    <string name="home_limit_info_trial_title">రేపటి నుండి మీ సబ్‌స్క్రిప్షన్ ప్రారంభమవుతుంది!</string>
+    <string name="home_limit_info_trial_body">అప్పుడు మీరు ప్రతి నెలా %1$d రింగ్‌టోన్‌లు సృష్టించవచ్చు.</string>
+    <string name="home_limit_info_trial_body_generic">అప్పుడు మీరు మరిన్ని రింగ్‌టోన్‌లు సృష్టించవచ్చు.</string>
+    <string name="home_limit_info_member_title">మీ పరిమితి %1$s న రీసెట్ అవుతుంది!</string>
+    <string name="home_limit_info_member_body">అప్పుడు మీరు మళ్ళీ %1$d రింగ్‌టోన్‌లు సృష్టించవచ్చు.</string>
+    <string name="home_limit_info_daily_title">రేపు మళ్ళీ రింగ్‌టోన్‌లు సృష్టించండి!</string>
+    <string name="home_limit_info_daily_body">మీ పరిమితి రాత్రి 12 గంటలకు రీసెట్ అవుతుంది.</string>
+    <string name="home_limit_explore">మరిన్ని ట్యూన్‌లు చూడండి</string>
+    <string name="processing_error_quota_monthly">ఈ నెల పరిమితి పూర్తయింది. %1$s నుండి మళ్ళీ ప్రయత్నించండి.</string>
 </resources>

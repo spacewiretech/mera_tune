@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Creation limit sheet over Home (CreationLimitBottomSheet); texts are set per plan in code. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_bottom_sheet"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp">
+
+        <View
+            android:layout_width="60dp"
+            android:layout_height="3dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/bg_sheet_handle" />
+
+        <ImageButton
+            android:id="@+id/limitCloseButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="end|bottom"
+            android:layout_marginEnd="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/close"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_close" />
+    </FrameLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:overScrollMode="never"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <!-- The art includes its #FEF6F6 circle. -->
+            <ImageView
+                android:layout_width="90dp"
+                android:layout_height="90dp"
+                android:contentDescription="@null"
+                android:scaleType="fitCenter"
+                android:src="@drawable/art_limit_hourglass" />
+
+            <!-- Text set in CreationLimitBottomSheet (gradient on the limit name). -->
+            <TextView
+                android:id="@+id/limitTitle"
+                style="@style/Text.MeraTune.Headline"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:gravity="center"
+                android:paddingHorizontal="24dp"
+                tools:text="Your Trial Limit Reached!" />
+
+            <TextView
+                android:id="@+id/limitSubtitle"
+                style="@style/Text.MeraTune.Body.Muted"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:lineSpacingExtra="4dp"
+                android:paddingHorizontal="28dp"
+                tools:text="Aapne apni 2 ringtone bana li hai. Aur bhi other tunes explore karein!" />
+
+            <!-- The newest own ringtone; gone when the user has none listed. -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/limitRingtoneCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="18dp"
+                android:background="@drawable/bg_limit_card"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="11dp">
+
+                <FrameLayout
+                    android:id="@+id/limitRingtoneArt"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:background="@drawable/bg_category_art_circle"
+                    android:outlineProvider="background"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent">
+
+                    <ImageView
+                        android:id="@+id/limitRingtoneArtIcon"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:contentDescription="@null"
+                        tools:src="@drawable/ic_category_devotional" />
+                </FrameLayout>
+
+                <TextView
+                    android:id="@+id/limitRingtoneTitle"
+                    style="@style/Text.MeraTune.RowTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_marginEnd="8dp"
+                    android:textSize="17sp"
+                    app:layout_constraintBottom_toTopOf="@id/limitRingtoneStats"
+                    app:layout_constraintEnd_toStartOf="@id/limitRingtoneCreated"
+                    app:layout_constraintStart_toEndOf="@id/limitRingtoneArt"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintVertical_chainStyle="packed"
+                    tools:text="Jai Shri Ram Rahul ji.." />
+
+                <LinearLayout
+                    android:id="@+id/limitRingtoneStats"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_marginTop="6dp"
+                    android:layout_marginEnd="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/limitRingtoneCreated"
+                    app:layout_constraintStart_toEndOf="@id/limitRingtoneArt"
+                    app:layout_constraintTop_toBottomOf="@id/limitRingtoneTitle">
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_heart"
+                        app:tint="@color/text_muted" />
+
+                    <TextView
+                        android:id="@+id/limitRingtoneLikes"
+                        style="@style/Text.MeraTune.RowStat"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="5dp"
+                        android:layout_marginEnd="10dp"
+                        tools:text="2.4k" />
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_eye"
+                        app:tint="@color/text_muted" />
+
+                    <TextView
+                        android:id="@+id/limitRingtoneViews"
+                        style="@style/Text.MeraTune.RowStat"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="5dp"
+                        tools:text="19k" />
+                </LinearLayout>
+
+                <!-- The row pill's look, but a label: not clickable. -->
+                <TextView
+                    android:id="@+id/limitRingtoneCreated"
+                    style="@style/Widget.MeraTune.RowPill"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:clickable="false"
+                    android:drawablePadding="4dp"
+                    android:focusable="false"
+                    android:foreground="@null"
+                    android:maxWidth="150dp"
+                    android:minHeight="40dp"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="10dp"
+                    android:text="@string/home_limit_created"
+                    android:textSize="16sp"
+                    app:drawableEndCompat="@drawable/ic_check_small_navy"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- When the limit resets; gone when a member's reset date is unknown. -->
+            <LinearLayout
+                android:id="@+id/limitInfoBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_limit_info"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="14dp">
+
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_limit_calendar" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/limitInfoTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/manrope_semibold"
+                        android:textColor="@color/navy"
+                        android:textSize="16sp"
+                        tools:text="Kal se aapki subscription start ho jayegi!" />
+
+                    <TextView
+                        android:id="@+id/limitInfoBody"
+                        style="@style/Text.MeraTune.Body.Muted"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:textSize="14sp"
+                        tools:text="Tab aap har mahine 50 ringtones bana sakte hain." />
+                </LinearLayout>
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/limitExploreButton"
+                style="@style/Widget.MeraTune.Cta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="32dp"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="32dp"
+                android:text="@string/home_limit_explore"
+                app:icon="@drawable/ic_arrow_next_white" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</LinearLayout>

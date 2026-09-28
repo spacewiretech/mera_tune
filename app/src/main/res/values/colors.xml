@@ -67,4 +67,8 @@
     <color name="logout_red">#EF3E0D</color>
     <!-- final QA -->
     <color name="payment_failed_bg">#FFF5F4</color>
+    <!-- Creation limit sheet (the hourglass art carries its own #FEF6F6 circle) -->
+    <color name="limit_card_bg">#FEFBF6</color>
+    <color name="limit_info_bg">#FDF6FE</color>
+    <color name="limit_calendar">#BF25D8</color>
 </resources>

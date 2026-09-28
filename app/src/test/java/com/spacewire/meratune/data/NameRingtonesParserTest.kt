@@ -125,6 +125,66 @@ class NameRingtonesParserTest {
     }
 
     @Test
+    fun mineResponseCarriesThePlanQuota() {
+        val result = NameRingtonesParser.parseResult(
+            200,
+            """
+                { "mode": "mine", "ringtones": [${row(generationId = "g1")}],
+                  "quota": { "used_today": 2, "daily_limit": 2, "plan": "trial", "period": "day",
+                             "used": 2, "limit": 2, "resets_at": "2026-09-28T18:30:00.000Z",
+                             "member_monthly_limit": 50, "future_field": true } }
+            """.trimIndent(),
+        )
+        assertEquals(listOf("g1"), result.ringtones.map { it.generationId })
+        val quota = result.quota!!
+        assertEquals(GenerationQuota.PLAN_TRIAL, quota.plan)
+        assertEquals(GenerationQuota.PERIOD_DAY, quota.period)
+        assertEquals(2, quota.usedCount)
+        assertEquals(2, quota.limitCount)
+        assertEquals("2026-09-28T18:30:00.000Z", quota.resetsAt)
+        assertEquals(50, quota.memberMonthlyLimit)
+        assertNull(quota.exceeded)
+        assertFalse(quota.isMonthly)
+
+        val member = NameRingtonesParser.parseResult(
+            200,
+            """
+                { "mode": "mine", "ringtones": [],
+                  "quota": { "used_today": 12, "daily_limit": 50, "plan": "member", "period": "month",
+                             "used": 12, "limit": 50, "resets_at": "2026-09-30T18:30:00.000Z",
+                             "member_monthly_limit": 50 } }
+            """.trimIndent(),
+        ).quota!!
+        assertTrue(member.isMonthly)
+        assertEquals(12, member.usedCount)
+        assertEquals(50, member.limitCount)
+    }
+
+    @Test
+    fun mineResponseWithOnlyLegacyQuotaFields() {
+        val quota = NameRingtonesParser.parseResult(
+            200,
+            """{ "mode": "mine", "ringtones": [], "quota": { "used_today": 3, "daily_limit": 5 } }""",
+        ).quota!!
+        assertEquals(3, quota.usedCount)
+        assertEquals(5, quota.limitCount)
+        assertNull(quota.plan)
+        assertNull(quota.period)
+        assertNull(quota.resetsAt)
+        assertNull(quota.memberMonthlyLimit)
+        assertFalse(quota.isMonthly)
+    }
+
+    @Test
+    fun mineResponseWithoutQuota() {
+        val result = NameRingtonesParser.parseResult(200, body(row(generationId = "g1"), mode = "mine"))
+        assertEquals(1, result.ringtones.size)
+        assertNull(result.quota)
+        // A null quota (count query failed server side) is the same.
+        assertNull(NameRingtonesParser.parseResult(200, """{ "mode": "mine", "ringtones": [], "quota": null }""").quota)
+    }
+
+    @Test
     fun serverErrorCarriesItsCode() {
         val error = expectFailure(400, """{ "error": "This name cannot be used", "error_code": "NAME_REJECTED" }""")
         assertEquals(GenerationErrorCode.NAME_REJECTED, error.code)

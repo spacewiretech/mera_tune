@@ -154,9 +154,13 @@ object UserState {
     fun derive(isLoggedIn: Boolean, status: String?): String = if (isLoggedIn) fromStatus(status) else LOCKED
 }
 
-/** `creation_limit_reached.limit_type`; trial / cycle limits do not exist yet. */
+/**
+ * `creation_limit_reached.limit_type`: [DAILY] for the per-IST-day limits (trial plan, default plan,
+ * and the attempt cap behind every plan), [MONTHLY] for the member plan's IST calendar month.
+ */
 object CreationLimitType {
     const val DAILY = "daily"
+    const val MONTHLY = "monthly"
 }
 
 object StartType {

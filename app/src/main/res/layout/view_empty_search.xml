@@ -53,15 +53,32 @@
             android:textSize="16sp"
             tools:text="We couldn't find ringtone for Ram, Be the first to create one" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/createRingtoneButton"
-            style="@style/Widget.MeraTune.Cta"
+        <!-- Home.ensureCreateCtaVisible scrolls to this wrapper's bottom while the keyboard is open. -->
+        <FrameLayout
+            android:id="@+id/createRingtoneContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="32dp"
-            android:layout_marginTop="32dp"
-            android:text="@string/create_ringtone"
-            app:icon="@drawable/ic_plus_white" />
+            android:layout_marginTop="32dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/createRingtoneButton"
+                style="@style/Widget.MeraTune.Cta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/create_ringtone"
+                app:icon="@drawable/ic_plus_white" />
+
+            <!-- CtaButtons.setLoading: while the tap waits for the creation quota. -->
+            <ProgressBar
+                android:id="@+id/createRingtoneProgress"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:indeterminateTint="@color/white"
+                android:visibility="gone" />
+
+        </FrameLayout>
 
     </LinearLayout>
 

@@ -13,6 +13,7 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.os.ConfigurationCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
@@ -20,6 +21,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.spacewire.meratune.analytics.AnalyticsSource
 import com.spacewire.meratune.analytics.CreationEntryPoint
+import com.spacewire.meratune.analytics.CreationLimitType
 import com.spacewire.meratune.analytics.GenerationErrorAction
 import com.spacewire.meratune.analytics.LogoutReason
 import com.spacewire.meratune.analytics.firebaseAnalytics
@@ -27,9 +29,11 @@ import com.spacewire.meratune.analytics.metaAnalytics
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.calltheme.SetChoice
 import com.spacewire.meratune.data.GenerationErrorCode
+import com.spacewire.meratune.data.GenerationQuota
 import com.spacewire.meratune.data.Languages
 import com.spacewire.meratune.data.Tune
 import com.spacewire.meratune.ui.AppFonts
+import com.spacewire.meratune.ui.CreationLimitPolicy
 import com.spacewire.meratune.ui.GenerationState
 import com.spacewire.meratune.ui.ProcessingStepperController
 import com.spacewire.meratune.ui.RingtoneGenerationViewModel
@@ -41,6 +45,7 @@ import com.spacewire.meratune.util.enableLightEdgeToEdge
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 /** Step 3: real generation via `generate-ringtone`, with a staged stepper while it runs. */
 class RingtoneProcessingActivity : AppCompatActivity() {
@@ -270,7 +275,7 @@ class RingtoneProcessingActivity : AppCompatActivity() {
         listOf(titleView, subtitleView, stepperView, waveformView, footerView)
             .forEach { it.visibility = View.GONE }
         errorContainer.visibility = View.VISIBLE
-        errorMessageView.text = errorMessageFor(state.code)
+        errorMessageView.text = errorMessageFor(state)
 
         val action = primaryActionFor(state)
         primaryActionButton.setText(action.labelRes)
@@ -355,14 +360,14 @@ class RingtoneProcessingActivity : AppCompatActivity() {
         finish()
     }
 
-    private fun errorMessageFor(code: GenerationErrorCode): String = when (code) {
+    private fun errorMessageFor(state: GenerationState.Failed): String = when (state.code) {
         GenerationErrorCode.NETWORK -> getString(R.string.processing_error_network)
         GenerationErrorCode.TIMEOUT -> getString(R.string.processing_error_timeout)
         GenerationErrorCode.UNSUPPORTED_LANGUAGE ->
             getString(R.string.processing_error_language_unsupported, languageLabel())
 
         GenerationErrorCode.QUOTA_EXCEEDED -> {
-            val quota = getString(R.string.processing_error_quota)
+            val quota = quotaExceededMessage(state.quota)
             if (AuthStore(this).getApiToken() == null) {
                 quota + "\n" + getString(R.string.processing_error_quota_legacy_hint)
             } else {
@@ -383,6 +388,26 @@ class RingtoneProcessingActivity : AppCompatActivity() {
         GenerationErrorCode.SUBSCRIPTION_REQUIRED -> getString(R.string.processing_error_subscription)
         else -> getString(R.string.processing_error_generic)
     }
+
+    /**
+     * A member's monthly limit names the day it resets ("1 October", IST); the daily limits (trial,
+     * default plan, the per-day attempt cap) and a quota without a readable reset keep "Kal" copy.
+     */
+    private fun quotaExceededMessage(quota: GenerationQuota?): String {
+        val resetDate = if (CreationLimitPolicy.limitType(quota) == CreationLimitType.MONTHLY) {
+            CreationLimitPolicy.formatResetDate(quota, currentLocale())
+        } else {
+            null
+        }
+        return if (resetDate != null) {
+            getString(R.string.processing_error_quota_monthly, resetDate)
+        } else {
+            getString(R.string.processing_error_quota)
+        }
+    }
+
+    private fun currentLocale(): Locale =
+        ConfigurationCompat.getLocales(resources.configuration)[0] ?: Locale.getDefault()
 
     // ---------------------------------------------------------------------------------------------
     // Helpers

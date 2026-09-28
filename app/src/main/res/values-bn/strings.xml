@@ -241,4 +241,22 @@
     <string name="permission_blocked_storage_message">স্টোরেজের অনুমতি বন্ধ আছে, তাই রিংটোন সেভ করা যাবে না। সেটিংসে অনুমতি দিন, তারপর আবার চেষ্টা করুন।</string>
     <string name="permission_open_settings">সেটিংস খুলুন</string>
     <string name="permission_set_audio_only">শুধু রিংটোন সেট করুন</string>
+    <!-- Creation limit sheet and monthly processing limit. UI refresh: native review pending -->
+    <string name="home_limit_title">আপনার %1$s শেষ!</string>
+    <string name="home_limit_name_trial">ট্রায়াল সীমা</string>
+    <string name="home_limit_name_member">মাসিক সীমা</string>
+    <string name="home_limit_name_daily">দৈনিক সীমা</string>
+    <string name="home_limit_subtitle_trial">আপনি আপনার %1$dটি রিংটোন বানিয়ে ফেলেছেন। আরও টিউন এক্সপ্লোর করুন!</string>
+    <string name="home_limit_subtitle_member">আপনি এই মাসের %1$dটি রিংটোন বানিয়ে ফেলেছেন। আরও টিউন এক্সপ্লোর করুন!</string>
+    <string name="home_limit_subtitle_daily">আপনি আজকের %1$dটি রিংটোন বানিয়ে ফেলেছেন। আরও টিউন এক্সপ্লোর করুন!</string>
+    <string name="home_limit_created">তৈরি হয়েছে</string>
+    <string name="home_limit_info_trial_title">কাল থেকে আপনার সাবস্ক্রিপশন শুরু হবে!</string>
+    <string name="home_limit_info_trial_body">তখন আপনি প্রতি মাসে %1$dটি রিংটোন বানাতে পারবেন।</string>
+    <string name="home_limit_info_trial_body_generic">তখন আপনি আরও রিংটোন বানাতে পারবেন।</string>
+    <string name="home_limit_info_member_title">আপনার সীমা %1$s তারিখে রিসেট হবে!</string>
+    <string name="home_limit_info_member_body">তখন আপনি আবার %1$dটি রিংটোন বানাতে পারবেন।</string>
+    <string name="home_limit_info_daily_title">কাল আবার রিংটোন বানান!</string>
+    <string name="home_limit_info_daily_body">আপনার সীমা রাত ১২টায় রিসেট হবে।</string>
+    <string name="home_limit_explore">আরও টিউন দেখুন</string>
+    <string name="processing_error_quota_monthly">এই মাসের সীমা শেষ। %1$s থেকে আবার চেষ্টা করুন।</string>
 </resources>

@@ -10,8 +10,8 @@ import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.spacewire.meratune.analytics.AnalyticsSource
 import com.spacewire.meratune.analytics.AnalyticsTrigger
-import com.spacewire.meratune.analytics.CreationLimitType
 import com.spacewire.meratune.analytics.FailureReason
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.data.GeneratedRingtone
@@ -47,6 +47,8 @@ sealed class GenerationState {
         val retryable: Boolean,
         val clientMs: Long,
         val httpStatus: Int?,
+        /** The failure's `quota` (the processing screen's `QUOTA_EXCEEDED` copy); `null` without one. */
+        val quota: GenerationQuota? = null,
     ) : GenerationState()
 }
 
@@ -279,9 +281,11 @@ class RingtoneGenerationViewModel(
         // Once per failed attempt: the processing screen renders this Failed state as the limit screen.
         if (code == GenerationErrorCode.QUOTA_EXCEEDED) {
             analytics.trackCreationLimitReached(
-                limitType = CreationLimitType.DAILY,
-                quotaUsedToday = quota?.usedToday,
-                quotaDailyLimit = quota?.dailyLimit,
+                limitType = CreationLimitPolicy.limitType(quota),
+                plan = quota?.plan,
+                source = AnalyticsSource.RINGTONE_PROCESSING,
+                quotaUsedToday = quota?.usedCount,
+                quotaDailyLimit = quota?.limitCount,
             )
         }
         _state.value = GenerationState.Failed(
@@ -290,6 +294,7 @@ class RingtoneGenerationViewModel(
             retryable = code.retryable,
             clientMs = clientMs,
             httpStatus = httpStatus,
+            quota = quota,
         )
     }
 

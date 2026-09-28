@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Creation limit sheet info icon: stroked calendar with a 3x2 day grid. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="32dp"
+    android:height="32dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
+    <path
+        android:pathData="M7.5,6.5H24.5A4,4 0,0 1,28.5 10.5V25A4,4 0,0 1,24.5 29H7.5A4,4 0,0 1,3.5 25V10.5A4,4 0,0 1,7.5 6.5ZM3.5,12.5H28.5M10.5,3.5V8.5M21.5,3.5V8.5"
+        android:strokeWidth="2"
+        android:strokeColor="@color/limit_calendar"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:fillColor="@color/limit_calendar"
+        android:pathData="M10,18.5m-1.3,0a1.3,1.3 0,1 1,2.6 0a1.3,1.3 0,1 1,-2.6 0M16,18.5m-1.3,0a1.3,1.3 0,1 1,2.6 0a1.3,1.3 0,1 1,-2.6 0M22,18.5m-1.3,0a1.3,1.3 0,1 1,2.6 0a1.3,1.3 0,1 1,-2.6 0M10,23.5m-1.3,0a1.3,1.3 0,1 1,2.6 0a1.3,1.3 0,1 1,-2.6 0M16,23.5m-1.3,0a1.3,1.3 0,1 1,2.6 0a1.3,1.3 0,1 1,-2.6 0M22,23.5m-1.3,0a1.3,1.3 0,1 1,2.6 0a1.3,1.3 0,1 1,-2.6 0" />
+</vector>

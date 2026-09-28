@@ -268,4 +268,28 @@
     <string name="permission_blocked_storage_message">Storage permission band hai, isliye ringtone save nahi ho sakti. Settings mein allow karein, phir dobara try karein.</string>
     <string name="permission_open_settings">Settings kholein</string>
     <string name="permission_set_audio_only">Sirf ringtone set karein</string>
+    <!-- Creation limit sheet on Home (CreationLimitBottomSheet) and the processing screen's monthly limit copy. -->
+    <!-- %1$s = home_limit_name_* (gradient span); translators may move it. -->
+    <string name="home_limit_title">Your %1$s Reached!</string>
+    <string name="home_limit_name_trial">Trial Limit</string>
+    <string name="home_limit_name_member">Monthly Limit</string>
+    <string name="home_limit_name_daily">Daily Limit</string>
+    <!-- %1$d = the plan's limit (ringtones per day for trial / daily, per month for members). -->
+    <string name="home_limit_subtitle_trial">Aapne apni %1$d ringtone bana li hai. Aur bhi other tunes explore karein!</string>
+    <string name="home_limit_subtitle_member">Aapne is mahine ki %1$d ringtone bana li hai. Aur bhi other tunes explore karein!</string>
+    <string name="home_limit_subtitle_daily">Aapne aaj ki %1$d ringtone bana li hai. Aur bhi other tunes explore karein!</string>
+    <!-- Pill on the newest own ringtone's card (a check icon follows it). -->
+    <string name="home_limit_created">Created</string>
+    <string name="home_limit_info_trial_title">Kal se aapki subscription start ho jayegi!</string>
+    <!-- %1$d = the member plan's monthly limit; _generic when the server does not send it. -->
+    <string name="home_limit_info_trial_body">Tab aap har mahine %1$d ringtones bana sakte hain.</string>
+    <string name="home_limit_info_trial_body_generic">Tab aap aur bhi ringtones bana sakte hain.</string>
+    <!-- %1$s = the reset day in the app language ("1 October", India time). -->
+    <string name="home_limit_info_member_title">Aapki limit %1$s ko reset hogi!</string>
+    <string name="home_limit_info_member_body">Tab aap phir se %1$d ringtones bana sakte hain.</string>
+    <string name="home_limit_info_daily_title">Kal phir se ringtones banayein!</string>
+    <string name="home_limit_info_daily_body">Aapki limit raat 12 baje reset hogi.</string>
+    <string name="home_limit_explore">Explore More Tunes</string>
+    <!-- Processing error for a member's monthly limit; %1$s = the reset day ("1 October"). -->
+    <string name="processing_error_quota_monthly">Is mahine ki limit poori ho gayi. %1$s se dobara try karein.</string>
 </resources>

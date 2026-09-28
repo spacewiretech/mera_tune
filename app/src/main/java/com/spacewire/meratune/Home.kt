@@ -19,6 +19,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
+import androidx.core.view.marginBottom
+import androidx.core.view.updatePadding
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -30,9 +32,14 @@ import com.spacewire.meratune.analytics.CreationEntryPoint
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.calltheme.RingtoneSetController
 import com.spacewire.meratune.calltheme.SetEntryContext
+import com.spacewire.meratune.data.GenerationQuota
 import com.spacewire.meratune.data.Tune
 import com.spacewire.meratune.ui.CategoryAdapter
+import com.spacewire.meratune.ui.CreationLimitBottomSheet
+import com.spacewire.meratune.ui.CreationLimitPolicy
+import com.spacewire.meratune.ui.CtaButtons
 import com.spacewire.meratune.ui.HomeScreenViewGate
+import com.spacewire.meratune.ui.HomeUiState
 import com.spacewire.meratune.ui.HomeViewModel
 import com.spacewire.meratune.ui.InsetDividerDecoration
 import com.spacewire.meratune.ui.PlaybackSessionStats
@@ -44,6 +51,7 @@ import com.spacewire.meratune.util.InsetsUi
 import com.spacewire.meratune.util.StartupPermissionRequester
 import com.spacewire.meratune.util.enableLightEdgeToEdge
 import androidx.media3.common.PlaybackException
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlinx.coroutines.launch
 
 class Home : AppCompatActivity() {
@@ -56,6 +64,17 @@ class Home : AppCompatActivity() {
     private lateinit var emptyScroll: ScrollView
     private lateinit var emptyStateImage: ImageView
     private lateinit var createCta: TextView
+    private lateinit var createCtaContainer: View
+    private lateinit var createCtaProgress: View
+    private lateinit var tunesRecycler: RecyclerView
+    private lateinit var nameTabCta: TextView
+    private lateinit var nameTabCtaContainer: View
+    private lateinit var nameTabCtaProgress: View
+    private var tunesBasePaddingBottom = 0
+
+    /** [HomeUiState.showNameTabCreateCta] of the last state; the keyboard hides the CTA meanwhile. */
+    private var nameTabCtaWanted = false
+    private var limitSheet: BottomSheetDialog? = null
     private var suppressSearchUpdates = false
     private var isNavigating = false
     private var imeVisible = false
@@ -126,6 +145,7 @@ class Home : AppCompatActivity() {
         setupAdapters()
         setupSearch()
         setupEmptyState()
+        setupNameTabCta()
         setupErrorRetry()
         observeUiState()
         // A recreated Home must not re-prompt; a pending result is re-delivered to the new launchers.
@@ -173,7 +193,7 @@ class Home : AppCompatActivity() {
             },
         )
 
-        findViewById<RecyclerView>(R.id.tunesRecycler).apply {
+        tunesRecycler = findViewById<RecyclerView>(R.id.tunesRecycler).apply {
             layoutManager = LinearLayoutManager(this@Home)
             adapter = tuneAdapter
             addItemDecoration(InsetDividerDecoration(this@Home, R.color.divider, ROW_INSET_DP, ROW_INSET_DP))
@@ -209,6 +229,8 @@ class Home : AppCompatActivity() {
         emptyScroll = findViewById(R.id.searchEmptyState)
         emptyStateImage = findViewById(R.id.emptyStateImage)
         createCta = findViewById(R.id.createRingtoneButton)
+        createCtaContainer = findViewById(R.id.createRingtoneContainer)
+        createCtaProgress = findViewById(R.id.createRingtoneProgress)
 
         // One paragraph with a vertical gradient on "Sirf Aapke Liye!" (plain text if a translation drops it).
         val highlight = getString(R.string.empty_search_title_highlight)
@@ -221,27 +243,92 @@ class Home : AppCompatActivity() {
             GradientTextHelper.Direction.VERTICAL,
         )
 
-        createCta.setOnClickListener {
-            if (isNavigating) return@setOnClickListener
-            isNavigating = true
-            val state = viewModel.uiState.value
-            // The trimmed query, or the profile first name under the "{name} Tunes" chip.
-            val prefillName = state.emptyStateName
-            val fromNameChip = state.searchQuery.isBlank() && state.isMyNameSelected
-            viewModel.flushPendingSearchTracking()
-            mixpanelAnalytics().trackCreateRingtoneCtaTapped(
-                source = if (fromNameChip) AnalyticsSource.MY_NAME_CHIP else AnalyticsSource.SEARCH_BAR,
-                prefillNameLength = prefillName.length,
-            )
-            // No trial yet: the paywall (entry_point locked_home) instead of the create form.
-            if (AuthNavigator.needsSubscription(this)) {
-                startActivity(SubscriptionActivity.intent(this))
-            } else {
-                val entryPoint = if (fromNameChip) CreationEntryPoint.MY_NAME_CHIP else CreationEntryPoint.SEARCH_BAR
-                startActivity(CreateRingtoneActivity.intent(this, prefillName, entryPoint))
-            }
+        createCta.setOnClickListener { onCreateCtaTapped(createCta, createCtaProgress) }
+    }
+
+    private fun setupNameTabCta() {
+        nameTabCtaContainer = findViewById(R.id.nameTabCreateContainer)
+        nameTabCta = findViewById(R.id.nameTabCreateButton)
+        nameTabCtaProgress = findViewById(R.id.nameTabCreateProgress)
+        tunesBasePaddingBottom = tunesRecycler.paddingBottom
+        nameTabCta.setOnClickListener { onCreateCtaTapped(nameTabCta, nameTabCtaProgress) }
+        // The label can wrap (long name, large font), so the list's room follows the CTA's height.
+        nameTabCtaContainer.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
+            if (bottom - top != oldBottom - oldTop) tunesRecycler.post { applyTunesBottomPadding() }
         }
     }
+
+    /**
+     * The empty state's and the name tab's "Make {name} tune" CTA ([button], with its [progress]
+     * spinner). No trial yet: the paywall. A member whose creation quota is used up gets the limit
+     * sheet instead of the create form; an unknown quota lets the server decide.
+     */
+    private fun onCreateCtaTapped(button: TextView, progress: View) {
+        if (isNavigating) return
+        isNavigating = true
+        val state = viewModel.uiState.value
+        // The trimmed query, or the profile first name under the "{name} Tunes" chip.
+        val prefillName = state.emptyStateName
+        val fromNameChip = state.searchQuery.isBlank() && state.isMyNameSelected
+        viewModel.flushPendingSearchTracking()
+        mixpanelAnalytics().trackCreateRingtoneCtaTapped(
+            source = if (fromNameChip) AnalyticsSource.MY_NAME_CHIP else AnalyticsSource.SEARCH_BAR,
+            prefillNameLength = prefillName.length,
+        )
+        // No trial yet: the paywall (entry_point locked_home) instead of the create form.
+        if (AuthNavigator.needsSubscription(this)) {
+            startActivity(SubscriptionActivity.intent(this))
+            return
+        }
+        val entryPoint = if (fromNameChip) CreationEntryPoint.MY_NAME_CHIP else CreationEntryPoint.SEARCH_BAR
+        lifecycleScope.launch {
+            // Only a refresh in flight (Home just resumed) makes the tap wait, behind the spinner.
+            val waiting = viewModel.isRefreshingMyRingtones
+            if (waiting) CtaButtons.setLoading(button, progress, true)
+            val quota = try {
+                viewModel.latestCreationQuota()
+            } finally {
+                if (waiting) CtaButtons.setLoading(button, progress, false)
+            }
+            if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                isNavigating = false
+                return@launch
+            }
+            if (quota != null && CreationLimitPolicy.isExhausted(quota, System.currentTimeMillis())) {
+                showCreationLimitSheet(quota)
+                isNavigating = false
+                return@launch
+            }
+            startActivity(CreateRingtoneActivity.intent(this@Home, prefillName, entryPoint))
+        }
+    }
+
+    private fun showCreationLimitSheet(quota: GenerationQuota) {
+        limitSheet?.dismiss()
+        limitSheet = CreationLimitBottomSheet(
+            context = this,
+            quota = quota,
+            latestRingtone = viewModel.uiState.value.latestOwnRingtone,
+            onExploreTunes = { exploreAllTunes() },
+        ).show()
+        mixpanelAnalytics().trackCreationLimitReached(
+            limitType = CreationLimitPolicy.limitType(quota),
+            plan = quota.plan,
+            source = AnalyticsSource.HOME,
+            quotaUsedToday = quota.usedCount,
+            quotaDailyLimit = quota.limitCount,
+        )
+    }
+
+    /** The limit sheet's "Explore More Tunes": All Tunes, with the search box cleared. */
+    private fun exploreAllTunes() {
+        clearSearchInput()
+        viewModel.resetToAllTunes()
+    }
+
+    /** "Make %1$s tune" with the searched or chip name; a blank name keeps "Create Ringtone". */
+    private fun createCtaLabel(name: String): String =
+        if (name.isBlank()) getString(R.string.create_ringtone) else getString(R.string.home_make_name_tune, name)
 
     /**
      * The searched name (or, under the name chip, the profile first name) in the message and the
@@ -253,11 +340,31 @@ class Home : AppCompatActivity() {
         } else {
             getString(R.string.empty_search_message, name)
         }
-        createCta.text = if (name.isBlank()) {
-            getString(R.string.create_ringtone)
+        createCta.text = createCtaLabel(name)
+    }
+
+    /** The floating CTA over a non-empty "{name} Tunes" list, with the same label as the empty state's. */
+    private fun bindNameTabCta(state: HomeUiState) {
+        nameTabCtaWanted = state.showNameTabCreateCta
+        if (nameTabCtaWanted) nameTabCta.text = createCtaLabel(state.emptyStateName)
+        updateNameTabCtaVisibility()
+    }
+
+    /** Hidden while the keyboard is open; the list then gets its plain bottom padding back. */
+    private fun updateNameTabCtaVisibility() {
+        nameTabCtaContainer.isVisible = nameTabCtaWanted && !imeVisible
+        applyTunesBottomPadding()
+    }
+
+    /** While the floating CTA shows, the list's last row scrolls up above it. */
+    private fun applyTunesBottomPadding() {
+        val extra = if (nameTabCtaContainer.isVisible) {
+            nameTabCtaContainer.height + nameTabCtaContainer.marginBottom
         } else {
-            getString(R.string.home_make_name_tune, name)
+            0
         }
+        val bottom = tunesBasePaddingBottom + extra
+        if (tunesRecycler.paddingBottom != bottom) tunesRecycler.updatePadding(bottom = bottom)
     }
 
     /** A gated Set tap; [isNavigating] (reset on resume) keeps a double tap to one paywall. */
@@ -296,8 +403,8 @@ class Home : AppCompatActivity() {
 
                     val showEmptyState = state.showSearchEmptyState
                     emptyScroll.visibility = if (showEmptyState) View.VISIBLE else View.GONE
-                    findViewById<RecyclerView>(R.id.tunesRecycler).visibility =
-                        if (showEmptyState) View.GONE else View.VISIBLE
+                    tunesRecycler.visibility = if (showEmptyState) View.GONE else View.VISIBLE
+                    bindNameTabCta(state)
 
                     if (showEmptyState) bindEmptyStateName(state.emptyStateName)
                     if (showEmptyState && !emptyStateShown && imeVisible) ensureCreateCtaVisible()
@@ -351,16 +458,21 @@ class Home : AppCompatActivity() {
         previewPlayer.play(rowKey, playbackUrl)
     }
 
-    /** While the keyboard is open the empty state drops its logo and scrolls to the CTA. */
+    /**
+     * While the keyboard is open the empty state drops its logo and scrolls to the CTA, and the
+     * name tab's floating CTA hides.
+     */
     private fun onImeChanged(visible: Boolean) {
         imeVisible = visible
         emptyStateImage.isVisible = !visible
+        updateNameTabCtaVisibility()
         if (visible && emptyScroll.isVisible) ensureCreateCtaVisible()
     }
 
     private fun ensureCreateCtaVisible() {
         emptyScroll.post {
-            val target = createCta.bottom + emptyScroll.paddingBottom - emptyScroll.height + emptyScroll.paddingTop
+            // The wrapper (CTA + spinner) is the column's child: its bottom is in column coordinates.
+            val target = createCtaContainer.bottom + emptyScroll.paddingBottom - emptyScroll.height + emptyScroll.paddingTop
             emptyScroll.smoothScrollTo(0, target.coerceAtLeast(0))
         }
     }
@@ -400,13 +512,20 @@ class Home : AppCompatActivity() {
         viewModel.flushPendingSearchTracking()
         previewedTuneIds.clear()
         stopPlayback()
-        suppressSearchUpdates = true
-        searchInput.setText("")
-        suppressSearchUpdates = false
+        clearSearchInput()
         viewModel.resetToAllTunes()
     }
 
+    /** Empties the search box without the ViewModel seeing a query change (the caller resets it). */
+    private fun clearSearchInput() {
+        suppressSearchUpdates = true
+        searchInput.setText("")
+        suppressSearchUpdates = false
+    }
+
     override fun onDestroy() {
+        limitSheet?.dismiss()
+        limitSheet = null
         stopPlayback()
         super.onDestroy()
     }

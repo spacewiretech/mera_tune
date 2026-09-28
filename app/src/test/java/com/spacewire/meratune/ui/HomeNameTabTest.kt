@@ -124,6 +124,38 @@ class HomeNameTabTest {
     }
 
     @Test
+    fun `floating create CTA shows over a loaded non-empty name tab only`() {
+        val listed = HomeUiState(
+            isLoadingCategories = false,
+            selectedCategoryId = Category.MY_NAME_CATEGORY_ID,
+            profileFirstName = "Lakshya",
+            myRingtones = mine,
+            filteredTunes = listOf(ownNew, lakshyaStock),
+        )
+        assertTrue(listed.showNameTabCreateCta)
+        // A refresh with rows already listed keeps it.
+        assertTrue(listed.copy(isLoadingMyRingtones = true).showNameTabCreateCta)
+
+        // An empty name tab has the empty state's own CTA instead.
+        assertFalse(listed.copy(filteredTunes = emptyList()).showNameTabCreateCta)
+        assertFalse(listed.copy(selectedCategoryId = Category.ALL_CATEGORY_ID).showNameTabCreateCta)
+        assertFalse(listed.copy(selectedCategoryId = "c1").showNameTabCreateCta)
+        assertFalse(listed.copy(isLoadingTunes = true).showNameTabCreateCta)
+        assertFalse(listed.copy(isLoadingCategories = true).showNameTabCreateCta)
+        assertFalse(listed.copy(errorMessage = "Network error").showNameTabCreateCta)
+        // A search inside the name tab keeps it while rows match.
+        assertTrue(listed.copy(searchQuery = "priya", filteredTunes = listOf(ownOld)).showNameTabCreateCta)
+    }
+
+    @Test
+    fun `latest own ringtone is the newest one with a generation id`() {
+        assertEquals(ownNew, HomeUiState(myRingtones = mine).latestOwnRingtone)
+        assertEquals(ownOld, HomeUiState(myRingtones = listOf(lakshyaStock, ownOld)).latestOwnRingtone)
+        assertEquals(null, HomeUiState(myRingtones = listOf(lakshyaStock)).latestOwnRingtone)
+        assertEquals(null, HomeUiState().latestOwnRingtone)
+    }
+
+    @Test
     fun `rank is by row key`() {
         val state = HomeUiState(filteredTunes = listOf(ownNew, shyam))
         assertEquals(1, state.rankOf(ownNew.rowKey))

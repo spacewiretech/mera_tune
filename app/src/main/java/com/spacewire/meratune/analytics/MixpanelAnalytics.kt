@@ -575,10 +575,25 @@ class MixpanelAnalytics private constructor(context: Context) {
         track("ringtone_generation_failed", props)
     }
 
-    /** The processing screen shows `QUOTA_EXCEEDED`. [limitType] is a [CreationLimitType] value. */
-    fun trackCreationLimitReached(limitType: String, quotaUsedToday: Int?, quotaDailyLimit: Int?) {
+    /**
+     * The creation limit is shown: the processing screen gets `QUOTA_EXCEEDED` ([source]
+     * [AnalyticsSource.RINGTONE_PROCESSING]), or a Home create CTA opens the limit sheet
+     * ([AnalyticsSource.HOME]). [limitType] is a [CreationLimitType] value, [plan] the quota's
+     * `plan` (`trial` / `member` / `default`, omitted when blank). [quotaUsedToday] /
+     * [quotaDailyLimit] are the period's used / limit (the month for members), under their
+     * pre-plan property names.
+     */
+    fun trackCreationLimitReached(
+        limitType: String,
+        plan: String?,
+        source: String,
+        quotaUsedToday: Int?,
+        quotaDailyLimit: Int?,
+    ) {
         val props = JSONObject()
         props.putEnum("limit_type", limitType)
+        props.putEnum("plan", plan)
+        props.putEnum("source", source)
         props.putOpt("quota_used_today", quotaUsedToday)
         props.putOpt("quota_daily_limit", quotaDailyLimit)
         track("creation_limit_reached", props)

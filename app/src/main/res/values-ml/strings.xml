@@ -241,4 +241,22 @@
     <string name="permission_blocked_storage_message">സ്റ്റോറേജ് അനുമതി ഓഫാണ്, അതിനാൽ റിംഗ്ടോൺ സേവ് ചെയ്യാൻ കഴിയില്ല. ക്രമീകരണങ്ങളിൽ അനുമതി നൽകി വീണ്ടും ശ്രമിക്കുക.</string>
     <string name="permission_open_settings">ക്രമീകരണങ്ങൾ തുറക്കുക</string>
     <string name="permission_set_audio_only">റിംഗ്ടോൺ മാത്രം സജ്ജമാക്കുക</string>
+    <!-- Creation limit sheet and monthly processing limit. UI refresh: native review pending -->
+    <string name="home_limit_title">നിങ്ങളുടെ %1$s കഴിഞ്ഞു!</string>
+    <string name="home_limit_name_trial">ട്രയൽ പരിധി</string>
+    <string name="home_limit_name_member">പ്രതിമാസ പരിധി</string>
+    <string name="home_limit_name_daily">ദൈനംദിന പരിധി</string>
+    <string name="home_limit_subtitle_trial">നിങ്ങൾ നിങ്ങളുടെ %1$d റിംഗ്ടോൺ ഉണ്ടാക്കി. കൂടുതൽ ട്യൂണുകൾ കണ്ടെത്തൂ!</string>
+    <string name="home_limit_subtitle_member">ഈ മാസത്തെ %1$d റിംഗ്ടോൺ നിങ്ങൾ ഉണ്ടാക്കി. കൂടുതൽ ട്യൂണുകൾ കണ്ടെത്തൂ!</string>
+    <string name="home_limit_subtitle_daily">ഇന്നത്തെ %1$d റിംഗ്ടോൺ നിങ്ങൾ ഉണ്ടാക്കി. കൂടുതൽ ട്യൂണുകൾ കണ്ടെത്തൂ!</string>
+    <string name="home_limit_created">ഉണ്ടാക്കി</string>
+    <string name="home_limit_info_trial_title">നാളെ മുതൽ നിങ്ങളുടെ സബ്സ്ക്രിപ്ഷൻ തുടങ്ങും!</string>
+    <string name="home_limit_info_trial_body">അപ്പോൾ നിങ്ങൾക്ക് ഓരോ മാസവും %1$d റിംഗ്ടോണുകൾ ഉണ്ടാക്കാം.</string>
+    <string name="home_limit_info_trial_body_generic">അപ്പോൾ നിങ്ങൾക്ക് കൂടുതൽ റിംഗ്ടോണുകൾ ഉണ്ടാക്കാം.</string>
+    <string name="home_limit_info_member_title">നിങ്ങളുടെ പരിധി %1$s-ന് റീസെറ്റ് ആകും!</string>
+    <string name="home_limit_info_member_body">അപ്പോൾ നിങ്ങൾക്ക് വീണ്ടും %1$d റിംഗ്ടോണുകൾ ഉണ്ടാക്കാം.</string>
+    <string name="home_limit_info_daily_title">നാളെ വീണ്ടും റിംഗ്ടോണുകൾ ഉണ്ടാക്കൂ!</string>
+    <string name="home_limit_info_daily_body">നിങ്ങളുടെ പരിധി രാത്രി 12 മണിക്ക് റീസെറ്റ് ആകും.</string>
+    <string name="home_limit_explore">കൂടുതൽ ട്യൂണുകൾ കാണൂ</string>
+    <string name="processing_error_quota_monthly">ഈ മാസത്തെ പരിധി കഴിഞ്ഞു. %1$s മുതൽ വീണ്ടും ശ്രമിക്കൂ.</string>
 </resources>

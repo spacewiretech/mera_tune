@@ -5,6 +5,8 @@
     <dimen name="cta_min_height">56dp</dimen>
     <dimen name="cta_margin_horizontal">28dp</dimen>
     <dimen name="cta_narrow_max_width">300dp</dimen>
+    <!-- Home "{name} Tunes" floating CTA: the design's 277dp pill, growing up to cta_narrow_max_width. -->
+    <dimen name="home_name_tab_cta_min_width">277dp</dimen>
     <dimen name="input_pill_min_height">56dp</dimen>
     <dimen name="content_max_width">480dp</dimen>
     <dimen name="onboarding_carousel_max_height">414dp</dimen>

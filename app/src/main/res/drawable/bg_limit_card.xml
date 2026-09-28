@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Creation limit sheet: the newest own ringtone's card. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/limit_card_bg" />
+    <corners android:radius="20dp" />
+</shape>

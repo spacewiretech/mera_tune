@@ -241,4 +241,22 @@
     <string name="permission_blocked_storage_message">ଷ୍ଟୋରେଜ୍ ଅନୁମତି ବନ୍ଦ ଅଛି, ତେଣୁ ରିଙ୍ଗଟୋନ୍ ସେଭ୍ ହୋଇପାରିବ ନାହିଁ। ସେଟିଂସରେ ଅନୁମତି ଦେଇ ପୁନର୍ବାର ଚେଷ୍ଟା କରନ୍ତୁ।</string>
     <string name="permission_open_settings">ସେଟିଂସ ଖୋଲନ୍ତୁ</string>
     <string name="permission_set_audio_only">କେବଳ ରିଙ୍ଗଟୋନ୍ ସେଟ୍ କରନ୍ତୁ</string>
+    <!-- Creation limit sheet and monthly processing limit. UI refresh: native review pending -->
+    <string name="home_limit_title">ଆପଣଙ୍କ %1$s ପୂରଣ ହୋଇଗଲା!</string>
+    <string name="home_limit_name_trial">ଟ୍ରାଏଲ୍ ସୀମା</string>
+    <string name="home_limit_name_member">ମାସିକ ସୀମା</string>
+    <string name="home_limit_name_daily">ଦୈନିକ ସୀମା</string>
+    <string name="home_limit_subtitle_trial">ଆପଣ ଆପଣଙ୍କ %1$d ରିଙ୍ଗଟୋନ୍ ବନାଇ ସାରିଛନ୍ତି। ଆହୁରି ଟ୍ୟୁନ୍ ଏକ୍ସପ୍ଲୋର୍ କରନ୍ତୁ!</string>
+    <string name="home_limit_subtitle_member">ଆପଣ ଏହି ମାସର %1$d ରିଙ୍ଗଟୋନ୍ ବନାଇ ସାରିଛନ୍ତି। ଆହୁରି ଟ୍ୟୁନ୍ ଏକ୍ସପ୍ଲୋର୍ କରନ୍ତୁ!</string>
+    <string name="home_limit_subtitle_daily">ଆପଣ ଆଜିର %1$d ରିଙ୍ଗଟୋନ୍ ବନାଇ ସାରିଛନ୍ତି। ଆହୁରି ଟ୍ୟୁନ୍ ଏକ୍ସପ୍ଲୋର୍ କରନ୍ତୁ!</string>
+    <string name="home_limit_created">ତିଆରି ହେଲା</string>
+    <string name="home_limit_info_trial_title">କାଲିଠାରୁ ଆପଣଙ୍କ ସବସ୍କ୍ରିପସନ୍ ଆରମ୍ଭ ହେବ!</string>
+    <string name="home_limit_info_trial_body">ସେତେବେଳେ ଆପଣ ପ୍ରତି ମାସରେ %1$d ରିଙ୍ଗଟୋନ୍ ବନାଇ ପାରିବେ।</string>
+    <string name="home_limit_info_trial_body_generic">ସେତେବେଳେ ଆପଣ ଆହୁରି ରିଙ୍ଗଟୋନ୍ ବନାଇ ପାରିବେ।</string>
+    <string name="home_limit_info_member_title">ଆପଣଙ୍କ ସୀମା %1$s ରେ ରିସେଟ୍ ହେବ!</string>
+    <string name="home_limit_info_member_body">ସେତେବେଳେ ଆପଣ ପୁଣି %1$d ରିଙ୍ଗଟୋନ୍ ବନାଇ ପାରିବେ।</string>
+    <string name="home_limit_info_daily_title">କାଲି ପୁଣି ରିଙ୍ଗଟୋନ୍ ବନାନ୍ତୁ!</string>
+    <string name="home_limit_info_daily_body">ଆପଣଙ୍କ ସୀମା ରାତି 12ଟାରେ ରିସେଟ୍ ହେବ।</string>
+    <string name="home_limit_explore">ଆହୁରି ଟ୍ୟୁନ୍ ଦେଖନ୍ତୁ</string>
+    <string name="processing_error_quota_monthly">ଏହି ମାସର ସୀମା ପୂରଣ ହୋଇଗଲା। %1$s ଠାରୁ ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।</string>
 </resources>

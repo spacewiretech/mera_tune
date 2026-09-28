@@ -10,6 +10,7 @@ import com.spacewire.meratune.analytics.AnalyticsTrigger
 import com.spacewire.meratune.analytics.FilterSelection
 import com.spacewire.meratune.analytics.mixpanelAnalytics
 import com.spacewire.meratune.data.Category
+import com.spacewire.meratune.data.GenerationQuota
 import com.spacewire.meratune.data.HomeRepository
 import com.spacewire.meratune.data.NameRingtonesRepository
 import com.spacewire.meratune.data.RingtoneGenerationException
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 data class HomeUiState(
     val categories: List<Category> = emptyList(),
@@ -45,6 +47,11 @@ data class HomeUiState(
     /** The user's own ready ringtones, newest first; `null` until the first successful load. */
     val myRingtones: List<Tune>? = null,
     val isLoadingMyRingtones: Boolean = false,
+    /**
+     * The creation quota of the last successful own-ringtones load (`null` before one, or when that
+     * response had none); a failed refresh keeps it.
+     */
+    val creationQuota: GenerationQuota? = null,
 ) {
     val isLoading: Boolean
         get() = isLoadingCategories || isLoadingTunes
@@ -71,6 +78,17 @@ data class HomeUiState(
             !isLoading &&
             !isAwaitingMyRingtones &&
             errorMessage == null
+
+    /**
+     * The floating "Make {name} tune" CTA over a non-empty "{name} Tunes" list (the empty state has
+     * its own CTA).
+     */
+    val showNameTabCreateCta: Boolean
+        get() = isMyNameSelected && filteredTunes.isNotEmpty() && !showLoadingIndicator && errorMessage == null
+
+    /** The user's newest own ringtone (the limit sheet's card); `null` before a load or without one. */
+    val latestOwnRingtone: Tune?
+        get() = myRingtones?.firstOrNull { it.generationId != null }
 
     /** The empty state's name (see [HomeTuneFilter.emptyStateName]); blank uses the generic copy. */
     val emptyStateName: String
@@ -164,15 +182,16 @@ class HomeViewModel(
     }
 
     /**
-     * Reloads the user's own ringtones for the name chip (Home resumes after the create flow). A
-     * failure keeps the last loaded list; before any, the chip lists the saved personalized one.
+     * Reloads the user's own ringtones for the name chip and their creation quota (Home resumes
+     * after the create flow). A failure keeps the last loaded list and quota; before any, the chip
+     * lists the saved personalized one.
      */
     fun refreshMyRingtones() {
         if (myRingtonesJob?.isActive == true) return
         myRingtonesJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoadingMyRingtones = true) }
-            val mine = try {
-                nameRingtonesRepository.fetchMyRingtones().ringtones
+            val loaded = try {
+                nameRingtonesRepository.fetchMyRingtones()
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
@@ -181,16 +200,30 @@ class HomeViewModel(
                 null
             }
             val current = _uiState.value
-            val myRingtones = mine ?: current.myRingtones
+            val myRingtones = loaded?.ringtones ?: current.myRingtones
             val activeId = resolveActiveKey(current.tunes, myRingtones)
             _uiState.update { state ->
                 state.copy(
                     myRingtones = myRingtones,
                     isLoadingMyRingtones = false,
                     activeRingtoneId = activeId,
+                    creationQuota = if (loaded != null) loaded.quota else state.creationQuota,
                 ).withFilteredTunes()
             }
         }
+    }
+
+    /** An own-ringtones (and quota) refresh is in flight. */
+    val isRefreshingMyRingtones: Boolean
+        get() = myRingtonesJob?.isActive == true
+
+    /**
+     * The creation quota for a create CTA tap: waits up to [QUOTA_WAIT_MS] for a running
+     * own-ringtones refresh (Home resumed just now), then returns the last loaded one.
+     */
+    suspend fun latestCreationQuota(): GenerationQuota? {
+        myRingtonesJob?.takeIf { it.isActive }?.let { job -> withTimeoutOrNull(QUOTA_WAIT_MS) { job.join() } }
+        return _uiState.value.creationQuota
     }
 
     /** Re-reads the profile name (Home resumes after login / verify saved a user). */
@@ -405,6 +438,7 @@ class HomeViewModel(
     private companion object {
         const val TAG = "HomeViewModel"
         const val SEARCH_TRACK_DEBOUNCE_MS = 500L
+        const val QUOTA_WAIT_MS = 3_000L
         const val STAGE_CATEGORIES = "categories"
         const val STAGE_TUNES = "tunes"
     }

@@ -114,6 +114,46 @@
         tools:itemCount="4"
         tools:listitem="@layout/item_tune" />
 
+    <!--
+        "{name} Tunes" with rows: floating "Make {name} tune" CTA (design "ram tunes"), shown per
+        HomeUiState.showNameTabCreateCta and hidden while the keyboard is open. Home raises
+        tunesRecycler's bottom padding by its height so the last row scrolls above it.
+    -->
+    <FrameLayout
+        android:id="@+id/nameTabCreateContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginBottom="24dp"
+        android:visibility="gone"
+        app:layout_constrainedWidth="true"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:visibility="visible">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/nameTabCreateButton"
+            style="@style/Widget.MeraTune.Cta"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxWidth="@dimen/cta_narrow_max_width"
+            android:minWidth="@dimen/home_name_tab_cta_min_width"
+            android:text="@string/create_ringtone"
+            app:icon="@drawable/ic_plus_white"
+            tools:text="Make Ram tune" />
+
+        <!-- CtaButtons.setLoading: while the tap waits for the creation quota. -->
+        <ProgressBar
+            android:id="@+id/nameTabCreateProgress"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:indeterminateTint="@color/white"
+            android:visibility="gone" />
+
+    </FrameLayout>
+
     <ProgressBar
         android:id="@+id/loadingIndicator"
         android:layout_width="wrap_content"

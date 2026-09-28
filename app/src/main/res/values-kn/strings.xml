@@ -241,4 +241,22 @@
     <string name="permission_blocked_storage_message">ಸ್ಟೋರೇಜ್ ಅನುಮತಿ ಆಫ್ ಆಗಿದೆ, ಆದ್ದರಿಂದ ರಿಂಗ್‌ಟೋನ್ ಉಳಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ. ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಅನುಮತಿಸಿ, ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</string>
     <string name="permission_open_settings">ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ</string>
     <string name="permission_set_audio_only">ಕೇವಲ ರಿಂಗ್‌ಟೋನ್ ಹೊಂದಿಸಿ</string>
+    <!-- Creation limit sheet and monthly processing limit. UI refresh: native review pending -->
+    <string name="home_limit_title">ನಿಮ್ಮ %1$s ಮುಗಿದಿದೆ!</string>
+    <string name="home_limit_name_trial">ಟ್ರಯಲ್ ಮಿತಿ</string>
+    <string name="home_limit_name_member">ಮಾಸಿಕ ಮಿತಿ</string>
+    <string name="home_limit_name_daily">ದೈನಂದಿನ ಮಿತಿ</string>
+    <string name="home_limit_subtitle_trial">ನೀವು ನಿಮ್ಮ %1$d ರಿಂಗ್‌ಟೋನ್ ರಚಿಸಿದ್ದೀರಿ. ಇನ್ನಷ್ಟು ಟ್ಯೂನ್‌ಗಳನ್ನು ಅನ್ವೇಷಿಸಿ!</string>
+    <string name="home_limit_subtitle_member">ನೀವು ಈ ತಿಂಗಳ %1$d ರಿಂಗ್‌ಟೋನ್ ರಚಿಸಿದ್ದೀರಿ. ಇನ್ನಷ್ಟು ಟ್ಯೂನ್‌ಗಳನ್ನು ಅನ್ವೇಷಿಸಿ!</string>
+    <string name="home_limit_subtitle_daily">ನೀವು ಇಂದಿನ %1$d ರಿಂಗ್‌ಟೋನ್ ರಚಿಸಿದ್ದೀರಿ. ಇನ್ನಷ್ಟು ಟ್ಯೂನ್‌ಗಳನ್ನು ಅನ್ವೇಷಿಸಿ!</string>
+    <string name="home_limit_created">ರಚಿಸಲಾಗಿದೆ</string>
+    <string name="home_limit_info_trial_title">ನಾಳೆಯಿಂದ ನಿಮ್ಮ ಚಂದಾದಾರಿಕೆ ಪ್ರಾರಂಭವಾಗುತ್ತದೆ!</string>
+    <string name="home_limit_info_trial_body">ಆಗ ನೀವು ಪ್ರತಿ ತಿಂಗಳು %1$d ರಿಂಗ್‌ಟೋನ್‌ಗಳನ್ನು ರಚಿಸಬಹುದು.</string>
+    <string name="home_limit_info_trial_body_generic">ಆಗ ನೀವು ಇನ್ನಷ್ಟು ರಿಂಗ್‌ಟೋನ್‌ಗಳನ್ನು ರಚಿಸಬಹುದು.</string>
+    <string name="home_limit_info_member_title">ನಿಮ್ಮ ಮಿತಿ %1$s ರಂದು ರೀಸೆಟ್ ಆಗುತ್ತದೆ!</string>
+    <string name="home_limit_info_member_body">ಆಗ ನೀವು ಮತ್ತೆ %1$d ರಿಂಗ್‌ಟೋನ್‌ಗಳನ್ನು ರಚಿಸಬಹುದು.</string>
+    <string name="home_limit_info_daily_title">ನಾಳೆ ಮತ್ತೆ ರಿಂಗ್‌ಟೋನ್‌ಗಳನ್ನು ರಚಿಸಿ!</string>
+    <string name="home_limit_info_daily_body">ನಿಮ್ಮ ಮಿತಿ ರಾತ್ರಿ 12 ಗಂಟೆಗೆ ರೀಸೆಟ್ ಆಗುತ್ತದೆ.</string>
+    <string name="home_limit_explore">ಇನ್ನಷ್ಟು ಟ್ಯೂನ್‌ಗಳನ್ನು ನೋಡಿ</string>
+    <string name="processing_error_quota_monthly">ಈ ತಿಂಗಳ ಮಿತಿ ಮುಗಿದಿದೆ. %1$s ರಿಂದ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</string>
 </resources>

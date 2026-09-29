@@ -30,10 +30,13 @@ object AnalyticsScreen {
     /** The member screen shown once after the trial payment verifies. */
     const val MEMBERSHIP_WELCOME = "membership_welcome"
 
+    /** Create flow: ringtones that already sing the entered name (between the form and the picker). */
+    const val NAME_RINGTONES = "name_ringtones"
+
     val ALL = setOf(
         LANGUAGE_SELECTION, PHONE_ENTRY, OTP_ENTRY, NAME_ENTRY, SUBSCRIPTION, HOME,
         PROFILE, CREATE_FORM, SONG_PICKER, RINGTONE_PROCESSING, RINGTONE_READY,
-        MEMBERSHIP_WELCOME,
+        MEMBERSHIP_WELCOME, NAME_RINGTONES,
     )
 }
 
@@ -48,6 +51,9 @@ object AnalyticsSource {
     const val SUBSCRIPTION = AnalyticsScreen.SUBSCRIPTION
     const val RINGTONE_PROCESSING = AnalyticsScreen.RINGTONE_PROCESSING
     const val MEMBERSHIP_WELCOME = AnalyticsScreen.MEMBERSHIP_WELCOME
+
+    /** The existing name ringtones step: row previews and its Set flow. */
+    const val NAME_RINGTONES = AnalyticsScreen.NAME_RINGTONES
 
     /** The Ready screen (legacy name kept for `ringtone_set` and the server `ringtone_created`). */
     const val CREATION_FLOW = "creation_flow"
@@ -67,7 +73,11 @@ object AnalyticsSource {
 object CreationEntryPoint {
     const val SEARCH_BAR = "search_bar"
 
-    /** The Home empty-state CTA under the "{name} Tunes" chip, without a search query. */
+    /**
+     * Home's "{name} Tunes" section: its floating CTA, or the empty-state CTA under that chip
+     * without a search query. The form then skips the existing name ringtones step while the name
+     * is kept (`NameRingtonesPolicy.skipsLookup`).
+     */
     const val MY_NAME_CHIP = "my_name_chip"
     const val READY_SCREEN = "ready_screen"
     const val PROCESSING = "processing"

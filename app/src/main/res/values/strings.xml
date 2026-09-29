@@ -292,4 +292,10 @@
     <string name="home_limit_explore">Explore More Tunes</string>
     <!-- Processing error for a member's monthly limit; %1$s = the reset day ("1 October"). -->
     <string name="processing_error_quota_monthly">Is mahine ki limit poori ho gayi. %1$s se dobara try karein.</string>
+    <!-- lane B: existing name ringtones step (create flow) -->
+    <string name="name_ringtones_title">%1$s Ki Ringtone Mil Gayi!</string>
+    <string name="name_ringtones_subtitle">Apni favourite dhun suno aur choose karo.</string>
+    <string name="name_ringtones_make_tune">Make Your Tune</string>
+    <string name="name_ringtones_make_tune_caption">Did not like them? create one!</string>
+    <string name="name_ringtones_set_a11y">%1$s set karein</string>
 </resources>

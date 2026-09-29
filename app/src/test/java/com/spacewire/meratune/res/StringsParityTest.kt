@@ -30,6 +30,8 @@ class StringsParityTest {
         "home_", "empty_search_", "profile_",
         // Set flow: permanently denied permission dialog.
         "permission_",
+        // Create flow: existing name ringtones step.
+        "name_ringtones_",
     )
     private val locales = listOf("bn", "hi", "kn", "ml", "mr", "or", "ta", "te")
     private val placeholder = Regex("%(\\d+)\\$[sd]")
@@ -84,9 +86,6 @@ class StringsParityTest {
         "subscription_pending",
         // UI refresh P9 (lane C): two-line empty-search title and the Home header's old wordmark text.
         "empty_search_title_line1", "empty_search_title_line2", "logo_mera",
-        // The create flow's existing name ringtones step (removed 2026-09-28).
-        "name_ringtones_title", "name_ringtones_subtitle", "name_ringtones_make_tune",
-        "name_ringtones_make_tune_caption", "name_ringtones_set_a11y",
     )
 
     private val resDir: File by lazy {

@@ -259,4 +259,10 @@
     <string name="home_limit_info_daily_body">உங்கள் வரம்பு இரவு 12 மணிக்கு மீட்டமைக்கப்படும்.</string>
     <string name="home_limit_explore">மேலும் ட்யூன்களைப் பாருங்கள்</string>
     <string name="processing_error_quota_monthly">இந்த மாத வரம்பு முடிந்தது. %1$s முதல் மீண்டும் முயற்சிக்கவும்.</string>
+    <!-- lane B: existing name ringtones step (create flow) -->
+    <string name="name_ringtones_title">%1$s-க்கான ரிங்டோன் கிடைத்தது!</string>
+    <string name="name_ringtones_subtitle">உங்களுக்குப் பிடித்த இசையைக் கேட்டுத் தேர்ந்தெடுங்கள்.</string>
+    <string name="name_ringtones_make_tune">உங்கள் ட்யூனை உருவாக்கு</string>
+    <string name="name_ringtones_make_tune_caption">பிடிக்கவில்லையா? புதிதாக ஒன்றை உருவாக்குங்கள்!</string>
+    <string name="name_ringtones_set_a11y">%1$s அமை</string>
 </resources>

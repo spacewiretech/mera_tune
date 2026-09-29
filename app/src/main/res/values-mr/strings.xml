@@ -259,4 +259,10 @@
     <string name="home_limit_info_daily_body">तुमची मर्यादा रात्री 12 वाजता रीसेट होईल.</string>
     <string name="home_limit_explore">आणखी ट्यून्स पहा</string>
     <string name="processing_error_quota_monthly">या महिन्याची मर्यादा पूर्ण झाली. %1$s पासून पुन्हा प्रयत्न करा.</string>
+    <!-- lane B: existing name ringtones step (create flow) -->
+    <string name="name_ringtones_title">%1$s ची रिंगटोन मिळाली!</string>
+    <string name="name_ringtones_subtitle">तुमची आवडती धून ऐका आणि निवडा.</string>
+    <string name="name_ringtones_make_tune">तुमची ट्यून बनवा</string>
+    <string name="name_ringtones_make_tune_caption">आवडली नाही? नवीन तयार करा!</string>
+    <string name="name_ringtones_set_a11y">%1$s सेट करा</string>
 </resources>

@@ -259,4 +259,10 @@
     <string name="home_limit_info_daily_body">ನಿಮ್ಮ ಮಿತಿ ರಾತ್ರಿ 12 ಗಂಟೆಗೆ ರೀಸೆಟ್ ಆಗುತ್ತದೆ.</string>
     <string name="home_limit_explore">ಇನ್ನಷ್ಟು ಟ್ಯೂನ್‌ಗಳನ್ನು ನೋಡಿ</string>
     <string name="processing_error_quota_monthly">ಈ ತಿಂಗಳ ಮಿತಿ ಮುಗಿದಿದೆ. %1$s ರಿಂದ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</string>
+    <!-- lane B: existing name ringtones step (create flow) -->
+    <string name="name_ringtones_title">%1$s ಅವರ ರಿಂಗ್‌ಟೋನ್ ಸಿಕ್ಕಿತು!</string>
+    <string name="name_ringtones_subtitle">ನಿಮ್ಮ ನೆಚ್ಚಿನ ರಾಗವನ್ನು ಕೇಳಿ ಮತ್ತು ಆರಿಸಿ.</string>
+    <string name="name_ringtones_make_tune">ನಿಮ್ಮ ಟ್ಯೂನ್ ಮಾಡಿ</string>
+    <string name="name_ringtones_make_tune_caption">ಇಷ್ಟವಾಗಲಿಲ್ಲವೇ? ಹೊಸದನ್ನು ರಚಿಸಿ!</string>
+    <string name="name_ringtones_set_a11y">%1$s ಹೊಂದಿಸಿ</string>
 </resources>

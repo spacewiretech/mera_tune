@@ -272,6 +272,9 @@ object GenerationErrorAction {
     const val SUBSCRIBE = "subscribe"
     const val CHANGE_LANGUAGE = "change_language"
     const val CHOOSE_ANOTHER = "choose_another"
+
+    /** The "try later" popup of a service-down failure (`GenerationErrorCode.isServiceDown`). */
+    const val GO_HOME = "go_home"
 }
 
 /** `action` for `ringtone_ready_action_tapped`. */

@@ -12,6 +12,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.os.ConfigurationCompat
 import androidx.core.view.ViewCompat
@@ -46,6 +47,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 /** Step 3: real generation via `generate-ringtone`, with a staged stepper while it runs. */
 class RingtoneProcessingActivity : AppCompatActivity() {
@@ -79,6 +81,9 @@ class RingtoneProcessingActivity : AppCompatActivity() {
     private var isTakingLonger = false
     private var isWaiting = false
     private var errorActionTaken = false
+
+    /** The "try later" popup of a service-down failure; its only button goes Home. */
+    private var tryLaterDialog: AlertDialog? = null
 
     private val backCallback = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() {
@@ -129,6 +134,8 @@ class RingtoneProcessingActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        tryLaterDialog?.dismiss()
+        tryLaterDialog = null
         if (::stepper.isInitialized) stepper.cancel()
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         super.onDestroy()
@@ -281,7 +288,25 @@ class RingtoneProcessingActivity : AppCompatActivity() {
         primaryActionButton.setText(action.labelRes)
         primaryActionButton.setOnClickListener { onErrorActionTapped(state, action) }
         chooseAnotherButton.setOnClickListener { onErrorActionTapped(state, PrimaryAction.CHOOSE_ANOTHER) }
-        chooseAnotherButton.visibility = if (action == PrimaryAction.CHOOSE_ANOTHER) View.GONE else View.VISIBLE
+        chooseAnotherButton.visibility =
+            if (action == PrimaryAction.CHOOSE_ANOTHER || action == PrimaryAction.GO_HOME) View.GONE else View.VISIBLE
+        if (action == PrimaryAction.GO_HOME) showTryLaterDialog(state)
+    }
+
+    /**
+     * The service is down (Gemini key out of quota or failing, generation paused, daily cap): a popup
+     * that cannot be dismissed, "Kripya kuch der mein try karein.", whose button goes Home. Shown
+     * again after a recreation (the Failed state re-renders); the error screen behind it offers the
+     * same "Home par jayen".
+     */
+    private fun showTryLaterDialog(state: GenerationState.Failed) {
+        if (tryLaterDialog?.isShowing == true) return
+        tryLaterDialog = MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.processing_try_later_title)
+            .setMessage(R.string.processing_try_later_message)
+            .setCancelable(false)
+            .setPositiveButton(R.string.ready_go_home) { _, _ -> onErrorActionTapped(state, PrimaryAction.GO_HOME) }
+            .show()
     }
 
     /** One `generation_error_action_taken` per error screen; a second tap before it changes is ignored. */
@@ -304,12 +329,14 @@ class RingtoneProcessingActivity : AppCompatActivity() {
         SUBSCRIBE(R.string.subscription_try_now, GenerationErrorAction.SUBSCRIBE),
         CHANGE_LANGUAGE(R.string.processing_change_language, GenerationErrorAction.CHANGE_LANGUAGE),
         CHOOSE_ANOTHER(R.string.processing_choose_another, GenerationErrorAction.CHOOSE_ANOTHER),
+        GO_HOME(R.string.ready_go_home, GenerationErrorAction.GO_HOME),
     }
 
     private fun primaryActionFor(state: GenerationState.Failed): PrimaryAction = when {
         state.code == GenerationErrorCode.UNAUTHORIZED -> PrimaryAction.LOGIN_AGAIN
         state.code == GenerationErrorCode.SUBSCRIPTION_REQUIRED -> PrimaryAction.SUBSCRIBE
         state.code == GenerationErrorCode.UNSUPPORTED_LANGUAGE -> PrimaryAction.CHANGE_LANGUAGE
+        GenerationErrorCode.isServiceDown(state.code) -> PrimaryAction.GO_HOME
         state.retryable && viewModel.canRetry -> PrimaryAction.RETRY
         else -> PrimaryAction.CHOOSE_ANOTHER
     }
@@ -340,6 +367,15 @@ class RingtoneProcessingActivity : AppCompatActivity() {
             }
 
             PrimaryAction.CHOOSE_ANOTHER -> finish()
+
+            // Like the Ready screen's "Home par jayen": the Home below the create flow comes back.
+            PrimaryAction.GO_HOME -> {
+                startActivity(
+                    Intent(this@RingtoneProcessingActivity, Home::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                )
+                finish()
+            }
         }
     }
 
@@ -361,6 +397,12 @@ class RingtoneProcessingActivity : AppCompatActivity() {
     }
 
     private fun errorMessageFor(state: GenerationState.Failed): String = when (state.code) {
+        GenerationErrorCode.TTS_RATE_LIMITED,
+        GenerationErrorCode.TTS_FAILED,
+        GenerationErrorCode.SERVICE_UNAVAILABLE,
+        GenerationErrorCode.SERVICE_BUSY,
+        -> getString(R.string.processing_try_later_message)
+
         GenerationErrorCode.NETWORK -> getString(R.string.processing_error_network)
         GenerationErrorCode.TIMEOUT -> getString(R.string.processing_error_timeout)
         GenerationErrorCode.UNSUPPORTED_LANGUAGE ->

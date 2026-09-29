@@ -94,6 +94,8 @@
     <string name="processing_error_generic">ఏదో పొరపాటు జరిగింది. మళ్ళీ ప్రయత్నించండి.</string>
     <string name="processing_error_network">ఇంటర్నెట్ కనెక్షన్ దొరకలేదు. చెక్ చేసి మళ్ళీ ప్రయత్నించండి.</string>
     <string name="processing_error_timeout">చాలా సమయం పట్టింది. కాసేపటి తర్వాత మళ్ళీ ప్రయత్నించండి.</string>
+    <string name="processing_try_later_title">రింగ్‌టోన్ ఇప్పుడు తయారు కాలేదు</string> <!-- native review pending -->
+    <string name="processing_try_later_message">దయచేసి కొంత సమయం తర్వాత ప్రయత్నించండి.</string> <!-- native review pending -->
     <string name="processing_error_language_unsupported">%1$sలో పేరు పలకడం ప్రస్తుతం సాధ్యం కాదు. వేరే భాష ఎంచుకోండి.</string>
     <string name="processing_error_quota">ఈ రోజు పరిమితి పూర్తయింది. రేపు మళ్ళీ ప్రయత్నించండి.</string>
     <string name="processing_error_quota_legacy_hint">మళ్ళీ లాగిన్ చేసి పూర్తి పరిమితిని పొందండి</string>

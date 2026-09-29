@@ -94,6 +94,8 @@
     <string name="processing_error_generic">ಏನೋ ತಪ್ಪಾಗಿದೆ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</string>
     <string name="processing_error_network">ಇಂಟರ್ನೆಟ್ ಸಂಪರ್ಕ ಸಿಗಲಿಲ್ಲ. ಪರಿಶೀಲಿಸಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</string>
     <string name="processing_error_timeout">ತುಂಬಾ ಸಮಯ ಹಿಡಿಯಿತು. ಸ್ವಲ್ಪ ಸಮಯದ ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</string>
+    <string name="processing_try_later_title">ರಿಂಗ್‌ಟೋನ್ ಈಗ ತಯಾರಾಗಲಿಲ್ಲ</string> <!-- native review pending -->
+    <string name="processing_try_later_message">ದಯವಿಟ್ಟು ಸ್ವಲ್ಪ ಸಮಯದ ನಂತರ ಪ್ರಯತ್ನಿಸಿ.</string> <!-- native review pending -->
     <string name="processing_error_language_unsupported">%1$s ನಲ್ಲಿ ಹೆಸರು ಹೇಳುವುದು ಈಗ ಸಾಧ್ಯವಿಲ್ಲ. ಬೇರೆ ಭಾಷೆ ಆರಿಸಿ.</string>
     <string name="processing_error_quota">ಇಂದಿನ ಮಿತಿ ಮುಗಿದಿದೆ. ನಾಳೆ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</string>
     <string name="processing_error_quota_legacy_hint">ಮತ್ತೆ ಲಾಗಿನ್ ಮಾಡಿ ಪೂರ್ಣ ಮಿತಿ ಪಡೆಯಿರಿ</string>

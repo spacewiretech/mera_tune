@@ -127,6 +127,9 @@
     <string name="processing_error_generic">Kuch gadbad ho gayi. Dobara try karein.</string>
     <string name="processing_error_network">Internet connection nahi mila. Check karke dobara try karein.</string>
     <string name="processing_error_timeout">Bahut der lag gayi. Thodi der baad dobara try karein.</string>
+    <!-- Service-down popup on the processing screen (Gemini out of quota or failing, generation paused); its button is ready_go_home. -->
+    <string name="processing_try_later_title">Ringtone abhi nahi ban payi</string>
+    <string name="processing_try_later_message">Kripya kuch der mein try karein.</string>
     <string name="processing_error_language_unsupported">%1$s me naam bolna abhi possible nahi. Dusri bhasha chuniye.</string>
     <string name="processing_error_quota">Aaj ki limit poori ho gayi. Kal dobara try karein.</string>
     <string name="processing_error_quota_legacy_hint">Dobara login karke poori limit paayein</string>

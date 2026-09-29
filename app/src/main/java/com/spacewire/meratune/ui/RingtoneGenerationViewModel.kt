@@ -58,7 +58,9 @@ sealed class GenerationState {
  * - [clientRequestId] is created once and kept in [SavedStateHandle] so retries, rotation and process
  *   death all reuse it (the server dedupes per `(user_id, client_request_id)`).
  * - `GENERATION_IN_PROGRESS` / `TTS_RATE_LIMITED` are re-posted automatically with backoff
- *   (min 2 s, x1.5, cap 8 s) until [TOTAL_BUDGET_MS] is used up, then the attempt fails with `TIMEOUT`.
+ *   (min 2 s, x1.5, cap 8 s). `GENERATION_IN_PROGRESS` (another request is rendering it) waits up
+ *   to [TOTAL_BUDGET_MS], then fails with `TIMEOUT`; `TTS_RATE_LIMITED` (Gemini refusing, e.g. a key
+ *   out of quota) only up to [RATE_LIMIT_BUDGET_MS], then fails with `TTS_RATE_LIMITED` itself.
  * - Analytics: `ringtone_generation_started` once per attempt. `generate-ringtone` owns the outcomes
  *   (`ringtone_created` and every `error_code` it returns); the app sends `ringtone_generation_failed`
  *   only per [GenerationErrorCode.appReportsFailure] or on [cancel], and `creation_limit_reached` on
@@ -214,12 +216,14 @@ class RingtoneGenerationViewModel(
                 ) {
                     val serverWaitMs = (error.retryAfterSeconds ?: 0).coerceAtLeast(0) * 1_000L
                     val waitMs = maxOf(serverWaitMs, backoffMs).coerceIn(MIN_WAIT_MS, MAX_WAIT_MS)
-                    if (elapsedSinceAttemptStart() + waitMs > TOTAL_BUDGET_MS) {
-                        // The server skips busy responses, so this app-side timeout is ours to report.
+                    val rateLimited = error.code == GenerationErrorCode.TTS_RATE_LIMITED
+                    val budgetMs = if (rateLimited) RATE_LIMIT_BUDGET_MS else TOTAL_BUDGET_MS
+                    if (elapsedSinceAttemptStart() + waitMs > budgetMs) {
+                        // The server skips busy responses, so this app-side failure is ours to report.
                         fail(
                             req,
-                            GenerationErrorCode.TIMEOUT,
-                            "Generation took too long",
+                            if (rateLimited) GenerationErrorCode.TTS_RATE_LIMITED else GenerationErrorCode.TIMEOUT,
+                            if (rateLimited) "Voice service still rate limited" else "Generation took too long",
                             error.httpStatus,
                             error.quota,
                         )
@@ -271,7 +275,7 @@ class RingtoneGenerationViewModel(
                 clientMs = clientMs,
                 attempt = attempts,
                 // Whether the error screen offers Retry (same rule as RingtoneProcessingActivity).
-                canRetry = code.retryable && canRetry,
+                canRetry = code.retryable && canRetry && !GenerationErrorCode.isServiceDown(code),
                 totalClientMs = elapsedSinceFirstAttempt(),
                 quotaUsedToday = quota?.usedToday,
                 quotaDailyLimit = quota?.dailyLimit,
@@ -317,6 +321,9 @@ class RingtoneGenerationViewModel(
         private const val MAX_WAIT_MS = 8_000L
         private const val BACKOFF_FACTOR = 1.5
         private const val TOTAL_BUDGET_MS = 90_000L
+
+        /** A dead or exhausted Gemini key answers 429 every time: stop re-posting after this. */
+        private const val RATE_LIMIT_BUDGET_MS = 30_000L
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {

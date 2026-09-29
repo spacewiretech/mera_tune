@@ -69,6 +69,16 @@ enum class GenerationErrorCode(val retryable: Boolean) {
         fun appReportsFailure(code: GenerationErrorCode, fromServer: Boolean): Boolean =
             !fromServer || code == UNAUTHORIZED
 
+        /**
+         * The ringtone service itself is down or out of capacity, whatever the user does: Gemini
+         * still rate-limited after the app's wait (e.g. the API key is out of quota), Gemini
+         * failing (bad key, billing, model), generation paused or not configured, or the global
+         * daily cap. The processing screen then asks the user to try later and sends them Home.
+         */
+        fun isServiceDown(code: GenerationErrorCode): Boolean = code in SERVICE_DOWN
+
+        private val SERVICE_DOWN = setOf(TTS_RATE_LIMITED, TTS_FAILED, SERVICE_UNAVAILABLE, SERVICE_BUSY)
+
         /** Maps a server `error_code` (any case, surrounding whitespace allowed) to a code; unknown or null -> [UNKNOWN]. */
         fun from(raw: String?): GenerationErrorCode {
             val key = raw?.trim()?.uppercase(Locale.ROOT) ?: return UNKNOWN

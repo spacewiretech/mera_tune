@@ -94,6 +94,8 @@
     <string name="processing_error_generic">ஏதோ தவறு நடந்தது. மீண்டும் முயற்சிக்கவும்.</string>
     <string name="processing_error_network">இணைய இணைப்பு கிடைக்கவில்லை. சரிபார்த்து மீண்டும் முயற்சிக்கவும்.</string>
     <string name="processing_error_timeout">அதிக நேரம் ஆகிவிட்டது. சிறிது நேரம் கழித்து மீண்டும் முயற்சிக்கவும்.</string>
+    <string name="processing_try_later_title">ரிங்டோனை இப்போது உருவாக்க முடியவில்லை</string> <!-- native review pending -->
+    <string name="processing_try_later_message">சிறிது நேரம் கழித்து மீண்டும் முயற்சிக்கவும்.</string> <!-- native review pending -->
     <string name="processing_error_language_unsupported">%1$s இல் பெயரைச் சொல்வது தற்போது சாத்தியமில்லை. வேறு மொழியைத் தேர்ந்தெடுங்கள்.</string>
     <string name="processing_error_quota">இன்றைய வரம்பு முடிந்தது. நாளை மீண்டும் முயற்சிக்கவும்.</string>
     <string name="processing_error_quota_legacy_hint">மீண்டும் உள்நுழைந்து முழு வரம்பையும் பெறுங்கள்</string>

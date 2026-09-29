@@ -94,6 +94,8 @@
     <string name="processing_error_generic">काहीतरी चूक झाली. पुन्हा प्रयत्न करा.</string>
     <string name="processing_error_network">इंटरनेट कनेक्शन मिळाले नाही. तपासून पुन्हा प्रयत्न करा.</string>
     <string name="processing_error_timeout">खूप वेळ लागला. थोड्या वेळाने पुन्हा प्रयत्न करा.</string>
+    <string name="processing_try_later_title">रिंगटोन आत्ता बनू शकली नाही</string> <!-- native review pending -->
+    <string name="processing_try_later_message">कृपया थोड्या वेळाने प्रयत्न करा.</string> <!-- native review pending -->
     <string name="processing_error_language_unsupported">%1$s मध्ये नाव बोलणे सध्या शक्य नाही. दुसरी भाषा निवडा.</string>
     <string name="processing_error_quota">आजची मर्यादा पूर्ण झाली. उद्या पुन्हा प्रयत्न करा.</string>
     <string name="processing_error_quota_legacy_hint">पुन्हा लॉगिन करून पूर्ण मर्यादा मिळवा</string>

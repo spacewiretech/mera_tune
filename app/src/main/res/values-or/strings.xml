@@ -94,6 +94,8 @@
     <string name="processing_error_generic">କିଛି ଭୁଲ ହୋଇଗଲା। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।</string>
     <string name="processing_error_network">ଇଣ୍ଟରନେଟ୍ ସଂଯୋଗ ମିଳିଲା ନାହିଁ। ଯାଞ୍ଚ କରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।</string>
     <string name="processing_error_timeout">ବହୁତ ସମୟ ଲାଗିଲା। କିଛି ସମୟ ପରେ ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।</string>
+    <string name="processing_try_later_title">ରିଙ୍ଗଟୋନ୍ ଏବେ ତିଆରି ହୋଇପାରିଲା ନାହିଁ</string> <!-- native review pending -->
+    <string name="processing_try_later_message">ଦୟାକରି କିଛି ସମୟ ପରେ ଚେଷ୍ଟା କରନ୍ତୁ।</string> <!-- native review pending -->
     <string name="processing_error_language_unsupported">%1$sରେ ନାମ କହିବା ଏବେ ସମ୍ଭବ ନୁହେଁ। ଅନ୍ୟ ଭାଷା ବାଛନ୍ତୁ।</string>
     <string name="processing_error_quota">ଆଜିର ସୀମା ପୂରଣ ହୋଇଗଲା। କାଲି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।</string>
     <string name="processing_error_quota_legacy_hint">ପୁଣି ଲଗଇନ୍ କରି ପୂର୍ଣ୍ଣ ସୀମା ପାଆନ୍ତୁ</string>

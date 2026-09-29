@@ -253,6 +253,19 @@ Meta `Subscribe` (Conversions API) is sent from the same `SUBSCRIPTION_PAYMENT_S
 
 After adding events, confirm in Mixpanel Live View filtered by `build_type = debug` (debug builds log to Logcat); server events have no `build_type`, so find them by `platform = server` and the test user's `distinct_id`. Server tests: `deno test --allow-read supabase/functions/tests` (webhook, Mixpanel helper, generation analytics). Add Lexicon descriptions in Mixpanel Data Management.
 
+## Ringtone voice provider (Gemini / OpenRouter)
+
+`generate-ringtone` renders the spoken name with Gemini TTS, either directly or through OpenRouter, chosen per request from `app_config` (no redeploy):
+
+| Key | Default | Meaning |
+|---|---|---|
+| `openrouter_use` | `false` | `true` = OpenRouter (`openrouter_api_key`, or the `OPENROUTER_API_KEY` secret, which wins); anything else = Gemini direct (`gemini_api_key` / `GEMINI_API_KEY`) |
+| `openrouter_tts_model` | `google/gemini-3.1-flash-tts-preview` | OpenRouter model for attempts 1–2 |
+| `openrouter_tts_fallback_model` | `google/gemini-3.8-flash-tts` | OpenRouter model for attempt 3 (`none` = primary again) |
+| `gemini_tts_model` / `gemini_tts_fallback_model` | `gemini-2.5-flash-preview-tts` / `gemini-3.1-flash-tts-preview` | The same for the Gemini provider |
+
+Both providers share `tts.ts` `synthesizeName`: the same attempt plan (transcript, sentence, transcript on the fallback model), prompt text, tune voice (Gemini prebuilt voice names), 6 s clip cap, safety handling and error mapping (rate limits → `TTS_RATE_LIMITED`; bad key, no credits (OpenRouter 402), unknown model → `TTS_FAILED`; both show the app's "Kripya kuch der mein try karein" popup). OpenRouter's Gemini route returns raw 24 kHz 16-bit little-endian mono PCM (`audio/pcm;rate=24000;channels=1`, the only format it accepts); `tts.ts` hands it to the mixer as Gemini's `audio/L16;codec=pcm;rate=24000`, so the mixer decodes both identically. Render rows record the model in `tts_model` (OpenRouter slugs start with `google/`). Migration `20260929120000_add_openrouter_tts.sql` seeds the three keys with `openrouter_use = false`; the key is not seeded. Tests: `supabase/functions/tests/tts_openrouter_test.ts` (including a parity test: the same audio from either provider gives the same `TtsResult`).
+
 ## Install attribution (store links)
 
 Campaign links are **Play Store links** with the UTMs inside `referrer`, the same format as Astrolok's. For MeraTune:

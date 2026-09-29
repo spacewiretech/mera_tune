@@ -130,6 +130,10 @@ A `NAME_TOO_LONG_FOR_SONG` verdict sticks to its cache key (`tune_id`, `assets_v
 | gemini_tts_endpoint | generate_content | Only `generate_content` is implemented. Any other value (including the `interactions` stub) returns 503 SERVICE_UNAVAILABLE at config load, before quota or bookkeeping; the value is logged, not returned |
 | gemini_tts_fallback_model | gemini-3.1-flash-tts-preview | Model for the third TTS attempt when the primary returned no usable audio (2.5 flash TTS often returns an empty answer for a one-word name). About 2× the price, used rarely. `none` disables it |
 | gemini_api_key, mixer_url, mixer_shared_secret | empty | Credentials, kept here like the Cashfree and Fast2SMS keys (`app_config` is service-role only). Read on every request, so a change applies immediately. An Edge secret named `GEMINI_API_KEY` / `MIXER_URL` / `MIXER_SHARED_SECRET` would override the row |
+| openrouter_use | false | TTS provider switch. `true` renders the name through OpenRouter (`POST https://openrouter.ai/api/v1/audio/speech`) with a Google Gemini TTS model; anything else uses Gemini directly (the rows above). Both run the same attempt plan, prompts, voice, clip check and safety handling, and send the mixer the same 24 kHz 16-bit mono PCM (`audio/L16;codec=pcm;rate=24000`), so the ringtone comes out the same. Read on every request: flipping it needs no redeploy |
+| openrouter_tts_model | google/gemini-3.1-flash-tts-preview | OpenRouter slug for the first two attempts (OpenRouter has no 2.5 preview TTS; 3.1 is the Gemini flow's own fallback). Others: `google/gemini-3.8-flash-tts`, `google/gemini-3.8-flash-lite-tts` |
+| openrouter_tts_fallback_model | google/gemini-3.8-flash-tts | OpenRouter slug for the third attempt; `none` retries on `openrouter_tts_model` |
+| openrouter_api_key | not seeded | OpenRouter key, used only when `openrouter_use` is `true`. An Edge secret `OPENROUTER_API_KEY` would override the row. OpenRouter errors map like Gemini's: 429 / 503 / 529 → `TTS_RATE_LIMITED`, 401 / 402 (no credits) / 403 / 404 → `TTS_FAILED` (the app's "try later" popup) |
 
 Languages are gated by the anon-readable `generation_languages` table (default: Hindi and English enabled). The app reads it to disable unsupported pills on the form.
 
@@ -170,6 +174,13 @@ Gemini 25 s per attempt, 55 s total → mixer 60 s → upload 20 s. Must stay un
    UPDATE public.app_config SET value = '<same value as the Cloud Run MIXER_SHARED_SECRET>', updated_at = now() WHERE key = 'mixer_shared_secret';
    ```
    Do not also set Edge secrets with these names; they would take precedence over the rows.
+   To render through OpenRouter instead (e.g. while the Gemini account is capped):
+   ```sql
+   INSERT INTO public.app_config (key, value, description)
+   VALUES ('openrouter_api_key', '<openrouter key>', 'OpenRouter key for generate-ringtone TTS (openrouter_use = true)')
+   ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+   UPDATE public.app_config SET value = 'true' WHERE key = 'openrouter_use';   -- 'false' switches back to Gemini
+   ```
 9. **Functions:** `supabase functions deploy verify-otp complete-signup generate-ringtone`
 10. **Seed one tune** (see `PERSONALIZED_RINGTONE_AUTHORING.md`) and run the curl checks below.
 

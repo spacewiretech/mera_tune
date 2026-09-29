@@ -61,10 +61,13 @@ import {
 } from "./quota.ts";
 import { countUserFreshRenders, userRowsSince } from "./quota-db.ts";
 import {
+  DEFAULT_OPENROUTER_TTS_FALLBACK_MODEL,
+  DEFAULT_OPENROUTER_TTS_MODEL,
   DEFAULT_TTS_MODEL,
   resolveFallbackModel,
   resolveTtsEndpoint,
   synthesizeName,
+  type TtsProvider,
   TtsRateLimited,
   TtsRejected,
   type TtsResult,
@@ -766,20 +769,32 @@ Deno.serve(async (req: Request) => {
     if (!isFlagEnabled(config, "generate_enabled", true)) {
       throw new ApiError(503, "SERVICE_UNAVAILABLE", "Ringtone generation is paused right now. Please try again later.");
     }
-    const geminiApiKey = secret("GEMINI_API_KEY", config, "gemini_api_key");
+    // TTS provider: app_config.openrouter_use "true" renders through OpenRouter (Gemini's TTS
+    // models, same prompts, voice and audio), anything else through Gemini directly.
+    const ttsProvider: TtsProvider = isFlagEnabled(config, "openrouter_use", false) ? "openrouter" : "gemini";
+    const openRouter = ttsProvider === "openrouter";
+    const ttsApiKey = openRouter
+      ? secret("OPENROUTER_API_KEY", config, "openrouter_api_key")
+      : secret("GEMINI_API_KEY", config, "gemini_api_key");
     const mixerUrl = secret("MIXER_URL", config, "mixer_url").replace(/\/+$/, "");
     const mixerSecret = secret("MIXER_SHARED_SECRET", config, "mixer_shared_secret");
-    if (!geminiApiKey || !mixerUrl || !mixerSecret) {
+    if (!ttsApiKey || !mixerUrl || !mixerSecret) {
       console.error("generate-ringtone: missing secrets", {
-        gemini: Boolean(geminiApiKey),
+        tts_provider: ttsProvider,
+        tts_key: Boolean(ttsApiKey),
         mixer_url: Boolean(mixerUrl),
         mixer_secret: Boolean(mixerSecret),
       });
       throw new ApiError(503, "SERVICE_UNAVAILABLE", MESSAGES.notConfigured);
     }
-    const ttsModel = config.gemini_tts_model?.trim() || DEFAULT_TTS_MODEL;
-    const ttsFallbackModel = resolveFallbackModel(config.gemini_tts_fallback_model);
-    const ttsEndpoint = resolveTtsEndpoint(config.gemini_tts_endpoint);
+    const ttsModel = openRouter
+      ? config.openrouter_tts_model?.trim() || DEFAULT_OPENROUTER_TTS_MODEL
+      : config.gemini_tts_model?.trim() || DEFAULT_TTS_MODEL;
+    const ttsFallbackModel = openRouter
+      ? resolveFallbackModel(config.openrouter_tts_fallback_model, DEFAULT_OPENROUTER_TTS_FALLBACK_MODEL)
+      : resolveFallbackModel(config.gemini_tts_fallback_model);
+    // gemini_tts_endpoint only applies to the Gemini provider.
+    const ttsEndpoint = openRouter ? "generate_content" : resolveTtsEndpoint(config.gemini_tts_endpoint);
     if (!ttsEndpoint) {
       console.error("generate-ringtone: unsupported gemini_tts_endpoint; only generate_content is implemented", {
         value: String(config.gemini_tts_endpoint ?? "").slice(0, 40),
@@ -1081,7 +1096,7 @@ Deno.serve(async (req: Request) => {
     let tts: TtsResult;
     try {
       tts = await synthesizeName(
-        { apiKey: geminiApiKey, model: ttsModel, fallbackModel: ttsFallbackModel, endpoint: ttsEndpoint },
+        { provider: ttsProvider, apiKey: ttsApiKey, model: ttsModel, fallbackModel: ttsFallbackModel, endpoint: ttsEndpoint },
         {
           name: spoken,
           voiceName: ttsVoice,

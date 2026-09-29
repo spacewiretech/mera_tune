@@ -1,5 +1,14 @@
 /**
- * Gemini TTS client for generate-ringtone.
+ * TTS client for generate-ringtone: Gemini direct, or Gemini's TTS models through OpenRouter.
+ *
+ * Provider (`TtsConfig.provider`, from app_config.openrouter_use): "gemini" calls
+ * generativelanguage.googleapis.com generateContent (below); "openrouter" calls OpenRouter's
+ * OpenAI-style POST /api/v1/audio/speech with a Google Gemini TTS model
+ * (app_config.openrouter_tts_model / openrouter_tts_fallback_model). Both run the same attempt
+ * plan, prompts, voice, clip-length check and safety handling, and both return the same TtsResult:
+ * 16-bit little-endian mono PCM (OpenRouter answers `audio/pcm;rate=24000;channels=1`, Gemini
+ * `audio/L16;codec=pcm;rate=24000`), with the mime normalised to Gemini's shape so the mixer
+ * decodes both identically. OpenRouter's Gemini route only accepts response_format "pcm".
  *
  * Endpoint is config-driven (`app_config.gemini_tts_endpoint`):
  *   - `generate_content` (implemented): POST models/{model}:generateContent with
@@ -25,16 +34,30 @@
  * the 150 s Edge wall clock; 429/503 -> TtsRateLimited(retryAfterSeconds) immediately; 400/401/403/404
  * on the primary model -> TtsFailed immediately (bad key, billing, model); two safety blocks ->
  * TtsRejected; nothing usable after the plan -> TtsFailed with the last attempt's detail.
+ * OpenRouter maps the same way: 429/503/529 -> TtsRateLimited; 400/401/402/403/404 -> TtsFailed
+ * (402 = no credits on the key); a 400 refusal counts as a safety block; 502/524/other 5xx, an
+ * empty or non-audio answer, a timeout or a network error move on to the next attempt.
  *
  * The name is part of the prompt by design. It is never logged from this module.
  */
 
 export type TtsEndpoint = "generate_content" | "interactions";
 
+/** app_config.openrouter_use "true" -> openrouter, else gemini. */
+export type TtsProvider = "gemini" | "openrouter";
+
 export const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
 export const DEFAULT_TTS_MODEL = "gemini-2.5-flash-preview-tts";
 /** Used for the last attempt when the primary model returned nothing usable. "none" disables it. */
 export const DEFAULT_TTS_FALLBACK_MODEL = "gemini-3.1-flash-tts-preview";
+
+export const OPENROUTER_SPEECH_URL = "https://openrouter.ai/api/v1/audio/speech";
+/**
+ * OpenRouter has no gemini-2.5-*-preview-tts, so its primary is the model the Gemini flow already
+ * uses as its fallback (10/10 in the 2026-09-23 probe), and its fallback the 3.8 successor.
+ */
+export const DEFAULT_OPENROUTER_TTS_MODEL = "google/gemini-3.1-flash-tts-preview";
+export const DEFAULT_OPENROUTER_TTS_FALLBACK_MODEL = "google/gemini-3.8-flash-tts";
 export const DEFAULT_TTS_ATTEMPT_TIMEOUT_MS = 25_000;
 export const DEFAULT_TTS_TOTAL_BUDGET_MS = 55_000;
 export const DEFAULT_TTS_MAX_CLIP_MS = 6_000;
@@ -86,11 +109,16 @@ export class TtsFailed extends Error {
 }
 
 export type TtsConfig = {
+  /** Default "gemini". */
+  provider?: TtsProvider;
+  /** Gemini API key, or the OpenRouter key for provider "openrouter". */
   apiKey: string;
+  /** Gemini model id, or an OpenRouter slug (google/gemini-...-tts) for provider "openrouter". */
   model: string;
   /** Model for the last attempt; empty or "none" = retry on `model` instead. */
   fallbackModel?: string;
-  endpoint: TtsEndpoint;
+  /** Gemini only; default generate_content. */
+  endpoint?: TtsEndpoint;
   /** Abort a single Gemini call after this long. Default 25 s. */
   attemptTimeoutMs?: number;
   /** Total budget across all attempts. Default 55 s. */
@@ -128,7 +156,10 @@ export function resolveTtsEndpoint(raw: string | null | undefined): TtsEndpoint 
 
 export type TtsResult = {
   pcmBase64: string;
-  /** Raw mime string from Gemini, forwarded to the mixer so ffmpeg flags derive from it. */
+  /**
+   * Gemini's mime string (OpenRouter's `audio/pcm;rate=…` is rewritten to the same
+   * `audio/L16;codec=pcm;rate=…`), forwarded to the mixer so ffmpeg flags derive from it.
+   */
   mime: string;
   sampleRate: number;
   estimatedDurationMs: number;
@@ -171,10 +202,16 @@ export function buildTtsPrompt(name: string, style: string, variant: PromptVaria
   return `Speak the following name ${delivery}. Speak only the name.\n\n${name}`;
 }
 
-/** Normalises app_config.gemini_tts_fallback_model: blank -> default, "none"/"off" -> disabled. */
-export function resolveFallbackModel(raw: string | null | undefined): string {
+/**
+ * Normalises app_config.gemini_tts_fallback_model (or openrouter_tts_fallback_model with its own
+ * [fallbackDefault]): blank -> default, "none"/"off" -> disabled.
+ */
+export function resolveFallbackModel(
+  raw: string | null | undefined,
+  fallbackDefault: string = DEFAULT_TTS_FALLBACK_MODEL,
+): string {
   const value = (raw ?? "").trim();
-  if (!value) return DEFAULT_TTS_FALLBACK_MODEL;
+  if (!value) return fallbackDefault;
   return /^(none|off|disabled?)$/i.test(value) ? "" : value;
 }
 
@@ -384,22 +421,138 @@ async function generateContentOnce(
   };
 }
 
+export function openRouterSpeechRequestBody(model: string, prompt: string, voiceName: string): Record<string, unknown> {
+  // The same prompt text and prebuilt voice as generateContentRequestBody; pcm is the only format
+  // OpenRouter's Gemini TTS route accepts.
+  return { model, input: prompt, voice: voiceName, response_format: "pcm" };
+}
+
+type OpenRouterError = { error?: { code?: number | string; message?: string; metadata?: unknown } };
+
+/** 4xx answers that are a content refusal rather than a bad request: counted like a Gemini safety block. */
+const OPENROUTER_REFUSAL = /safety|blocked|prohibited|harmful|moderation|flagged/i;
+
+/** 402 = no credits left on the OpenRouter key: like Gemini's 400/403 billing errors, not retryable. */
+const OPENROUTER_NON_RETRYABLE: ReadonlySet<number> = new Set([400, 401, 402, 403, 404]);
+
+/** Overloaded upstream: like Gemini's 503, the app re-posts later. 502 / 524 are retried in the plan. */
+const OPENROUTER_BUSY: ReadonlySet<number> = new Set([503, 529]);
+
+/** Parses `channels=2` out of `audio/pcm;rate=24000;channels=1`; absent means mono. */
+function parseChannels(contentType: string): number {
+  const match = /channels=(\d+)/i.exec(contentType);
+  return match ? Number.parseInt(match[1], 10) : 1;
+}
+
+async function openRouterSpeechOnce(
+  config: TtsConfig,
+  model: string,
+  prompt: string,
+  voiceName: string,
+  timeoutMs: number,
+  variant: PromptVariant,
+  attempt: number,
+): Promise<AttemptOutcome> {
+  const fetchImpl = config.fetchImpl ?? fetch;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  let response: Response;
+  let bytes: Uint8Array | null = null;
+  let errorJson: OpenRouterError | null = null;
+  try {
+    response = await fetchImpl(OPENROUTER_SPEECH_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${config.apiKey}`,
+        "X-Title": "MeraTune",
+      },
+      body: JSON.stringify(openRouterSpeechRequestBody(model, prompt, voiceName)),
+      signal: controller.signal,
+    });
+    if (response.ok) {
+      bytes = new Uint8Array(await response.arrayBuffer());
+    } else {
+      const text = await response.text();
+      try {
+        errorJson = text ? (JSON.parse(text) as OpenRouterError) : null;
+      } catch {
+        errorJson = null;
+      }
+    }
+  } catch (err) {
+    return { kind: "retry", detail: isAbortError(err) ? "timeout" : "network" };
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (response.status === 429 || OPENROUTER_BUSY.has(response.status)) {
+    const fallback = response.status === 429 ? DEFAULT_RATE_LIMIT_RETRY_S : DEFAULT_UNAVAILABLE_RETRY_S;
+    throw new TtsRateLimited(
+      parseRetryAfterSeconds(response.headers, errorJson, fallback),
+      `OpenRouter TTS ${response.status}`,
+    );
+  }
+  if (OPENROUTER_NON_RETRYABLE.has(response.status)) {
+    const message = String(errorJson?.error?.message ?? "").slice(0, 200);
+    if (response.status === 400 && OPENROUTER_REFUSAL.test(message)) {
+      return { kind: "rejected", detail: "openrouter_refused" };
+    }
+    // Bad key, no credits, unknown model or voice: retrying cannot help.
+    throw new TtsFailed(`openrouter_${response.status}`, `OpenRouter TTS ${response.status}: ${message}`);
+  }
+  if (!response.ok) return { kind: "retry", detail: `openrouter_${response.status}` };
+
+  const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
+  if (!contentType.startsWith("audio/")) return { kind: "retry", detail: "not_audio" };
+  if (parseChannels(contentType) !== 1) return { kind: "retry", detail: "not_mono" };
+  // 16-bit frames: a trailing odd byte is not a sample.
+  const pcm = bytes && bytes.length % 2 === 1 ? bytes.subarray(0, bytes.length - 1) : bytes;
+  if (!pcm || pcm.length === 0) return { kind: "retry", detail: "no_audio" };
+
+  const sampleRate = parseSampleRate(contentType);
+  const pcmBase64 = bytesToBase64(pcm);
+  return {
+    kind: "ok",
+    result: {
+      pcmBase64,
+      mime: `audio/L16;codec=pcm;rate=${sampleRate}`,
+      sampleRate,
+      estimatedDurationMs: estimateDurationMs(pcmBase64.length, sampleRate),
+      promptVariant: variant,
+      model,
+      attempt,
+    },
+  };
+}
+
 /**
  * Synthesises the spoken name. Throws TtsUnavailable, TtsRateLimited, TtsRejected or TtsFailed.
  */
 export async function synthesizeName(config: TtsConfig, req: TtsRequest): Promise<TtsResult> {
-  if (config.endpoint === "interactions") {
-    throw new TtsUnavailable(
-      "gemini_tts_endpoint=interactions is not implemented yet. Set app_config.gemini_tts_endpoint to " +
-        "generate_content (gemini-2.5-*-preview-tts) until the Interactions API path ships.",
-    );
+  const provider: TtsProvider = config.provider ?? "gemini";
+  if (provider === "gemini") {
+    const endpoint = config.endpoint ?? "generate_content";
+    if (endpoint === "interactions") {
+      throw new TtsUnavailable(
+        "gemini_tts_endpoint=interactions is not implemented yet. Set app_config.gemini_tts_endpoint to " +
+          "generate_content (gemini-2.5-*-preview-tts) until the Interactions API path ships.",
+      );
+    }
+    if (endpoint !== "generate_content") {
+      throw new TtsUnavailable(`Unknown gemini_tts_endpoint "${endpoint}"; expected generate_content or interactions`);
+    }
   }
-  if (config.endpoint !== "generate_content") {
-    throw new TtsUnavailable(`Unknown gemini_tts_endpoint "${config.endpoint}"; expected generate_content or interactions`);
+  const openRouter = provider === "openrouter";
+  if (!config.apiKey) {
+    throw new TtsUnavailable(openRouter ? "OPENROUTER_API_KEY is not configured" : "GEMINI_API_KEY is not configured");
   }
-  if (!config.apiKey) throw new TtsUnavailable("GEMINI_API_KEY is not configured");
-  if (!config.model) throw new TtsUnavailable("gemini_tts_model is not configured");
+  if (!config.model) {
+    throw new TtsUnavailable(openRouter ? "openrouter_tts_model is not configured" : "gemini_tts_model is not configured");
+  }
   if (!req.voiceName) throw new TtsUnavailable("tts voice is not configured for this tune");
+  const attemptOnce = openRouter ? openRouterSpeechOnce : generateContentOnce;
 
   const maxClipMs = config.maxClipMs ?? DEFAULT_TTS_MAX_CLIP_MS;
   const attemptTimeout = config.attemptTimeoutMs ?? DEFAULT_TTS_ATTEMPT_TIMEOUT_MS;
@@ -420,7 +573,7 @@ export async function synthesizeName(config: TtsConfig, req: TtsRequest): Promis
 
     let outcome: AttemptOutcome;
     try {
-      outcome = await generateContentOnce(
+      outcome = await attemptOnce(
         config,
         model,
         buildTtsPrompt(req.name, style, step.variant),
@@ -434,7 +587,7 @@ export async function synthesizeName(config: TtsConfig, req: TtsRequest): Promis
       // primary model's earlier, retryable failures; it just ends the plan.
       if (err instanceof TtsFailed && model !== config.model) {
         lastDetail = `fallback_${err.detail}`;
-        console.warn("generate-ringtone: tts fallback model failed", { attempt, model, detail: err.detail });
+        console.warn("generate-ringtone: tts fallback model failed", { provider, attempt, model, detail: err.detail });
         break;
       }
       throw err;
@@ -444,6 +597,7 @@ export async function synthesizeName(config: TtsConfig, req: TtsRequest): Promis
       if (outcome.result.estimatedDurationMs <= maxClipMs) return outcome.result;
       lastDetail = "clip_too_long";
       console.warn("generate-ringtone: tts clip too long", {
+        provider,
         attempt,
         variant: step.variant,
         model,
@@ -455,14 +609,14 @@ export async function synthesizeName(config: TtsConfig, req: TtsRequest): Promis
     if (outcome.kind === "rejected") {
       rejections += 1;
       lastRejection = outcome.detail;
-      console.warn("generate-ringtone: tts safety block", { attempt, variant: step.variant, model, detail: outcome.detail });
+      console.warn("generate-ringtone: tts safety block", { provider, attempt, variant: step.variant, model, detail: outcome.detail });
       if (rejections >= REJECTIONS_TO_FAIL) throw new TtsRejected(outcome.detail);
       continue;
     }
     lastDetail = outcome.detail;
-    console.warn("generate-ringtone: tts attempt failed", { attempt, variant: step.variant, model, detail: outcome.detail });
+    console.warn("generate-ringtone: tts attempt failed", { provider, attempt, variant: step.variant, model, detail: outcome.detail });
   }
 
   if (rejections >= REJECTIONS_TO_FAIL) throw new TtsRejected(lastRejection);
-  throw new TtsFailed(lastDetail, `Gemini TTS failed (${lastDetail})`);
+  throw new TtsFailed(lastDetail, `${openRouter ? "OpenRouter" : "Gemini"} TTS failed (${lastDetail})`);
 }

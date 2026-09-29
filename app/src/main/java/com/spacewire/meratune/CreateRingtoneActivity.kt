@@ -22,6 +22,7 @@ import com.spacewire.meratune.data.LanguageDefinition
 import com.spacewire.meratune.data.Languages
 import com.spacewire.meratune.data.NameRingtonesRepository
 import com.spacewire.meratune.data.RingtoneGenerationException
+import com.spacewire.meratune.data.Tune
 import com.spacewire.meratune.ui.CtaButtons
 import com.spacewire.meratune.ui.FormOptionGroup
 import com.spacewire.meratune.ui.NameRingtonesPolicy
@@ -34,15 +35,17 @@ import com.spacewire.meratune.util.ProfileStore
 import com.spacewire.meratune.util.enableLightEdgeToEdge
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Step 1 of the personalized-ringtone flow: name + language. Continue first looks up ringtones that
- * already sing the name (loading on the CTA): when there are some, `NameRingtonesActivity` lists
- * them; when there are none, or the lookup fails, the song picker opens as before. From Home's
- * "{name} Tunes" CTA with its name kept, Continue opens the song picker directly
- * ([NameRingtonesPolicy.skipsLookup]): that section already listed them.
+ * Step 1 of the personalized-ringtone flow: name + language. Continue first looks up the typed
+ * name's ringtones (loading on the CTA): the personalized ones from `name-ringtones` plus the stock
+ * catalog tunes named for it. When there are some, `NameRingtonesActivity` lists them; when there
+ * are none, or the lookup fails, the song picker opens. A form launched from Home opens the song
+ * picker directly ([NameRingtonesPolicy.skipsLookup]): Home already lists the name's tunes.
  */
 class CreateRingtoneActivity : AppCompatActivity() {
 
@@ -81,9 +84,14 @@ class CreateRingtoneActivity : AppCompatActivity() {
     private val reportedUnavailableLanguages = mutableSetOf<String>()
     private var isNavigating = false
 
+    /** Launched from Home (kept across a processing re-entry, which changes [entryPoint]). */
+    private var launchedFromHome = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         restoreAnalyticsState(savedInstanceState)
+        launchedFromHome = savedInstanceState?.getBoolean(STATE_LAUNCHED_FROM_HOME)
+            ?: NameRingtonesPolicy.skipsLookup(intent.getStringExtra(EXTRA_ENTRY_POINT))
         enableLightEdgeToEdge()
         setContentView(R.layout.activity_create_ringtone)
 
@@ -145,6 +153,7 @@ class CreateRingtoneActivity : AppCompatActivity() {
         outState.putString(STATE_PREFILL_DISPLAY, prefillDisplay)
         outState.putString(STATE_ENTRY_POINT, entryPoint)
         outState.putStringArrayList(STATE_REPORTED_UNAVAILABLE, ArrayList(reportedUnavailableLanguages))
+        outState.putBoolean(STATE_LAUNCHED_FROM_HOME, launchedFromHome)
         continueRequest?.let { (name, language) ->
             outState.putString(STATE_CONTINUE_NAME, name)
             outState.putString(STATE_CONTINUE_LANGUAGE, language)
@@ -285,7 +294,7 @@ class CreateRingtoneActivity : AppCompatActivity() {
             timeOnFormMs = (SystemClock.elapsedRealtime() - formShownAtMs).coerceAtLeast(0L),
             entryPoint = entryPoint,
         )
-        if (NameRingtonesPolicy.skipsLookup(entryPoint, validation.display, prefillDisplay)) {
+        if (launchedFromHome) {
             startActivity(ChooseSongActivity.intent(this, validation.display, languageKey))
             return
         }
@@ -293,24 +302,24 @@ class CreateRingtoneActivity : AppCompatActivity() {
     }
 
     /**
-     * Ringtones that already sing [name] open `NameRingtonesActivity`; none, a failure or a lookup
-     * slower than [NAME_LOOKUP_TIMEOUT_MS] continue to the song picker exactly as before.
+     * The [name]'s ringtones open `NameRingtonesActivity`: the personalized ones (`name-ringtones`)
+     * first, then stock catalog tunes named for it ([NameRingtonesPolicy.catalogNameTunes]), both
+     * read in parallel. None, failures or lookups slower than [NAME_LOOKUP_TIMEOUT_MS] continue to
+     * the song picker.
      */
     private fun lookUpExistingRingtones(name: String, language: String) {
         lookupJob?.cancel()
         continueRequest = name to language
         setContinueLoading(true)
         lookupJob = lifecycleScope.launch {
-            val existing = try {
-                withTimeoutOrNull(NAME_LOOKUP_TIMEOUT_MS) { nameRingtonesRepository.fetchNameRingtones(name) }
-                    .also { if (it == null) Log.w(TAG, "name-ringtones lookup timed out") }
-                    .orEmpty()
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                val reason = (error as? RingtoneGenerationException)?.code?.name ?: error.javaClass.simpleName
-                Log.w(TAG, "name-ringtones lookup failed: $reason")
-                emptyList()
+            val existing = coroutineScope {
+                val personalized = async {
+                    lookupOrEmpty("name-ringtones") { nameRingtonesRepository.fetchNameRingtones(name) }
+                }
+                val catalog = async {
+                    lookupOrEmpty("catalog") { NameRingtonesPolicy.catalogNameTunes(HomeRepository().fetchActiveTunes(), name) }
+                }
+                personalized.await() + catalog.await()
             }
             setContinueLoading(false)
             val rows = NameRingtonesPolicy.rowsToShow(existing)
@@ -326,6 +335,19 @@ class CreateRingtoneActivity : AppCompatActivity() {
                 pendingNextStep = next
             }
         }
+    }
+
+    /** [lookup]'s tunes, or none on a failure or after [NAME_LOOKUP_TIMEOUT_MS] ([label] only for the log). */
+    private suspend fun lookupOrEmpty(label: String, lookup: suspend () -> List<Tune>): List<Tune> = try {
+        withTimeoutOrNull(NAME_LOOKUP_TIMEOUT_MS) { lookup() }
+            .also { if (it == null) Log.w(TAG, "$label lookup timed out") }
+            .orEmpty()
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        val reason = (error as? RingtoneGenerationException)?.code?.name ?: error.javaClass.simpleName
+        Log.w(TAG, "$label lookup failed: $reason")
+        emptyList()
     }
 
     /** Spinner on the CTA; the name field is locked meanwhile so the looked-up name is the one sent on. */
@@ -423,6 +445,7 @@ class CreateRingtoneActivity : AppCompatActivity() {
         private const val STATE_REPORTED_UNAVAILABLE = "state_reported_unavailable_languages"
         private const val STATE_CONTINUE_NAME = "state_continue_name"
         private const val STATE_CONTINUE_LANGUAGE = "state_continue_language"
+        private const val STATE_LAUNCHED_FROM_HOME = "state_launched_from_home"
         private const val HINDI = "Hindi"
 
         /** The lookup normally answers in well under a second; past this the form moves on. */

@@ -2,6 +2,7 @@ package com.spacewire.meratune.ui
 
 import com.spacewire.meratune.data.Category
 import com.spacewire.meratune.data.Tune
+import com.spacewire.meratune.util.NameMatch
 import com.spacewire.meratune.util.ActiveRingtoneResolver
 
 /**
@@ -21,14 +22,15 @@ object HomeTuneFilter {
     fun matches(tune: Tune, text: String): Boolean = tune.name.contains(text, ignoreCase = true)
 
     /**
-     * [nameFilter] is the chip's first name while the chip is selected, else `null`. A blank name
+     * [nameFilter] is the chip's first name while the chip is selected, else `null`: a tune whose
+     * title has that name as a whole word ([NameMatch], so "Ram" is not "Ramesh"). A blank name
      * matches nothing, so the chip then shows the empty state. A blank [query] keeps every tune.
      */
     fun filter(tunes: List<Tune>, query: String, nameFilter: String?): List<Tune> {
         val byName = when {
             nameFilter == null -> tunes
             nameFilter.isBlank() -> emptyList()
-            else -> tunes.filter { matches(it, nameFilter.trim()) }
+            else -> tunes.filter { NameMatch.titleHasName(it.name, nameFilter) }
         }
         if (query.isBlank()) return byName
         return byName.filter { matches(it, query) }

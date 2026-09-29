@@ -18,6 +18,7 @@ class NameRingtonesPolicyTest {
         url: String = "https://cdn.example/generated/$id.mp3",
         gender: String = "Male",
         generationId: String? = null,
+        personalizable: Boolean = true,
     ) = Tune(
         id = id,
         name = name,
@@ -30,6 +31,7 @@ class NameRingtonesPolicyTest {
         titleTemplate = "Jai Shri Ram {name} ji..",
         sampleName = "Shyam",
         generationId = generationId,
+        isPersonalizable = personalizable,
     )
 
     @Test
@@ -55,10 +57,38 @@ class NameRingtonesPolicyTest {
     }
 
     @Test
-    fun `only rows without the caller's generation id need a claim`() {
+    fun `only personalized rows without the caller's generation id need a claim`() {
         assertTrue(NameRingtonesPolicy.needsClaim(tune(generationId = null)))
         assertTrue(NameRingtonesPolicy.needsClaim(tune(generationId = " ")))
         assertFalse(NameRingtonesPolicy.needsClaim(tune(generationId = "g1")))
+        // A stock catalog tune is set as it is: no generate-ringtone call.
+        assertFalse(NameRingtonesPolicy.needsClaim(tune(generationId = null, personalizable = false)))
+    }
+
+    @Test
+    fun `stock catalog tunes are not personalized, the rest are`() {
+        assertFalse(NameRingtonesPolicy.isPersonalized(tune(personalizable = false)))
+        assertTrue(NameRingtonesPolicy.isPersonalized(tune()))
+        assertTrue(NameRingtonesPolicy.isPersonalized(tune(generationId = "g1", personalizable = false)))
+    }
+
+    @Test
+    fun `catalog name tunes are stock tunes whose title has the name as a word`() {
+        val catalog = listOf(
+            tune("jai", name = "Jai Shri Ram Rahul ji", personalizable = false),
+            tune("shree", name = "Jai Shree Ram", personalizable = false),
+            tune("ramram", name = "Ram-Ram", personalizable = false),
+            tune("ramesh", name = "Ramesh", personalizable = false),
+            tune("param", name = "Param", personalizable = false),
+            tune("balaram", name = "Balaram", personalizable = false),
+            // Personalizable: its stock recording sings the sample name, the server lists the right one.
+            tune("template", name = "Ram ki dhun", personalizable = true),
+        )
+        assertEquals(listOf("jai", "shree", "ramram"), NameRingtonesPolicy.catalogNameTunes(catalog, "Ram").map { it.id })
+        assertEquals(listOf("jai", "shree", "ramram"), NameRingtonesPolicy.catalogNameTunes(catalog, " ram ").map { it.id })
+        assertEquals(listOf("ramesh"), NameRingtonesPolicy.catalogNameTunes(catalog, "RAMESH").map { it.id })
+        assertTrue(NameRingtonesPolicy.catalogNameTunes(catalog, "Ayushss").isEmpty())
+        assertTrue(NameRingtonesPolicy.catalogNameTunes(catalog, " ").isEmpty())
     }
 
     @Test
@@ -81,23 +111,15 @@ class NameRingtonesPolicyTest {
     }
 
     @Test
-    fun `Home's name section CTA skips the lookup while its name is kept`() {
-        val chip = CreationEntryPoint.MY_NAME_CHIP
-        assertTrue(NameRingtonesPolicy.skipsLookup(chip, "Ram", "Ram"))
-        assertTrue(NameRingtonesPolicy.skipsLookup(chip, "ram ", "Ram"))
-        // Another name typed on the form: Home never listed its ringtones.
-        assertFalse(NameRingtonesPolicy.skipsLookup(chip, "Rahul", "Ram"))
+    fun `a form launched from Home skips the step`() {
+        assertTrue(NameRingtonesPolicy.skipsLookup(CreationEntryPoint.MY_NAME_CHIP))
+        assertTrue(NameRingtonesPolicy.skipsLookup(CreationEntryPoint.SEARCH_BAR))
     }
 
     @Test
-    fun `every other entry point looks up the name`() {
-        listOf(
-            CreationEntryPoint.POST_PURCHASE,
-            CreationEntryPoint.SEARCH_BAR,
-            CreationEntryPoint.PROCESSING,
-            null,
-        ).forEach { entry ->
-            assertFalse(entry.toString(), NameRingtonesPolicy.skipsLookup(entry, "Ram", "Ram"))
+    fun `the trial user's form after the member screen looks up the name`() {
+        listOf(CreationEntryPoint.POST_PURCHASE, CreationEntryPoint.PROCESSING, null).forEach { entry ->
+            assertFalse(entry.toString(), NameRingtonesPolicy.skipsLookup(entry))
         }
     }
 

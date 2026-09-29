@@ -51,6 +51,13 @@ class HomeTuneFilterTest {
     }
 
     @Test
+    fun `name chip matches the name as a whole word, search still as a substring`() {
+        val others = listOf(tune("5", "Ramesh"), tune("6", "Param"), tune("7", "Ram-Ram"), tune("8", "Balaram"))
+        assertEquals(listOf("7"), ids(HomeTuneFilter.filter(others, query = "", nameFilter = "Ram")))
+        assertEquals(listOf("5", "6", "7", "8"), ids(HomeTuneFilter.filter(others, query = "ram", nameFilter = null)))
+    }
+
+    @Test
     fun `name chip and search apply together`() {
         assertEquals(listOf("4"), ids(HomeTuneFilter.filter(tunes, query = "priya", nameFilter = "Ram")))
         assertEquals(listOf("2"), ids(HomeTuneFilter.filter(tunes, query = "shri", nameFilter = "Ram")))

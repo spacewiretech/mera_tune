@@ -37,15 +37,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Create flow, between the form and the song picker: ringtones that already sing the entered name
- * (`NameRingtonesRepository.fetchNameRingtones`, possibly made by other users; rows never carry a
- * user id). The form opens it only when that list is not empty.
+ * Create flow, between the form and the song picker: the entered name's ringtones. First those
+ * that already sing it (`NameRingtonesRepository.fetchNameRingtones`, possibly made by other users;
+ * rows never carry a user id), then stock catalog tunes named for it (whole-word title match). The
+ * form opens it only when that list is not empty, and never when it was launched from Home.
  *
  * - The art previews a row (`tune_played` / `tune_play_ended`, `source` = `name_ringtones`).
- * - Set runs the single-shot set flow like Home. A row the user has not made yet is first recorded
- *   in their own list (`NameRingtonesRepository.claim`, a `generate-ringtone` cache hit), so the set
- *   ringtone carries their generation id; if that fails the row is set as listed. On success the
- *   ringtone is saved as active (personalized, like the Ready screen) and the flow goes Home.
+ * - Set runs the single-shot set flow like Home. A personalized row the user has not made yet is
+ *   first recorded in their own list (`NameRingtonesRepository.claim`, a `generate-ringtone` cache
+ *   hit), so the set ringtone carries their generation id; if that fails the row is set as listed.
+ *   A stock catalog tune is set as it is (not personalized, like Home). On success the ringtone is
+ *   saved as active and the flow goes Home.
  * - "Make Your Tune" continues to the song picker with the form's name and language.
  */
 class NameRingtonesActivity : AppCompatActivity() {
@@ -106,8 +108,9 @@ class NameRingtonesActivity : AppCompatActivity() {
         analyticsSource = AnalyticsSource.NAME_RINGTONES,
         categoryForTune = { tune -> tune.category?.name.orEmpty() },
         onSuccess = { tune, uri -> onRingtoneSet(tune, uri) },
-        // Every row sings the user's name, claimed or not: its title never reaches analytics.
-        personalizedForTune = { true },
+        // A row that sings the user's name (claimed or not) is personalized, so its title never
+        // reaches analytics; a stock catalog tune named for it is set like Home's.
+        personalizedForTune = { NameRingtonesPolicy.isPersonalized(it) },
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -266,9 +269,9 @@ class NameRingtonesActivity : AppCompatActivity() {
     }
 
     private fun onRingtoneSet(tune: Tune, uri: Uri) {
-        // Like the Ready screen: the personalized copy itself (title, file, generation id once
-        // claimed), so Home can show this ringtone as Active rather than its base tune.
-        ActiveRingtoneStore(this).save(tune, uri, personalized = true)
+        // Like the Ready screen: a personalized row is saved as that copy (title, file, generation id
+        // once claimed), so Home shows it as Active rather than its base tune; a stock tune as itself.
+        ActiveRingtoneStore(this).save(tune, uri, personalized = NameRingtonesPolicy.isPersonalized(tune))
         setTuneId = tune.id
         adapter.setActive(tune.id)
         Haptics.confirm(recycler)

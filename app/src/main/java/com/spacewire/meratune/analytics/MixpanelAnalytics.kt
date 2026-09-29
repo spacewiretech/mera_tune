@@ -276,17 +276,23 @@ class MixpanelAnalytics private constructor(context: Context) {
     // Subscription
     // ---------------------------------------------------------------------------------------------
 
-    /** `previous_screen` is added automatically. [entryPoint] is a [PaywallEntryPoint] value. */
+    /**
+     * `previous_screen` is added automatically. [entryPoint] is a [PaywallEntryPoint] value.
+     * [isTrial] is the offer the paywall shows as it opens: the local guess from the stored status,
+     * before the server's preview answers.
+     */
     fun trackSubscriptionScreenViewed(
         userStatus: String? = null,
         installedAppCount: Int? = null,
         entryPoint: String? = null,
+        isTrial: Boolean? = null,
     ) {
         val props = JSONObject()
         props.putEnum("previous_screen", currentScreen)
         props.putEnum("user_status", userStatus)
         props.putOpt("installed_app_count", installedAppCount)
         props.putEnum("entry_point", entryPoint)
+        props.putOpt("is_trial", isTrial)
         track("subscription_screen_viewed", props)
     }
 
@@ -323,13 +329,14 @@ class MixpanelAnalytics private constructor(context: Context) {
 
     /**
      * Create-subscription succeeded, before the Cashfree checkout opens (named
-     * `subscription_started` until 2026-09-28). [authAmount] / [recurringAmount] are the amounts
-     * the paywall shows (the server's, else the 3 / 299 defaults).
+     * `subscription_started` until 2026-09-28). [authAmount] / [recurringAmount] are the created
+     * mandate's (the server's); [isTrial] is `false` for the paid offer (no ₹3 trial).
      */
     fun trackSubscriptionInitiated(
         paymentApp: PaymentApp,
         authAmount: Double,
         recurringAmount: Double,
+        isTrial: Boolean,
         attempt: Int? = null,
     ) {
         val props = JSONObject()
@@ -338,13 +345,19 @@ class MixpanelAnalytics private constructor(context: Context) {
         props.put("recurring_amount", recurringAmount)
         props.putOpt("attempt", attempt)
         props.put("user_state", currentUserState())
+        props.put("is_trial", isTrial)
         track("subscription_initiated", props)
     }
 
+    /**
+     * The mandate verified in the app. [amount] is its auth amount (₹3 trial, or the paid plan's
+     * first month); [isTrial] `false` makes the user `active` (not `trial`) in Mixpanel.
+     */
     fun trackTrialPaymentCompleted(
         paymentApp: PaymentApp,
         subscriptionId: String,
         amount: Double,
+        isTrial: Boolean,
         attempt: Int? = null,
         previousStatus: String? = null,
     ) {
@@ -355,15 +368,17 @@ class MixpanelAnalytics private constructor(context: Context) {
         props.put("currency", "INR")
         props.putOpt("attempt", attempt)
         props.putEnum("previous_status", previousStatus)
+        props.put("is_trial", isTrial)
         track("trial_payment_completed", props)
-        mixpanel.people.set("subscription_status", "trial")
-        registerUserState(UserState.TRIAL)
+        val userState = if (isTrial) UserState.TRIAL else UserState.ACTIVE
+        mixpanel.people.set("subscription_status", userState)
+        registerUserState(userState)
     }
 
     /**
      * [failureReason] must be a bounded snake_case value (see the tracking plan); anything else is
      * dropped. [cfErrorCode] / [cashfreeStatus] are lower-cased Cashfree codes. [authAmount] /
-     * [recurringAmount] are the amounts the paywall shows at the failure.
+     * [recurringAmount] / [isTrial] are the offer the paywall shows at the failure.
      */
     fun trackSubscriptionFailed(
         stage: String,
@@ -371,6 +386,7 @@ class MixpanelAnalytics private constructor(context: Context) {
         paymentApp: PaymentApp?,
         authAmount: Double,
         recurringAmount: Double,
+        isTrial: Boolean,
         cfErrorCode: String? = null,
         httpStatus: Int? = null,
         cashfreeStatus: String? = null,
@@ -387,6 +403,7 @@ class MixpanelAnalytics private constructor(context: Context) {
         props.put("auth_amount", authAmount)
         props.put("recurring_amount", recurringAmount)
         props.put("user_state", currentUserState())
+        props.put("is_trial", isTrial)
         track("subscription_failed", props)
     }
 

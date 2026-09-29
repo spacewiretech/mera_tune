@@ -248,6 +248,18 @@
     <string name="member_row_photo">Photo on calls chalu karein</string>
     <string name="member_row_family">Family ke liye tunes banayein</string>
     <string name="member_cta">Apni tune banayein</string>
+    <!-- Paid offer: a returning user (a mandate was authorised before) gets no ₹3 trial; the first month is charged at the mandate. -->
+    <string name="paywall_title_paid">Get Full Access for</string>
+    <string name="paywall_renewal_paid">per month • Cancel anytime</string>
+    <!-- %1$s = the monthly price. -->
+    <string name="paywall_faq_q2_paid">How does the ₹%1$s/month membership work?</string>
+    <!-- %1$s = charged today (the first month), %2$s = the monthly autopay (both a2 and a4). -->
+    <string name="paywall_faq_a2_paid">Aaj ₹%1$s dekar membership shuru karein. Yeh pehle mahine ka payment hai. Payment ke waqt aapke UPI app mein Autopay set hota hai, aur phir har mahine ₹%2$s apne aap katenge, jab tak aap cancel na karein.</string>
+    <string name="paywall_faq_a4_paid">Haan, abhi ₹%1$s katenge. Yeh pehle mahine ka payment hai aur wapas nahi hota. Uske baad har mahine ₹%2$s Autopay se katenge. Aap kabhi bhi cancel kar sakte hain; cancel karne ke baad aage koi charge nahi katega.</string>
+    <string name="member_subtitle_paid">₹%1$s/month · Kabhi bhi cancel karein</string>
+    <!-- Toasts: create-subscription answered with another price than shown (no checkout opened); the user is already a member. -->
+    <string name="paywall_offer_updated">Price update ho gaya, dobara check karein</string>
+    <string name="paywall_already_member">Aap pehle se member hain</string>
     <!-- lane B -->
     <string name="song_choice_choose">chuno</string>
     <string name="song_choice_choose_a11y">%1$s chuniye</string>

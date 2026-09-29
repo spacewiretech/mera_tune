@@ -199,6 +199,15 @@
     <string name="member_row_photo">কলে ছবি চালু করুন</string>
     <string name="member_row_family">পরিবারের জন্য টিউন বানান</string>
     <string name="member_cta">আপনার টিউন বানান</string>
+    <!-- Paid offer for returning users (no ₹3 trial) and its toasts: native review pending -->
+    <string name="paywall_title_paid">সম্পূর্ণ অ্যাক্সেস পান</string> <!-- native review pending -->
+    <string name="paywall_renewal_paid">প্রতি মাসে • যেকোনো সময় বাতিল করুন</string> <!-- native review pending -->
+    <string name="paywall_faq_q2_paid">₹%1$s/মাসের মেম্বারশিপ কীভাবে কাজ করে?</string> <!-- native review pending -->
+    <string name="paywall_faq_a2_paid">আজ ₹%1$s দিয়ে মেম্বারশিপ শুরু করুন। এটি প্রথম মাসের পেমেন্ট। পেমেন্টের সময় আপনার UPI অ্যাপে অটোপে সেট হয়, তারপর প্রতি মাসে ₹%2$s নিজে থেকে কাটা হবে, যতক্ষণ না আপনি বাতিল করেন।</string> <!-- native review pending -->
+    <string name="paywall_faq_a4_paid">হ্যাঁ, এখন ₹%1$s কাটা হবে। এটি প্রথম মাসের পেমেন্ট এবং ফেরতযোগ্য নয়। তারপর প্রতি মাসে ₹%2$s অটোপে-তে কাটা হবে। আপনি যেকোনো সময় বাতিল করতে পারেন; বাতিলের পর আর কোনো চার্জ কাটা হবে না।</string> <!-- native review pending -->
+    <string name="member_subtitle_paid">₹%1$s/মাস · যেকোনো সময় বাতিল করুন</string> <!-- native review pending -->
+    <string name="paywall_offer_updated">দাম আপডেট হয়েছে, আবার দেখে নিন</string> <!-- native review pending -->
+    <string name="paywall_already_member">আপনি আগে থেকেই মেম্বার</string> <!-- native review pending -->
     <!-- lane B -->
     <!-- UI refresh: native review pending -->
     <string name="song_choice_choose">বাছুন</string>

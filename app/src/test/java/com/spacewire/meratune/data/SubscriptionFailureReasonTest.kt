@@ -18,6 +18,10 @@ class SubscriptionFailureReasonTest {
         assertEquals(SubscriptionFailureReason.MISSING_USER_ID, SubscriptionFailureReason.createReasonForStatus(400))
         assertEquals(SubscriptionFailureReason.USER_NOT_FOUND, SubscriptionFailureReason.createReasonForStatus(404))
         assertEquals(SubscriptionFailureReason.ALREADY_ACTIVE, SubscriptionFailureReason.createReasonForStatus(409))
+        assertEquals(
+            SubscriptionFailureReason.APP_UPDATE_REQUIRED,
+            SubscriptionFailureReason.createReasonForStatus(426),
+        )
         assertEquals(SubscriptionFailureReason.GATEWAY_ERROR, SubscriptionFailureReason.createReasonForStatus(502))
         assertEquals(
             SubscriptionFailureReason.GATEWAY_NOT_CONFIGURED,

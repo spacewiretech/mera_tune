@@ -11,6 +11,7 @@
 import { assert, assertEquals, assertMatch } from "jsr:@std/assert@1";
 import { cleanProps, mixpanelInsertId, type MixpanelProps } from "../_shared/mixpanel.ts";
 import {
+  activationPeopleOps,
   CANCELLED_STATUSES,
   cancelledProps,
   cancelPreviousStatus,
@@ -114,7 +115,8 @@ function eventsFor(payload: Payload): SentEvent[] {
             subscriptionId: payment.subscriptionId,
             auth: payment.auth,
             cfPaymentId: payment.cfPaymentId,
-            configAuthAmount: 3,
+            authAmount: 3,
+            isTrial: true,
             trialDays: 1,
             recurringAmount: 299,
             intervalMonths: 1,
@@ -384,7 +386,8 @@ Deno.test("trial_payment_succeeded from AUTH success reads the mandate amount, P
     subscriptionId: payment.subscriptionId,
     auth: payment.auth,
     cfPaymentId: payment.cfPaymentId,
-    configAuthAmount: 3,
+    authAmount: 3,
+    isTrial: true,
     trialDays: 1,
     recurringAmount: 299,
     intervalMonths: 1,
@@ -399,20 +402,53 @@ Deno.test("trial_payment_succeeded from AUTH success reads the mandate amount, P
     upi_handle: "ybl",
     payment_app: "phonepe",
     cf_payment_id: "49988825",
+    is_trial: true,
     trial_days: 1,
     recurring_amount: 299,
     interval_months: 1,
   });
   assertEquals(paymentInsertId(trialPaymentId(trial)), "49988825");
   const start = Date.parse("2025-08-07T05:04:23Z");
-  assertEquals(trialPeopleOps(start, 1), {
+  const trialPeople = {
     set: {
       subscription_status: "trial",
       trial_started_at: "2025-08-07T05:04:23",
       trial_ends_at: "2025-08-08T05:04:23",
       autopay_enabled: true,
     },
-  });
+  };
+  assertEquals(trialPeopleOps(start, 1), trialPeople);
+  assertEquals(activationPeopleOps(trial, start), trialPeople);
+});
+
+Deno.test("trial_payment_succeeded for a returning user's paid month: is_trial false, no trial days or trial profile", async () => {
+  const payment = parsePayment((await fixture("auth_status_success")).data);
+  const paid = {
+    subscriptionId: payment.subscriptionId,
+    auth: { ...payment.auth, authorization_amount: 299 },
+    cfPaymentId: payment.cfPaymentId,
+    authAmount: 299,
+    isTrial: false,
+    // Even if a caller passes the configured trial length, a paid month has none.
+    trialDays: 1,
+    recurringAmount: 299,
+    intervalMonths: 1,
+    activatedVia: "webhook" as const,
+  };
+  const props = sent("trial_payment_succeeded", trialPaymentSucceededProps(paid));
+  assertEquals(props.is_trial, false);
+  assertEquals(props.trial_days, 0);
+  assertEquals(props.amount, 299);
+  assertEquals(props.recurring_amount, 299);
+  // Without Cashfree's amount, the row's authorisation amount (never app_config's ₹3).
+  const { authorization_amount: _dropped, ...authWithoutAmount } = paid.auth;
+  assertEquals(trialPaymentSucceededProps({ ...paid, auth: authWithoutAmount }).amount, 299);
+
+  const people = activationPeopleOps(paid, Date.parse("2025-08-07T05:04:23Z"));
+  assertEquals(people, { set: { subscription_status: "active", autopay_enabled: true } });
+  assert(!("trial_started_at" in (people.set ?? {})));
+  assert(!("trial_ends_at" in (people.set ?? {})));
+  assert(SERVER_EVENT_PROPS.trial_payment_succeeded.includes("is_trial"));
 });
 
 Deno.test("trial_payment_succeeded from app verify: no Cashfree payment id, so the key is hashed", () => {
@@ -423,7 +459,8 @@ Deno.test("trial_payment_succeeded from app verify: no Cashfree payment id, so t
       payment_id: "ab-SUBV2ODRFhdJuHlcQYyFw-1",
       payment_method: { upi: { upi_id: "9910000000@okicici" } },
     },
-    configAuthAmount: 3,
+    authAmount: 3,
+    isTrial: true,
     trialDays: 1,
     recurringAmount: 299,
     intervalMonths: 1,
@@ -490,6 +527,23 @@ Deno.test("isTrialExpiryCandidate: started, not yet reported, and a cancelled ro
   assert(isTrialExpiryCandidate({ ...started, status: "cancelled" }, "cancelled_in_trial"));
   assert(!isTrialExpiryCandidate({ ...started, status: "cancelled" }, "mandate_expired"));
   assert(!isTrialExpiryCandidate({ ...started, status: "cancelled" }, "card_expired"));
+  // Trial rows (and legacy rows without a plan_type) keep today's behaviour.
+  assert(isTrialExpiryCandidate({ ...started, plan_type: "trial" }, "cancelled_in_trial"));
+  assert(isTrialExpiryCandidate({ ...started, plan_type: null }, "mandate_expired"));
+});
+
+Deno.test("isTrialExpiryCandidate: a paid monthly row never sends trial_expired", () => {
+  const monthly = {
+    status: "active",
+    plan_type: "monthly",
+    start_date: "2025-08-07T05:04:23+00:00",
+    trial_expired_at: null,
+  };
+  for (const reason of ["cancelled_in_trial", "mandate_expired", "mandate_completed", "card_expired"] as const) {
+    assert(!isTrialExpiryCandidate(monthly, reason), reason);
+    assert(!isTrialExpiryCandidate({ ...monthly, status: "cancelled" }, reason), `cancelled ${reason}`);
+    assert(!isTrialExpiryCandidate({ ...monthly, plan_type: " MONTHLY " }, reason), `spaced ${reason}`);
+  }
 });
 
 Deno.test("trial_expired from EXPIRED: reason, counts and the subscription id only", async () => {
@@ -588,6 +642,34 @@ Deno.test("subscription_cancelled keeps the existing props and adds who and from
   assertEquals(cancelPreviousStatus("pending", 0), "pending");
   assertEquals(cancelPreviousStatus("active", 0), "trial");
   assertEquals(cancelPreviousStatus("active", 1), "active");
+  assertEquals(cancelPreviousStatus("active", 0, "trial"), "trial");
+  assertEquals(cancelPreviousStatus("active", 0, null), "trial");
+});
+
+Deno.test("subscription_cancelled for a paid monthly row: previous_status active, never cancelled_during_trial", async () => {
+  const change = parseStatusChange((await fixture("status_changed_customer_cancelled")).data);
+  const props = sent("subscription_cancelled", cancelledProps(change, {
+    rowStatus: "active",
+    planType: "monthly",
+    lifetimeRenewals: 0,
+    subscriptionRenewals: 0,
+    userDowngraded: true,
+  }));
+  assertEquals(props.previous_status, "active");
+  assertEquals(props.cancelled_during_trial, false);
+  assertEquals(cancelPreviousStatus("active", 0, "monthly"), "active");
+  assertEquals(cancelPreviousStatus("active", 3, "monthly"), "active");
+  // A monthly mandate cancelled before it was authorised is still pending.
+  assertEquals(cancelPreviousStatus("pending", 0, "monthly"), "pending");
+  // The same never-charged row as a trial is a cancel during the trial.
+  const trialProps = cancelledProps(change, {
+    rowStatus: "active",
+    planType: "trial",
+    lifetimeRenewals: 0,
+    subscriptionRenewals: 0,
+    userDowngraded: true,
+  });
+  assertEquals(trialProps.cancelled_during_trial, true);
 });
 
 Deno.test("subscription_status_changed: on hold with the next schedule date", async () => {

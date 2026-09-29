@@ -49,7 +49,7 @@ generate-ringtone ── after the response (EdgeRuntime.waitUntil):
 
 **Generation outcomes are server-owned.** `generate-ringtone` sends `name_lookup_completed`, `ringtone_created` and `ringtone_generation_failed` for every `error_code` it returns except `UNAUTHORIZED` and the busy codes the app re-posts by itself (`GENERATION_IN_PROGRESS`, `TTS_RATE_LIMITED`). The app sends `ringtone_generation_started` and `creation_limit_reached`, and sends `ringtone_generation_failed` only for failures that carry no server `error_code` (user cancel, transport, timeout, unreadable response) plus `unauthorized`, which the server cannot attribute (`GenerationErrorCode.appReportsFailure`). The app's 155 s request timeout is past the function's worst case (TTS 55 s + mix 60 s + upload 20 s) and the 150 s Edge request limit, so the app and the server never both report one attempt. Deploy `generate-ringtone` before or with the app release. Ops and cost reporting for generation stays SQL over `generated_ringtones` / `ringtone_renders`.
 
-Trial activation is tracked on the server: `trial_payment_succeeded` fires once per subscription row, from whichever of the `SUBSCRIPTION_AUTH_STATUS` webhook and `verify-subscription` flips the `pending` row. **Count trials with `trial_payment_succeeded`**, and unconverted trials with `trial_expired`. The app's `trial_payment_completed` stays for app-side attribution and fires in the same handler as Meta `Purchase` and Firebase `purchase`.
+Trial activation is tracked on the server: `trial_payment_succeeded` fires once per subscription row, from whichever of the `SUBSCRIPTION_AUTH_STATUS` webhook and `verify-subscription` flips the `pending` row. It also fires for a returning user's paid first month (no trial; see [Trial eligibility](#trial-eligibility-and-the-paid-offer)) with `is_trial = false`. **Count trials with `trial_payment_succeeded` where `is_trial != false`** (events before 2026-09-29 have no `is_trial` and are all trials), and unconverted trials with `trial_expired`. The app's `trial_payment_completed` stays for app-side attribution and fires in the same handler as Meta `Purchase` and Firebase `purchase`.
 
 ---
 
@@ -101,11 +101,18 @@ Amounts are server config in `app_config`, read by `create-subscription`, `verif
 
 | Key | Function default | Note |
 |-----|------------------|------|
-| `subscription_auth_amount` | `3` | Trial / mandate auth amount |
-| `subscription_recurring_amount` | `299` | Seeded as `249`, raised to `299` by `20260813140000_add_cashfree_plan_id.sql` |
+| `subscription_auth_amount` | `3` | Trial auth amount (trial-eligible users only) |
+| `subscription_recurring_amount` | `299` | Seeded as `249`, raised to `299` by `20260813140000_add_cashfree_plan_id.sql`. Returning users pay it upfront as their auth amount |
 | `subscription_interval_months` | `1` | Seeded as `3`. Confirm prod is `1`: the paywall's "/month" copy assumes it |
+| `subscription_trial_days` | `1` | Trial length (`trial_days`); `0` on a paid first month |
 
-`create-subscription` returns the auth and recurring amounts. They feed `subscription_initiated.auth_amount` / `recurring_amount` (and the same two properties on `subscription_failed`), `trial_payment_completed.amount` (fallback `3.0`), the Meta and Firebase purchase value, and the paywall and member-screen price labels (the defaults 3 / 299 show until that response).
+`create-subscription` returns the auth and recurring amounts of the user's offer (`auth_amount` = `3` for a trial, `299` for a returning user's paid first month). They feed `subscription_initiated.auth_amount` / `recurring_amount` (and the same two properties on `subscription_failed`), `trial_payment_completed.amount` (fallback `3.0`), the Meta and Firebase purchase value, and the paywall and member-screen price labels (the defaults 3 / 299 show until that response). Activation never re-reads these keys for the amount: the subscription row keeps the amount it was created with.
+
+### Trial eligibility and the paid offer
+
+The ₹3 trial is for users who never had an authorised mandate, by user id or by phone (last 10 digits). Everyone else (a cancelled or expired member coming back) gets a paid mandate: `plan_type = monthly`, the first month (`subscription_recurring_amount`, `299`) charged when the mandate is authorised, the next charge the same IST day `subscription_interval_months` later at 10:00 IST. Its activation sets `users.status = active` (member quota), sends `trial_payment_succeeded` with `is_trial = false` and never sends `trial_expired`. The scenario table is in `AGENTS.md` ([Trial eligibility](../AGENTS.md#trial-eligibility-and-the-paid-offer)); the rules are `_shared/subscription-offer.ts`.
+
+Deploy `cashfree-webhook` and `verify-subscription` **before or with** `create-subscription`: an older webhook or verify would activate a paid `monthly` row as a ₹3 trial. No migration: `plan_type` already has `monthly`.
 
 ### Cashfree Dashboard → Webhooks
 
@@ -204,15 +211,15 @@ People updates use `set`, `set_once` and `unset` only. There are **no increments
 | `$name` | set | Identify (login / signup / trial payment), when non-blank | App |
 | `$created` | set_once | Identify (server `created_at`); `sign_up_completed` (now) is a no-op if already set | App |
 | `first_app_version` | set_once | Identify | App |
-| `subscription_status` | set | Identify: `users.status`. `"trial"`: `trial_payment_completed`, `trial_payment_succeeded`. `"active"`: `subscription_paid`. `"cancelled"`: `subscription_cancelled`, only when `users.status` was downgraded | App + server |
+| `subscription_status` | set | Identify: `users.status`. `"trial"`: `trial_payment_completed`, `trial_payment_succeeded` (trial). `"active"`: `trial_payment_succeeded` with `is_trial = false`, `subscription_paid`. `"cancelled"`: `subscription_cancelled`, only when `users.status` was downgraded | App + server |
 | `phone_state_granted`, `contacts_granted`, `notifications_enabled`, `write_settings_granted`, `call_control_granted` | set | `app_opened`, identified users only | App |
 | `initial_acquisition_source`, `initial_utm_source`, `initial_utm_medium`, `initial_utm_campaign`, `initial_utm_term`, `initial_utm_content` | set_once | `install_attributed`, and again at every identify so the first touch reaches the user's profile when the event ran before login (blank values omitted) | App |
 | `app_language` | set | `language_selected` | App |
 | `last_ringtone_category` | set | `ringtone_created` (server) or `ringtone_set` (app); DB category name | App + server |
 | `meratune_ringtone_active` | set | `true` at `ringtone_set`, `false` at `ringtone_replaced_externally` | App |
 | `has_call_theme` | set | `ringtone_set` | App |
-| `trial_started_at`, `trial_ends_at` | set | `trial_payment_succeeded` | Server |
-| `autopay_enabled` | set | `true` at `trial_payment_succeeded`, `false` at `subscription_cancelled` | Server |
+| `trial_started_at`, `trial_ends_at` | set | `trial_payment_succeeded`, trials only (never with `is_trial = false`) | Server |
+| `autopay_enabled` | set | `true` at `trial_payment_succeeded` (trial or paid), `false` at `subscription_cancelled` | Server |
 | `total_renewals` | set | `subscription_paid` (`renewal_number`) | Server |
 | `last_billing_month` | set | `subscription_paid` (IST `YYYY-MM`) | Server |
 | `last_renewal_amount` | set | `subscription_paid` | Server |
@@ -274,8 +281,8 @@ Exits and failures:
 
 | Event | Who sends it | Typical amount | Meaning |
 |-------|----------------|----------------|---------|
-| `trial_payment_succeeded` | Server (webhook or verify), once per subscription row | Auth amount from Cashfree, else `app_config.subscription_auth_amount` (default `3`) | Mandate authorised, trial started. **Trial counts** |
-| `trial_expired` | Webhook only, once per subscription row | — | Trial ended with no recurring charge. **Unconverted trials** |
+| `trial_payment_succeeded` | Server (webhook or verify), once per subscription row | Auth amount from Cashfree, else the subscription row's (`3` for a trial, `299` for a paid first month) | Mandate authorised: trial started, or (`is_trial = false`) a returning user's paid first month. **Trial counts: `is_trial != false`** |
+| `trial_expired` | Webhook only, once per trial subscription row (never a paid `monthly` row) | — | Trial ended with no recurring charge. **Unconverted trials** |
 | `trial_payment_completed` | Android app after verify (checkout verify or a manual Pending re-check) | Auth amount from `create-subscription` (fallback `3.0` INR) | Same moment, app-side; kept for attribution parity with Meta `Purchase` / Firebase `purchase` |
 | `subscription_paid` | Webhook only | The recurring charge (`app_config.subscription_recurring_amount`, default `299`) | Autopay charge succeeded |
 
@@ -293,7 +300,7 @@ Exits and failures:
 ### Suggested Mixpanel Insights funnels
 
 1. **OTP → account:** `otp_sent` → `sign_up_completed` or `login_completed` (break down `otp_verification_failed` by `failure_reason`, `otp_entry_method`; `auth_failed` by `stage`, `failure_reason`)
-2. **Trial conversion:** `subscription_screen_viewed` → `subscription_cta_tapped` → `subscription_initiated` → `trial_payment_succeeded` (break down by `entry_point`, `payment_app`); drop-off: `paywall_dismissed` (by `dismiss_method`)
+2. **Trial conversion:** `subscription_screen_viewed` → `subscription_cta_tapped` → `subscription_initiated` → `trial_payment_succeeded` (break down by `is_trial`, `entry_point`, `payment_app`; `is_trial = false` is a returning user's paid first month); drop-off: `paywall_dismissed` (by `dismiss_method`)
 3. **Checkout drop-off:** `subscription_initiated` → `subscription_failed` (break down by `stage`, `failure_reason`, `payment_app`) and `mandate_auth_failed` (`failure_reason`, `upi_handle`). Count users, not events: each manual Pending re-check adds a `verify` failure
 4. **Activation:** `trial_payment_succeeded` → `create_ringtone_cta_tapped` (`source = membership_welcome`) → `ringtone_created` → `ringtone_set`
 5. **Create flow:** `ringtone_creation_started` → `sample_list_viewed` → `sample_selected` → `set_mode_selected` → `ringtone_generation_started` → `ringtone_created` → `ringtone_set` (break down by `entry_point`, `language`, `fallback_level`, `cached`, `set_mode`)
@@ -576,8 +583,8 @@ Each event keeps only its allowlisted properties (`SERVER_EVENT_PROPS` in `subsc
 
 | Event | Cashfree type / sender | Conditions and guard | Properties | `$insert_id` key |
 |-------|------------------------|----------------------|------------|------------------|
-| `trial_payment_succeeded` | `SUBSCRIPTION_AUTH_STATUS` SUCCESS (`activated_via = webhook`), or `verify-subscription` (`activated_via = app_verify`) | Conditional update of the `pending` row; only the writer that flips it sends the event, so exactly one of the two wins. Both set `cashfree_status = ACTIVE` / `cashfree_status_at`. `verify-subscription` tracks only for its own `mt_<user_id>_…` ids | `subscription_id`, `amount`, `currency`, `activated_via`, `payment_group`, `upi_handle`, `payment_app`, `cf_payment_id`, `trial_days`, `recurring_amount`, `interval_months` | The auth `cf_payment_id` as-is, else `trial:<subscription row id>` |
-| `trial_expired` | `SUBSCRIPTION_STATUS_CHANGED` cancel (`cancelled_in_trial`, sent after `subscription_cancelled`), or `EXPIRED` / `COMPLETED` / `CARD_EXPIRED` (`mandate_expired` / `mandate_completed` / `card_expired`) | Only for a row that started a trial (`start_date` set) and has no recurring charge on this subscription. Once per row: compare-and-set of `subscriptions.trial_expired_at` (NULL → event time); a failed claim returns 500, so the retry sends it. A cancelled row belongs to its cancel, so a later `EXPIRED` / `COMPLETED` doesn't report it; a stale delivery never does. `ON_HOLD` is not an end (it can recover). No people update | `reason`, `ringtones_created`, `days_since_trial_start`, `subscription_id` | `trial_expired:<subscription row id>` |
+| `trial_payment_succeeded` | `SUBSCRIPTION_AUTH_STATUS` SUCCESS (`activated_via = webhook`), or `verify-subscription` (`activated_via = app_verify`) | Conditional update of the `pending` row; only the writer that flips it sends the event, so exactly one of the two wins. Both set `cashfree_status = ACTIVE` / `cashfree_status_at` and activate by the row's `plan_type` (`trial`: `users.status = trial`; `monthly`: `users.status = active`, `is_trial = false`, `trial_days = 0`, no `trial_*` profile properties). `verify-subscription` tracks only for its own `mt_<user_id>_…` ids | `subscription_id`, `amount`, `currency`, `activated_via`, `payment_group`, `upi_handle`, `payment_app`, `cf_payment_id`, `is_trial`, `trial_days`, `recurring_amount`, `interval_months` | The auth `cf_payment_id` as-is, else `trial:<subscription row id>` |
+| `trial_expired` | `SUBSCRIPTION_STATUS_CHANGED` cancel (`cancelled_in_trial`, sent after `subscription_cancelled`), or `EXPIRED` / `COMPLETED` / `CARD_EXPIRED` (`mandate_expired` / `mandate_completed` / `card_expired`) | Only for a trial row (`plan_type` not `monthly`) that started (`start_date` set) and has no recurring charge on this subscription. Once per row: compare-and-set of `subscriptions.trial_expired_at` (NULL → event time); a failed claim returns 500, so the retry sends it. A cancelled row belongs to its cancel, so a later `EXPIRED` / `COMPLETED` doesn't report it; a stale delivery never does. `ON_HOLD` is not an end (it can recover). No people update | `reason`, `ringtones_created`, `days_since_trial_start`, `subscription_id` | `trial_expired:<subscription row id>` |
 | `mandate_auth_failed` | `SUBSCRIPTION_AUTH_STATUS` FAILED / CANCELLED | No DB writes | `failure_reason`, `payment_status`, `payment_group`, `upi_handle`, `retry_attempts`, `subscription_id` | `auth_failed:<cf_payment_id>:<status>:<retry_attempts>` (or cf subscription id + event time) |
 | `subscription_paid` | `SUBSCRIPTION_PAYMENT_SUCCESS` | See [skip conditions](#trial-vs-recurring-do-not-mix-these). Row upserted into `subscription_payments` with `ignoreDuplicates`; tracked only when a row was inserted | `amount`, `currency`, `payment_type` (`"recurring"`), `renewal_number`, `subscription_renewal_number`, `is_first_charge`, `billing_month`, `subscription_id`, `cf_payment_id`, `retry_attempts`, `is_retry_recovery`, `payment_group`, `upi_handle`, `days_since_trial_start`, `amount_mismatch` | `paid:<cf_payment_id>` |
 | `subscription_renewal_failed` | `SUBSCRIPTION_PAYMENT_FAILED`, `SUBSCRIPTION_PAYMENT_CANCELLED` | Charges only. Never inserted into `subscription_payments`: its UNIQUE `cf_payment_id` would block the later successful retry | `amount`, `currency`, `payment_status`, `failure_reason`, `retry_attempts`, `subscription_id`, `cf_payment_id` | `<type>:<cf_payment_id>:<retry_attempts>` |
@@ -594,7 +601,8 @@ Each event keeps only its allowlisted properties (`SERVER_EVENT_PROPS` in `subsc
 - `trial_expired.ringtones_created` = the user's `generated_ringtones` that are ready and not cached (all time); omitted when the count fails. `CARD_EXPIRED` can resume after a card update (`transition = resumed`), so a `card_expired` `trial_expired` can precede a `subscription_paid`; the app only opens UPI mandates.
 - `renewal_number` = the user's existing `recurring` rows in `subscription_payments` (all subscriptions) + 1. `subscription_renewal_number` counts this subscription row only; `is_first_charge` = `subscription_renewal_number == 1`.
 - `billing_month` = IST month of Cashfree `payment_schedule_date`, else of `event_time`.
-- `renewals_before_cancel` = the user's recurring rows at cancel time. `previous_status` counts an `active` row that was never charged as `trial`.
+- `renewals_before_cancel` = the user's recurring rows at cancel time. `previous_status` counts an `active` trial row that was never charged as `trial`; a paid `monthly` row is `active` from activation, so its `cancelled_during_trial` is always `false`.
+- `is_trial` (on `trial_payment_succeeded`) is `false` for a returning user's paid first month (`plan_type = monthly`, `amount` = `299`, `trial_days` = `0`); that mandate's next charge, a month later, is a normal `subscription_paid` with `is_first_charge = true`.
 - `days_since_trial_start` = whole days from `subscriptions.start_date` to the event.
 - `payment_group`: `upi`, `card`, `enach`, `pnach`, `other`. `payment_status`, `status`, `refund_status` are lower-cased Cashfree values.
 - Side effect of `subscription_paid`: Meta Conversions API `Subscribe` with `event_id` = `cf_payment_id` (not Mixpanel).

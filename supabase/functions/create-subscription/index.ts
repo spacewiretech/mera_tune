@@ -1,5 +1,15 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createServiceClient, type ServiceClient } from "../_shared/supabase-client.ts";
+import {
+  type HistoryRow,
+  offerConfig,
+  phoneKey,
+  phoneLikePattern,
+  rowShowsAuthorisation,
+  subscriptionOffer,
+  type TrialHistory,
+  trialEligibility,
+} from "../_shared/subscription-offer.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -92,36 +102,88 @@ async function createCashfreeSubscription(
   return { response, result };
 }
 
-/** Next calendar day at 10:00 IST. Edge runs in UTC; must not use local getDate(). */
-function tomorrowMorningIst(): string {
-  const istToday = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date()); // YYYY-MM-DD in IST
-  const [y, m, d] = istToday.split("-").map(Number);
-  // Noon UTC on the IST calendar day avoids DST edge cases (IST has none).
-  const tomorrow = new Date(Date.UTC(y, m - 1, d + 1, 12));
-  const ty = tomorrow.getUTCFullYear();
-  const tm = String(tomorrow.getUTCMonth() + 1).padStart(2, "0");
-  const td = String(tomorrow.getUTCDate()).padStart(2, "0");
-  return `${ty}-${tm}-${td}T10:00:00+05:30`;
+const HISTORY_COLUMNS = "id, status, plan_type, start_date, cashfree_status, phone, created_at";
+/** Rows read per history query; pending rows are reused, so a user has only a few. */
+const HISTORY_LIMIT = 50;
+
+type HistorySubscription = HistoryRow & { id: number; phone?: string | null };
+
+type UserRow = { id: number; phone: string; name: string | null; status: string | null };
+
+/**
+ * Trial evidence of the user and of the phone (last 10 digits, any user id). A failed query fails
+ * closed (paid offer): a DB error never hands out a trial. `own` is the user's rows, newest first.
+ */
+async function loadTrialHistory(
+  supabase: ServiceClient,
+  user: UserRow,
+): Promise<{ history: TrialHistory; own: HistorySubscription[] }> {
+  const key = phoneKey(user.phone);
+  const [ownResult, phoneResult, paymentsResult] = await Promise.all([
+    supabase
+      .from("subscriptions")
+      .select(HISTORY_COLUMNS)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(HISTORY_LIMIT),
+    key
+      ? supabase
+        .from("subscriptions")
+        .select(HISTORY_COLUMNS)
+        .like("phone", phoneLikePattern(key))
+        .order("created_at", { ascending: false })
+        .limit(HISTORY_LIMIT)
+      : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("subscription_payments")
+      .select("id")
+      .eq("user_id", user.id)
+      .in("payment_type", ["auth", "recurring"])
+      .limit(1),
+  ]);
+
+  const failed: string[] = [];
+  for (const [query, error] of [
+    ["own", ownResult.error],
+    ["phone", phoneResult.error],
+    ["payments", paymentsResult.error],
+  ] as const) {
+    if (!error) continue;
+    failed.push(query);
+    console.error("create-subscription trial history query failed:", query, error.message);
+  }
+
+  const own = (ownResult.data ?? []) as HistorySubscription[];
+  const samePhone = ((phoneResult.data ?? []) as HistorySubscription[])
+    .filter((row) => phoneKey(row.phone) === key);
+  return {
+    history: {
+      userStatus: user.status,
+      subscriptions: [...own, ...samePhone],
+      paymentCount: paymentsResult.data?.length ?? 0,
+      lookupFailed: failed.length > 0,
+    },
+    own,
+  };
 }
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { user_id: userId } = await req.json();
+    const body = (await req.json()) ?? {};
+    const userId = body.user_id;
     if (!userId) return jsonResponse({ error: "user_id is required" }, 400);
+    const preview = body.preview === true;
+    // Sent by app builds that show the paid offer; older builds would show ₹3 and then ask ₹299.
+    const paidOfferSupported = body.paid_offer_supported === true;
 
     const supabase = createServiceClient();
 
     const config = await getConfig(supabase);
     const clientId = config.cashfree_client_id?.trim();
     const clientSecret = config.cashfree_client_secret?.trim();
-    if (!clientId || !clientSecret) {
+    if (!preview && (!clientId || !clientSecret)) {
       return jsonResponse({ error: "Payment gateway is not configured" }, 503);
     }
 
@@ -133,23 +195,55 @@ Deno.serve(async (req: Request) => {
 
     if (userError || !user) return jsonResponse({ error: "User not found" }, 404);
 
-    const { data: existingSub } = await supabase
+    // On its own: with an active and a pending row, a combined lookup errors and a second mandate
+    // would be created. Unknown means nothing is created.
+    const { data: activeRows, error: activeError } = await supabase
       .from("subscriptions")
-      .select("id, status, cashfree_subscription_id")
-      .eq("user_id", userId)
-      .in("status", ["pending", "active"])
-      .maybeSingle();
-
-    if (existingSub?.status === "active") {
-      return jsonResponse({ error: "Subscription already active" }, 409);
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .limit(1);
+    if (activeError) {
+      console.error("create-subscription active lookup failed:", activeError.message);
+      return jsonResponse({ error: "Internal server error" }, 500);
+    }
+    if (activeRows?.length) {
+      return jsonResponse({ error: "Subscription already active", error_code: "ALREADY_ACTIVE" }, 409);
     }
 
-    const authAmount = parseFloat(config.subscription_auth_amount || "3");
-    const recurringAmount = parseFloat(config.subscription_recurring_amount || "299");
-    const intervalMonths = parseInt(config.subscription_interval_months || "1", 10);
+    const { history, own } = await loadTrialHistory(supabase, user as UserRow);
+    const eligibility = trialEligibility(history);
+    const nowMs = Date.now();
+    const offer = subscriptionOffer(eligibility.eligible, offerConfig(config), nowMs);
+    console.log(JSON.stringify({
+      fn: "create-subscription",
+      user_id: user.id,
+      offer: offer.offer,
+      reason: eligibility.reason,
+      preview,
+    }));
+
+    if (preview) {
+      return jsonResponse({
+        offer: offer.offer,
+        trial_eligible: offer.trialEligible,
+        auth_amount: offer.authAmount,
+        recurring_amount: offer.recurringAmount,
+        interval_months: offer.intervalMonths,
+        trial_days: offer.trialDays,
+      });
+    }
+
+    if (offer.offer === "paid" && !paidOfferSupported) {
+      return jsonResponse({
+        error: "Naya plan dekhne ke liye MeraTune app update karein.",
+        error_code: "APP_UPDATE_REQUIRED",
+      }, 426);
+    }
+
     const apiVersion = config.cashfree_api_version || "2025-01-01";
     const environment = config.cashfree_environment || "sandbox";
-    const subscriptionId = `mt_${user.id}_${Date.now()}`;
+    const subscriptionId = `mt_${user.id}_${nowMs}`;
 
     const cashfreeBody = {
       subscription_id: subscriptionId,
@@ -158,16 +252,17 @@ Deno.serve(async (req: Request) => {
         customer_email: `${user.phone}@meratune.app`,
         customer_phone: user.phone,
       },
-      plan_details: buildPlanDetails(config, recurringAmount, intervalMonths),
+      plan_details: buildPlanDetails(config, offer.recurringAmount, offer.intervalMonths),
       authorization_details: {
-        authorization_amount: authAmount,
+        // Trial: ₹3. Paid: the first month, so the next charge is a month out.
+        authorization_amount: offer.authAmount,
         authorization_amount_refund: false,
         payment_methods: ["upi", "card", "enach"],
       },
       subscription_meta: {
         return_url: config.cashfree_return_url || "https://meratune.app/subscription/return",
       },
-      subscription_first_charge_time: tomorrowMorningIst(),
+      subscription_first_charge_time: offer.firstChargeAt,
       subscription_expiry_time: "2100-01-01T23:59:59+05:30",
       subscription_tags: {
         user_id: String(user.id),
@@ -177,8 +272,8 @@ Deno.serve(async (req: Request) => {
 
     let { response: cfResponse, result: cfResult } = await createCashfreeSubscription(
       environment,
-      clientId,
-      clientSecret,
+      clientId!,
+      clientSecret!,
       apiVersion,
       cashfreeBody,
     );
@@ -188,12 +283,16 @@ Deno.serve(async (req: Request) => {
       console.warn("Cashfree plan_id subscription failed, retrying inline plan:", cfResult);
       const inlineBody = {
         ...cashfreeBody,
-        plan_details: buildPlanDetails({ ...config, cashfree_use_plan_id: "false" }, recurringAmount, intervalMonths),
+        plan_details: buildPlanDetails(
+          { ...config, cashfree_use_plan_id: "false" },
+          offer.recurringAmount,
+          offer.intervalMonths,
+        ),
       };
       ({ response: cfResponse, result: cfResult } = await createCashfreeSubscription(
         environment,
-        clientId,
-        clientSecret,
+        clientId!,
+        clientSecret!,
         apiVersion,
         inlineBody,
       ));
@@ -215,31 +314,38 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "Invalid response from payment gateway" }, 502);
     }
 
-    if (existingSub) {
-      await supabase
+    // Activation reads plan_type, amount and (paid) next_billing_date from this row, never from
+    // app_config, so a failed write returns an error: the session is never used, nothing is charged.
+    const firstChargeIso = new Date(Date.parse(offer.firstChargeAt)).toISOString();
+    const rowFields = {
+      plan_type: offer.planType,
+      status: "pending",
+      amount: offer.authAmount,
+      next_billing_date: firstChargeIso,
+      cashfree_subscription_id: cfSubId,
+      autopay_enabled: true,
+    };
+    // A pending row that shows an authorised mandate is kept as trial evidence, not overwritten.
+    const reusable = own.find((row) => row.status === "pending" && !rowShowsAuthorisation(row));
+    const { error: rowError } = reusable
+      ? await supabase
         .from("subscriptions")
         .update({
-          plan_type: "trial",
-          status: "pending",
-          amount: authAmount,
-          cashfree_subscription_id: cfSubId,
-          autopay_enabled: true,
+          ...rowFields,
           // The abandoned mandate's status must not become the new one's previous_status.
           cashfree_status: null,
           cashfree_status_at: null,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", existingSub.id);
-    } else {
-      await supabase.from("subscriptions").insert({
+        .eq("id", reusable.id)
+      : await supabase.from("subscriptions").insert({
         user_id: user.id,
         phone: user.phone,
-        plan_type: "trial",
-        status: "pending",
-        amount: authAmount,
-        autopay_enabled: true,
-        cashfree_subscription_id: cfSubId,
+        ...rowFields,
       });
+    if (rowError) {
+      console.error("create-subscription row write failed:", rowError.message);
+      return jsonResponse({ error: "Internal server error" }, 500);
     }
 
     return jsonResponse({
@@ -247,8 +353,10 @@ Deno.serve(async (req: Request) => {
       subscription_session_id: sessionId,
       cf_subscription_id: cfSubId,
       environment,
-      auth_amount: authAmount,
-      recurring_amount: recurringAmount,
+      auth_amount: offer.authAmount,
+      recurring_amount: offer.recurringAmount,
+      offer: offer.offer,
+      first_charge_at: offer.firstChargeAt,
     });
   } catch (err) {
     console.error("create-subscription error:", err);

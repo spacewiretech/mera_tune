@@ -23,6 +23,7 @@ import {
   recordAuthPayment,
 } from "../_shared/subscription-payments.ts";
 import {
+  activationPeopleOps,
   CANCELLED_STATUSES,
   cancelledProps,
   chargeSkipReason,
@@ -53,9 +54,9 @@ import {
   trialExpiredReason,
   trialPaymentId,
   trialPaymentSucceededProps,
-  trialPeopleOps,
   webhookRoute,
 } from "../_shared/subscription-analytics.ts";
+import { activationFields, offerConfig } from "../_shared/subscription-offer.ts";
 import {
   parseSignatureMode,
   signatureDecision,
@@ -70,7 +71,7 @@ const corsHeaders = {
 };
 
 const SUBSCRIPTION_COLUMNS =
-  "id, user_id, status, cashfree_subscription_id, cashfree_status, cashfree_status_at, start_date, trial_expired_at, created_at";
+  "id, user_id, status, plan_type, amount, next_billing_date, cashfree_subscription_id, cashfree_status, cashfree_status_at, start_date, trial_expired_at, created_at";
 
 type Json = Record<string, unknown>;
 
@@ -185,14 +186,19 @@ async function emit(ctx: WebhookContext, userId: number, send: ServerEventSend):
 
 async function handleAuthStatus(ctx: WebhookContext, data: Json) {
   const payment = parsePayment(data);
-  if (payment.paymentStatus === "SUCCESS") return await activateTrial(ctx, data, payment);
+  if (payment.paymentStatus === "SUCCESS") return await activateMandate(ctx, data, payment);
   if (payment.paymentStatus === "FAILED" || payment.paymentStatus === "CANCELLED") {
     return await handleAuthFailed(ctx, payment);
   }
   return { received: true, skipped: `auth_${statusSlug(payment.paymentStatus)}` };
 }
 
-async function activateTrial(ctx: WebhookContext, data: Json, payment: PaymentFields) {
+/**
+ * Activates the pending row by its plan_type: `trial` (users.status trial, trial end) or `monthly`
+ * (a returning user's paid first month: users.status active, runs to the first charge). The
+ * amounts are the row's (written by create-subscription), never re-read from app_config.
+ */
+async function activateMandate(ctx: WebhookContext, data: Json, payment: PaymentFields) {
   const { supabase, config } = ctx;
   const cfSubId = payment.cfSubId;
   const paymentId = extractAuthPaymentId(data, cfSubId);
@@ -202,19 +208,15 @@ async function activateTrial(ctx: WebhookContext, data: Json, payment: PaymentFi
     return { received: true, skipped: "subscription_not_found" };
   }
 
-  const authAmount = parseFloat(config.subscription_auth_amount || "3");
-  const trialDays = parseInt(config.subscription_trial_days || "1", 10);
-  const recurringAmount = parseFloat(config.subscription_recurring_amount || "299");
-  const intervalMonths = parseInt(config.subscription_interval_months || "1", 10);
+  const cfg = offerConfig(config);
   const now = new Date();
-  const trialEnd = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000);
-  const nextBilling = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const activation = activationFields(subscription, cfg, now.getTime(), payment.auth.authorization_amount);
   const subUpdate: Record<string, unknown> = {
     status: "active",
-    start_date: now.toISOString(),
-    end_date: trialEnd.toISOString(),
-    amount: authAmount,
-    next_billing_date: nextBilling.toISOString(),
+    start_date: activation.startDate,
+    end_date: activation.endDate,
+    amount: activation.authAmount,
+    next_billing_date: activation.nextBillingDate,
     cashfree_subscription_id: cfSubId || subscription.cashfree_subscription_id,
     autopay_enabled: true,
     cashfree_status: "ACTIVE",
@@ -237,17 +239,19 @@ async function activateTrial(ctx: WebhookContext, data: Json, payment: PaymentFi
   if (activated) {
     const { error: userError } = await supabase
       .from("users")
-      .update({ status: "trial", updated_at: now.toISOString() })
+      .update({ status: activation.userStatus, updated_at: now.toISOString() })
       .eq("id", subscription.user_id);
-    if (userError) console.error("Failed to set user trial:", subscription.user_id, userError.message);
+    if (userError) console.error("Failed to set user status:", subscription.user_id, activation.userStatus, userError.message);
   }
 
+  // A row activated earlier can carry a later charge's amount (handlePaymentSuccess): this AUTH
+  // payment's own amount wins then.
   const recorded = await recordAuthPayment(supabase, {
     userId: subscription.user_id,
     subscriptionRowId: subscription.id,
     paymentId,
     cfSubId: cfSubId || subscription.cashfree_subscription_id || "",
-    amount: authAmount,
+    amount: (activated || !(payment.amount > 0)) ? activation.authAmount : payment.amount,
     paidAt: now.toISOString(),
   });
 
@@ -256,10 +260,11 @@ async function activateTrial(ctx: WebhookContext, data: Json, payment: PaymentFi
       subscriptionId: payment.subscriptionId,
       auth: payment.auth,
       cfPaymentId: payment.cfPaymentId,
-      configAuthAmount: authAmount,
-      trialDays,
-      recurringAmount,
-      intervalMonths,
+      authAmount: activation.authAmount,
+      isTrial: activation.isTrial,
+      trialDays: activation.trialDays,
+      recurringAmount: cfg.recurringAmount,
+      intervalMonths: cfg.intervalMonths,
       activatedVia: "webhook",
     };
     await emit(ctx, subscription.user_id, {
@@ -267,11 +272,11 @@ async function activateTrial(ctx: WebhookContext, data: Json, payment: PaymentFi
       props: trialPaymentSucceededProps(trial),
       key: eventKey.trial(subscription.id),
       insertId: paymentInsertId(trialPaymentId(trial)),
-      people: trialPeopleOps(now.getTime(), trialDays),
+      people: activationPeopleOps(trial, now.getTime()),
     });
-    console.log("Subscription activated via webhook:", payment.subscriptionId, subscription.user_id);
+    console.log("Subscription activated via webhook:", payment.subscriptionId, subscription.user_id, activation.planType);
   }
-  return { received: true, activated, auth_payment_recorded: recorded };
+  return { received: true, activated, plan_type: activation.planType, auth_payment_recorded: recorded };
 }
 
 async function handleAuthFailed(ctx: WebhookContext, payment: PaymentFields) {
@@ -489,8 +494,9 @@ async function countCreatedRingtones(supabase: ServiceClient, userId: number): P
 
 /**
  * trial_expired, once per subscription row: the trial_expired_at compare-and-set is the guard. Only
- * for a row that started a trial and has no recurring charge. A failed claim throws, so the Cashfree
- * retry sends it; the callers run this after their own event, which the retry then skips.
+ * for a row that started a trial (never a paid `monthly` row) and has no recurring charge. A failed
+ * claim throws, so the Cashfree retry sends it; the callers run this after their own event, which
+ * the retry then skips.
  */
 async function trackTrialExpired(
   ctx: WebhookContext,
@@ -613,6 +619,7 @@ async function handleCancelled(ctx: WebhookContext, change: StatusChange, subscr
     event: "subscription_cancelled",
     props: cancelledProps(change, {
       rowStatus: String(subscription.status ?? ""),
+      planType: subscription.plan_type,
       lifetimeRenewals: stats.lifetimeRecurring,
       subscriptionRenewals: stats.subscriptionRecurring,
       userDowngraded,

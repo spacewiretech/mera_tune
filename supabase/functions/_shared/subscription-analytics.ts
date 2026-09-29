@@ -11,6 +11,7 @@ import {
   parseCashfreeTimeMs,
   type PeopleOps,
 } from "./mixpanel.ts";
+import { planTypeOf } from "./subscription-offer.ts";
 
 type Json = Record<string, unknown>;
 
@@ -20,7 +21,7 @@ const DAY_MS = 86_400_000;
 export const SERVER_EVENT_PROPS = {
   trial_payment_succeeded: [
     "subscription_id", "amount", "currency", "activated_via", "payment_group", "upi_handle",
-    "payment_app", "cf_payment_id", "trial_days", "recurring_amount", "interval_months",
+    "payment_app", "cf_payment_id", "is_trial", "trial_days", "recurring_amount", "interval_months",
   ],
   trial_expired: ["reason", "ringtones_created", "days_since_trial_start", "subscription_id"],
   mandate_auth_failed: [
@@ -268,12 +269,17 @@ export function cancelledBy(status: string): "customer" | "merchant" {
   return status.trim().toUpperCase() === "CUSTOMER_CANCELLED" ? "customer" : "merchant";
 }
 
-/** `subscriptions.status` before the cancel, with an active row that was never charged counted as trial. */
+/**
+ * `subscriptions.status` before the cancel, with an active trial row that was never charged counted
+ * as trial. A paid `monthly` row paid its first month upfront, so it is `active` from activation.
+ */
 export function cancelPreviousStatus(
   rowStatus: string,
   subscriptionRenewals: number,
+  planType?: unknown,
 ): "pending" | "trial" | "active" {
   if (rowStatus === "pending") return "pending";
+  if (planTypeOf(planType) === "monthly") return "active";
   return subscriptionRenewals > 0 ? "active" : "trial";
 }
 
@@ -293,13 +299,20 @@ export function trialExpiredReason(status: string): TrialExpiredReason | null {
   return null;
 }
 
-export type TrialExpiryRow = { status?: unknown; start_date?: unknown; trial_expired_at?: unknown };
+export type TrialExpiryRow = {
+  status?: unknown;
+  plan_type?: unknown;
+  start_date?: unknown;
+  trial_expired_at?: unknown;
+};
 
 /**
  * A row that started a trial and has not sent trial_expired yet (the caller still checks it has no
  * recurring charge). The cancel owns a cancelled row, so a later EXPIRED/COMPLETED does not report it.
+ * A paid `monthly` row never had a trial, so it never reports one.
  */
 export function isTrialExpiryCandidate(row: TrialExpiryRow, reason: TrialExpiredReason): boolean {
+  if (planTypeOf(row.plan_type) === "monthly") return false;
   if (row.start_date == null || row.start_date === "") return false;
   if (row.trial_expired_at != null && row.trial_expired_at !== "") return false;
   return reason === "cancelled_in_trial" || row.status !== "cancelled";
@@ -424,12 +437,15 @@ export function parseRefund(data: Json): RefundFields {
   };
 }
 
+/** A mandate activation: a ₹3 trial, or (`isTrial` false) a returning user's paid first month. */
 export type TrialActivation = {
   subscriptionId: string;
   auth: Json;
   /** The AUTH payment's Cashfree id; falls back to `auth.cf_payment_id`. */
   cfPaymentId?: string;
-  configAuthAmount: number;
+  /** The subscription row's authorisation amount, used when Cashfree's is missing. */
+  authAmount: number;
+  isTrial: boolean;
   trialDays: number;
   recurringAmount: number;
   intervalMonths: number;
@@ -444,14 +460,15 @@ export function trialPaymentSucceededProps(t: TrialActivation): MixpanelProps {
   const handle = upiHandle(t.auth);
   return {
     subscription_id: t.subscriptionId,
-    amount: num(t.auth.authorization_amount) ?? t.configAuthAmount,
+    amount: num(t.auth.authorization_amount) ?? t.authAmount,
     currency: "INR",
     activated_via: t.activatedVia,
     payment_group: paymentGroup(t.auth),
     upi_handle: handle,
     payment_app: paymentAppFromUpiHandle(handle),
     cf_payment_id: trialPaymentId(t),
-    trial_days: t.trialDays,
+    is_trial: t.isTrial,
+    trial_days: t.isTrial ? t.trialDays : 0,
     recurring_amount: t.recurringAmount,
     interval_months: t.intervalMonths,
   };
@@ -483,6 +500,12 @@ export function trialPeopleOps(startMs: number, trialDays: number): PeopleOps {
       autopay_enabled: true,
     },
   };
+}
+
+/** Profile update at activation: the trial one, or for a paid first month no trial_* properties. */
+export function activationPeopleOps(t: TrialActivation, startMs: number): PeopleOps {
+  if (t.isTrial) return trialPeopleOps(startMs, t.trialDays);
+  return { set: { subscription_status: "active", autopay_enabled: true } };
 }
 
 export function mandateAuthFailedProps(p: PaymentFields): MixpanelProps {
@@ -560,13 +583,15 @@ export function statusChangedProps(change: StatusChange, previousStatus: string 
 
 export type CancelContext = {
   rowStatus: string;
+  /** `subscriptions.plan_type`: a `monthly` row is never cancelled during a trial. */
+  planType?: unknown;
   lifetimeRenewals: number;
   subscriptionRenewals: number;
   userDowngraded: boolean;
 };
 
 export function cancelledProps(change: StatusChange, c: CancelContext): MixpanelProps {
-  const previous = cancelPreviousStatus(c.rowStatus, c.subscriptionRenewals);
+  const previous = cancelPreviousStatus(c.rowStatus, c.subscriptionRenewals, c.planType);
   return {
     cancellation_status: change.status.toLowerCase(),
     subscription_id: change.subscriptionId,

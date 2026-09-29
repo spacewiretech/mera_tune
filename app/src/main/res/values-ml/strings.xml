@@ -199,6 +199,15 @@
     <string name="member_row_photo">കോളുകളിൽ ഫോട്ടോ ഓണാക്കൂ</string>
     <string name="member_row_family">കുടുംബത്തിനായി ട്യൂണുകൾ ഉണ്ടാക്കൂ</string>
     <string name="member_cta">നിങ്ങളുടെ ട്യൂൺ ഉണ്ടാക്കൂ</string>
+    <!-- Paid offer for returning users (no ₹3 trial) and its toasts: native review pending -->
+    <string name="paywall_title_paid">പൂർണ്ണ ആക്സസ് നേടൂ</string> <!-- native review pending -->
+    <string name="paywall_renewal_paid">പ്രതിമാസം • എപ്പോൾ വേണമെങ്കിലും റദ്ദാക്കാം</string> <!-- native review pending -->
+    <string name="paywall_faq_q2_paid">₹%1$s/മാസം മെമ്പർഷിപ്പ് എങ്ങനെ പ്രവർത്തിക്കുന്നു?</string> <!-- native review pending -->
+    <string name="paywall_faq_a2_paid">ഇന്ന് ₹%1$s നൽകി മെമ്പർഷിപ്പ് തുടങ്ങൂ. ഇത് ആദ്യ മാസത്തെ പേയ്‌മെന്റാണ്. പേയ്‌മെന്റ് സമയത്ത് നിങ്ങളുടെ UPI ആപ്പിൽ ഓട്ടോപേ സെറ്റ് ആകും, പിന്നീട് നിങ്ങൾ റദ്ദാക്കുന്നത് വരെ എല്ലാ മാസവും ₹%2$s സ്വയമേവ ഈടാക്കും.</string> <!-- native review pending -->
+    <string name="paywall_faq_a4_paid">അതെ, ഇപ്പോൾ ₹%1$s ഈടാക്കും. ഇത് ആദ്യ മാസത്തെ പേയ്‌മെന്റാണ്, തിരികെ ലഭിക്കില്ല. പിന്നീട് എല്ലാ മാസവും ₹%2$s ഓട്ടോപേ വഴി ഈടാക്കും. എപ്പോൾ വേണമെങ്കിലും റദ്ദാക്കാം; റദ്ദാക്കിയ ശേഷം പിന്നെ ചാർജുകളൊന്നും ഈടാക്കില്ല.</string> <!-- native review pending -->
+    <string name="member_subtitle_paid">₹%1$s/മാസം · എപ്പോൾ വേണമെങ്കിലും റദ്ദാക്കാം</string> <!-- native review pending -->
+    <string name="paywall_offer_updated">വില അപ്ഡേറ്റ് ചെയ്തു, വീണ്ടും പരിശോധിക്കൂ</string> <!-- native review pending -->
+    <string name="paywall_already_member">നിങ്ങൾ ഇതിനകം മെമ്പറാണ്</string> <!-- native review pending -->
     <!-- lane B -->
     <!-- UI refresh: native review pending -->
     <string name="song_choice_choose">എടുക്കൂ</string>

@@ -48,8 +48,10 @@ import com.spacewire.meratune.analytics.PlayEndReason
 import com.spacewire.meratune.analytics.firebaseAnalytics
 import com.spacewire.meratune.analytics.metaAnalytics
 import com.spacewire.meratune.analytics.mixpanelAnalytics
+import com.spacewire.meratune.data.NameRingtonesRepository
 import com.spacewire.meratune.data.SubscriptionApiException
 import com.spacewire.meratune.data.SubscriptionFailureReason
+import com.spacewire.meratune.data.SubscriptionOfferType
 import com.spacewire.meratune.data.SubscriptionRepository
 import com.spacewire.meratune.data.SubscriptionVideoRepository
 import com.spacewire.meratune.data.User
@@ -59,6 +61,8 @@ import com.spacewire.meratune.ui.FaqAccordionController
 import com.spacewire.meratune.ui.HomeButtonRoute
 import com.spacewire.meratune.ui.PaymentAppBadge
 import com.spacewire.meratune.ui.PaymentAppBottomSheet
+import com.spacewire.meratune.ui.PaywallOfferPolicy
+import com.spacewire.meratune.ui.PaywallPricing
 import com.spacewire.meratune.ui.PaywallUiPolicy
 import com.spacewire.meratune.ui.PaywallUiState
 import com.spacewire.meratune.ui.VerifyTrigger
@@ -68,7 +72,9 @@ import com.spacewire.meratune.util.GradientTextHelper
 import com.spacewire.meratune.util.ProfileStore
 import com.spacewire.meratune.util.enableLightEdgeToEdge
 import java.util.Locale
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback {
 
@@ -76,9 +82,17 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
     private val subscriptionVideoRepository by lazy { SubscriptionVideoRepository(this) }
     private var pendingSubscriptionId: String? = null
     private var playingVideoUrl: String? = null
+    /** The created mandate's auth amount and offer: verify analytics and the member screen use them. */
     private var pendingAuthAmount: Double? = null
+    private var pendingOffer: SubscriptionOfferType? = null
     private var isProcessingPayment = false
     private var verifyInFlight = false
+
+    /** create-subscription runs for a CTA tap; a preview answer then no longer changes the paywall. */
+    private var createInFlight = false
+
+    /** The already-a-member (409) exit to Home has started. */
+    private var alreadyMemberHandled = false
 
     /** A verify request is running; redone after a recreation, which cancels it. */
     private var verifyPending = false
@@ -123,16 +137,19 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
 
     /** Failed lists the bank / funds / details reasons only after a `payment_failed` checkout. */
     private var failedShowsReasons = false
-    private var pendingRecurringAmount: Double? = null
 
     /**
-     * The amounts the paywall shows and the subscription events send: create-subscription's
-     * values once it answered, else the defaults 3 / 299.
+     * The offer and amounts the paywall shows and the subscription events send: the local guess
+     * from the stored status ([PaywallOfferPolicy.localGuess]), then the server's preview, then
+     * each create-subscription answer.
      */
-    private var shownAuthAmount = DEFAULT_AUTH_AMOUNT
-    private var shownRecurringAmount = DEFAULT_RECURRING_AMOUNT
-    private val authAmountLabel: String get() = formatRupee(shownAuthAmount)
-    private val recurringAmountLabel: String get() = formatRupee(shownRecurringAmount)
+    private var shownPricing = PaywallOfferPolicy.defaults(SubscriptionOfferType.TRIAL)
+
+    /** [shownPricing] came from the server, so a recreation shows it without asking again. */
+    private var pricingFromServer = false
+    private val authAmountLabel: String get() = PaywallOfferPolicy.amountLabel(shownPricing.authAmount)
+    private val recurringAmountLabel: String get() = PaywallOfferPolicy.amountLabel(shownPricing.recurringAmount)
+    private val heroAmountLabel: String get() = PaywallOfferPolicy.amountLabel(shownPricing.heroAmount)
 
     /** `paywall_dismissed.dismiss_method` for the next finish (set by [leaveToHome]). */
     private var dismissMethod = PaywallDismissMethod.SYSTEM_BACK
@@ -154,6 +171,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
     private lateinit var pendingCheckButton: TextView
     private lateinit var pendingCheckProgress: ProgressBar
     private lateinit var paymentAppSelector: View
+    private lateinit var paywallTitle: TextView
     private lateinit var originalPrice: TextView
     private lateinit var offerPrice: TextView
     private lateinit var renewalText: TextView
@@ -183,6 +201,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         } else {
             previousStatus = AuthStore(this).getStatus()
             entryPoint = PaywallEntryPoint.derive(mixpanelAnalytics().currentScreen, previousStatus)
+            shownPricing = PaywallOfferPolicy.defaults(PaywallOfferPolicy.localGuess(previousStatus))
         }
 
         try {
@@ -194,7 +213,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         setupActions()
         setupSubscriptionVideo()
         setupFaq(savedInstanceState?.getInt(STATE_FAQ_EXPANDED, FaqAccordionController.NONE) ?: FaqAccordionController.NONE)
-        bindPricing(pendingAuthAmount, pendingRecurringAmount)
+        bindPricing()
         bindSelectedPaymentApp()
         renderUiState(animate = false)
         // Cashfree delivers the verify callback only once, to the instance that was destroyed.
@@ -206,9 +225,11 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
                 userStatus = previousStatus,
                 installedAppCount = installedApps.size,
                 entryPoint = entryPoint,
+                isTrial = shownPricing.isTrial,
             )
             metaAnalytics().trackSubscriptionScreenViewed()
         }
+        if (!pricingFromServer) fetchOffer()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -225,7 +246,11 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         outState.putString(STATE_UI_STATE, uiState.name)
         outState.putBoolean(STATE_FAILED_REASONS, failedShowsReasons)
         outState.putInt(STATE_FAQ_EXPANDED, faq.expandedIndex)
-        pendingRecurringAmount?.let { outState.putDouble(STATE_PENDING_RECURRING_AMOUNT, it) }
+        pendingOffer?.let { outState.putString(STATE_PENDING_OFFER, it.wire) }
+        outState.putString(STATE_SHOWN_OFFER, shownPricing.offer.wire)
+        outState.putDouble(STATE_SHOWN_AUTH_AMOUNT, shownPricing.authAmount)
+        outState.putDouble(STATE_SHOWN_RECURRING_AMOUNT, shownPricing.recurringAmount)
+        outState.putBoolean(STATE_PRICING_FROM_SERVER, pricingFromServer)
     }
 
     private fun restoreCheckoutState(state: Bundle) {
@@ -241,9 +266,16 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         videoCompleted = state.getBoolean(STATE_VIDEO_COMPLETED)
         videoErrorTracked = state.getBoolean(STATE_VIDEO_ERROR_TRACKED)
         entryPoint = state.getString(STATE_ENTRY_POINT)
-        if (state.containsKey(STATE_PENDING_RECURRING_AMOUNT)) {
-            pendingRecurringAmount = state.getDouble(STATE_PENDING_RECURRING_AMOUNT)
-        }
+        pendingOffer = SubscriptionOfferType.fromWire(state.getString(STATE_PENDING_OFFER))
+        val shownOffer = SubscriptionOfferType.fromWire(state.getString(STATE_SHOWN_OFFER))
+            ?: PaywallOfferPolicy.localGuess(previousStatus)
+        val defaults = PaywallOfferPolicy.defaults(shownOffer)
+        shownPricing = PaywallPricing(
+            offer = shownOffer,
+            authAmount = state.getDouble(STATE_SHOWN_AUTH_AMOUNT, defaults.authAmount),
+            recurringAmount = state.getDouble(STATE_SHOWN_RECURRING_AMOUNT, defaults.recurringAmount),
+        )
+        pricingFromServer = state.getBoolean(STATE_PRICING_FROM_SERVER)
         failedShowsReasons = state.getBoolean(STATE_FAILED_REASONS)
         uiState = PaywallUiPolicy.restoredState(
             saved = state.getString(STATE_UI_STATE),
@@ -270,6 +302,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         pendingCheckButton = findViewById(R.id.pendingCheckButton)
         pendingCheckProgress = findViewById(R.id.pendingCheckProgress)
         paymentAppSelector = findViewById(R.id.paymentAppSelector)
+        paywallTitle = findViewById(R.id.paywallTitle)
         originalPrice = findViewById(R.id.originalPrice)
         offerPrice = findViewById(R.id.offerPrice)
         renewalText = findViewById(R.id.renewalText)
@@ -286,18 +319,22 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         faq.bind(faqItems(), expandedIndex)
     }
 
-    private fun faqItems(): List<FaqAccordionController.Item> = listOf(
-        FaqAccordionController.Item(getString(R.string.paywall_faq_q1), getString(R.string.paywall_faq_a1)),
-        FaqAccordionController.Item(
-            getString(R.string.paywall_faq_q2, authAmountLabel),
-            getString(R.string.paywall_faq_a2, authAmountLabel, recurringAmountLabel),
-        ),
-        FaqAccordionController.Item(getString(R.string.paywall_faq_q3), getString(R.string.paywall_faq_a3)),
-        FaqAccordionController.Item(
-            getString(R.string.paywall_faq_q4),
-            getString(R.string.paywall_faq_a4, authAmountLabel, recurringAmountLabel),
-        ),
-    )
+    /** Questions 2 and 4 follow the shown offer (the trial, or the paid plan's first month today). */
+    private fun faqItems(): List<FaqAccordionController.Item> {
+        val copy = PaywallOfferPolicy.copy(shownPricing.offer)
+        return listOf(
+            FaqAccordionController.Item(getString(R.string.paywall_faq_q1), getString(R.string.paywall_faq_a1)),
+            FaqAccordionController.Item(
+                getString(copy.faqQuestion2, heroAmountLabel),
+                getString(copy.faqAnswer2, authAmountLabel, recurringAmountLabel),
+            ),
+            FaqAccordionController.Item(getString(R.string.paywall_faq_q3), getString(R.string.paywall_faq_a3)),
+            FaqAccordionController.Item(
+                getString(R.string.paywall_faq_q4),
+                getString(copy.faqAnswer4, authAmountLabel, recurringAmountLabel),
+            ),
+        )
+    }
 
     private fun setupActions() {
         findViewById<View>(R.id.homeButton).setOnClickListener {
@@ -379,10 +416,10 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
     /**
      * The Home button and system back on the paywall: remembers the browse choice and reaches Home
      * (a finish with the onPause `paywall_dismissed` carrying [method]). Ignored while a verify
-     * runs, which would otherwise cancel the conversion.
+     * runs, which would otherwise cancel the conversion, and during the already-a-member exit.
      */
     private fun leaveToHome(method: String) {
-        if (verifyInFlight || isFinishing) return
+        if (verifyInFlight || alreadyMemberHandled || isFinishing) return
         AuthStore(this).markBrowsingWithoutTrial()
         dismissMethod = method
         when (PaywallUiPolicy.homeButtonRoute(entryPoint, isTaskRoot)) {
@@ -527,60 +564,152 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         }
 
         setLoading(true)
+        createInFlight = true
+        // The server decides the offer; the checkout opens only for the price the user tapped on.
+        val shownAtTap = shownPricing
 
         lifecycleScope.launch {
             subscriptionRepository.createSubscription(userId)
-                .onSuccess { response ->
-                    pendingSubscriptionId = response.subscriptionId
-                    pendingAuthAmount = response.authAmount
-                    bindPricing(response.authAmount, response.recurringAmount)
+                .onSuccess { created ->
+                    createInFlight = false
+                    val createdPricing = PaywallPricing(created.offer, created.authAmount, created.recurringAmount)
+                    showServerPricing(createdPricing)
+                    if (PaywallOfferPolicy.mustStopCheckout(shownAtTap, createdPricing)) {
+                        // The mandate made for this tap is never checked out; the next tap creates again.
+                        trackFailure(
+                            stage = SubscriptionFailureReason.STAGE_CREATE,
+                            reason = SubscriptionFailureReason.OFFER_CHANGED,
+                        )
+                        Toast.makeText(this@SubscriptionActivity, R.string.paywall_offer_updated, Toast.LENGTH_LONG)
+                            .show()
+                        setLoading(false)
+                        return@onSuccess
+                    }
+                    pendingSubscriptionId = created.subscriptionId
+                    pendingAuthAmount = created.authAmount
+                    pendingOffer = created.offer
                     mixpanelAnalytics().trackSubscriptionInitiated(
                         paymentApp = selectedPaymentApp,
-                        authAmount = shownAuthAmount,
-                        recurringAmount = shownRecurringAmount,
+                        authAmount = created.authAmount,
+                        recurringAmount = created.recurringAmount,
+                        isTrial = createdPricing.isTrial,
                         attempt = attempt,
                     )
                     metaAnalytics().trackSubscriptionStarted(
-                        authAmount = response.authAmount,
-                        recurringAmount = response.recurringAmount,
+                        authAmount = created.authAmount,
+                        recurringAmount = created.recurringAmount,
                     )
                     openCashfreeCheckout(
-                        subscriptionId = response.subscriptionId!!,
-                        sessionId = response.subscriptionSessionId!!,
-                        environment = response.environment ?: "sandbox",
+                        subscriptionId = created.subscriptionId,
+                        sessionId = created.sessionId,
+                        environment = created.environment ?: "sandbox",
                         paymentApp = selectedPaymentApp,
                     )
                 }
                 .onFailure { error ->
+                    createInFlight = false
                     trackFailure(
                         stage = SubscriptionFailureReason.STAGE_CREATE,
                         reason = SubscriptionFailureReason.forCreate(error),
                         httpStatus = SubscriptionFailureReason.httpStatus(error),
                     )
-                    val message = (error as? SubscriptionApiException)?.message
-                        ?: getString(R.string.subscription_error)
+                    val apiError = error as? SubscriptionApiException
+                    if (apiError?.isAlreadyActive == true) {
+                        onAlreadyMember()
+                        return@onFailure
+                    }
+                    // 426 (never for this build, which supports the paid offer) shows the server's text too.
+                    val message = apiError?.message ?: getString(R.string.subscription_error)
                     Toast.makeText(this@SubscriptionActivity, message, Toast.LENGTH_LONG).show()
                     setLoading(false)
                 }
         }
     }
 
-    /** Server amounts from create-subscription; null keeps the current (default 3 / 299) amount. */
-    private fun bindPricing(authAmount: Double?, recurringAmount: Double?) {
-        authAmount?.let { shownAuthAmount = it }
-        recurringAmount?.let {
-            shownRecurringAmount = it
-            pendingRecurringAmount = it
+    /**
+     * Asks the server which offer this user gets (a preview creates nothing). A failure keeps the
+     * local guess: create-subscription decides again at the CTA. A 409 means the user is already a
+     * member, which is acted on only while nothing else runs on the paywall.
+     */
+    private fun fetchOffer() {
+        val userId = AuthStore(this).getUserId()
+        if (userId <= 0L) return
+        lifecycleScope.launch {
+            subscriptionRepository.fetchOffer(userId)
+                .onSuccess { offer ->
+                    // A create that already answered, or is running, decides the price from here on.
+                    if (createInFlight || pricingFromServer) return@onSuccess
+                    showServerPricing(PaywallPricing(offer.offer, offer.authAmount, offer.recurringAmount))
+                }
+                .onFailure { error ->
+                    val alreadyActive = (error as? SubscriptionApiException)?.isAlreadyActive == true
+                    val paywallIdle = !createInFlight && !isProcessingPayment && !verifyInFlight &&
+                        pendingSubscriptionId == null && uiState == PaywallUiState.PAYWALL
+                    if (alreadyActive && paywallIdle) onAlreadyMember()
+                }
         }
+    }
+
+    /** The server's offer (preview or create); a recreation keeps it instead of asking again. */
+    private fun showServerPricing(pricing: PaywallPricing) {
+        pricingFromServer = true
+        if (pricing == shownPricing) return
+        shownPricing = pricing
+        bindPricing()
+    }
+
+    /** Renders [shownPricing]: the title, big price, renewal line and FAQ follow its offer. */
+    private fun bindPricing() {
+        val copy = PaywallOfferPolicy.copy(shownPricing.offer)
+        paywallTitle.setText(copy.title)
         originalPrice.text = getString(R.string.price_rupee, recurringAmountLabel)
-        offerPrice.text = getString(R.string.price_rupee, authAmountLabel)
-        renewalText.text = getString(R.string.paywall_then_price, recurringAmountLabel)
-        priceRow.contentDescription = getString(R.string.price_rupee, authAmountLabel)
+        offerPrice.text = getString(R.string.price_rupee, heroAmountLabel)
+        // The paid line has no placeholder; the extra argument is then ignored.
+        renewalText.text = getString(copy.renewal, recurringAmountLabel)
+        priceRow.contentDescription = getString(R.string.price_rupee, heroAmountLabel)
         faq.rebind(faqItems())
     }
 
-    private fun formatRupee(amount: Double): String {
-        return if (amount % 1.0 == 0.0) amount.toInt().toString() else amount.toString()
+    /**
+     * create-subscription says the user already has an active subscription (409). A mandate this
+     * paywall created is verified (its webhook may have activated it meanwhile), which leads to the
+     * member screen. Otherwise the stored status is refreshed from the server's creation plan, so
+     * Home and the launcher stop sending the user here, and Home opens.
+     */
+    private fun onAlreadyMember() {
+        pendingSubscriptionId?.takeIf { it.isNotBlank() }?.let { subscriptionId ->
+            verifySubscription(subscriptionId, VerifyTrigger.CHECKOUT)
+            return
+        }
+        if (alreadyMemberHandled) return
+        alreadyMemberHandled = true
+        setLoading(true)
+        lifecycleScope.launch {
+            val plan = withTimeoutOrNull(STATUS_REFRESH_TIMEOUT_MS) {
+                try {
+                    NameRingtonesRepository(this@SubscriptionActivity).fetchMyRingtones().quota?.plan
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    Log.w(TAG, "Member status refresh failed: ${error.javaClass.simpleName}")
+                    null
+                }
+            }
+            val authStore = AuthStore(this@SubscriptionActivity)
+            val status = PaywallOfferPolicy.statusForPlan(plan)
+            val user = authStore.getUser()
+            if (status != null && user != null && user.status != status) {
+                val refreshed = user.copy(status = status)
+                authStore.saveUser(refreshed)
+                mixpanelAnalytics().identifyUser(refreshed)
+            }
+            Toast.makeText(this@SubscriptionActivity, R.string.paywall_already_member, Toast.LENGTH_LONG).show()
+            startActivity(
+                Intent(this@SubscriptionActivity, Home::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
+            )
+            finishWithoutDismiss()
+        }
     }
 
     private fun openCashfreeCheckout(
@@ -689,13 +818,16 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
                         // verifyInFlight stays set: the three conversions below fire once per paywall.
                         AuthStore(this@SubscriptionActivity).saveUser(user)
                         ProfileStore(this@SubscriptionActivity).saveUser(user.name.orEmpty(), user.phone)
-                        val amount = pendingAuthAmount ?: DEFAULT_AUTH_AMOUNT
+                        // The verified mandate's own offer and auth amount (₹299 for the paid plan).
+                        val offer = pendingOffer ?: shownPricing.offer
+                        val amount = pendingAuthAmount ?: PaywallOfferPolicy.defaults(offer).authAmount
                         val analytics = mixpanelAnalytics()
                         analytics.identifyUser(user)
                         analytics.trackTrialPaymentCompleted(
                             paymentApp = selectedPaymentApp,
                             subscriptionId = subscriptionId,
                             amount = amount,
+                            isTrial = offer == SubscriptionOfferType.TRIAL,
                             attempt = attempt.takeIf { it > 0 },
                             previousStatus = previousStatus,
                         )
@@ -710,7 +842,7 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
                             amount = amount,
                             subscriptionId = subscriptionId,
                         )
-                        openMembershipWelcome(user)
+                        openMembershipWelcome(user, offer, amount)
                         finishWithoutDismiss()
                     } else {
                         verifyInFlight = false
@@ -756,16 +888,18 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
     }
 
     /**
-     * Opens the member screen for a paid user. A stale status that still needs a subscription keeps
-     * today's [AuthNavigator] route as a safety net.
+     * Opens the member screen for a paid user, with the verified mandate's [offer]: the trial's
+     * [authAmount], or the paid plan's monthly price. A stale status that still needs a
+     * subscription keeps today's [AuthNavigator] route as a safety net.
      */
-    private fun openMembershipWelcome(user: User) {
+    private fun openMembershipWelcome(user: User, offer: SubscriptionOfferType, authAmount: Double) {
         if (AuthNavigator.needsSubscription(user)) {
             AuthNavigator.navigateAfterAuth(this, user)
             return
         }
+        val amount = if (offer == SubscriptionOfferType.TRIAL) authAmount else shownPricing.recurringAmount
         startActivity(
-            MembershipWelcomeActivity.intent(this, authAmountLabel)
+            MembershipWelcomeActivity.intent(this, offer, PaywallOfferPolicy.amountLabel(amount))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
         )
     }
@@ -802,8 +936,9 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
             stage = stage,
             failureReason = reason,
             paymentApp = paymentApp,
-            authAmount = shownAuthAmount,
-            recurringAmount = shownRecurringAmount,
+            authAmount = shownPricing.authAmount,
+            recurringAmount = shownPricing.recurringAmount,
+            isTrial = shownPricing.isTrial,
             cfErrorCode = cfErrorCode,
             httpStatus = httpStatus,
             cashfreeStatus = cashfreeStatus,
@@ -936,9 +1071,12 @@ class SubscriptionActivity : AppCompatActivity(), CFSubscriptionResponseCallback
         private const val STATE_UI_STATE = "ui_state"
         private const val STATE_FAILED_REASONS = "failed_reasons"
         private const val STATE_FAQ_EXPANDED = "faq_expanded"
-        private const val STATE_PENDING_RECURRING_AMOUNT = "pending_recurring_amount"
-        private const val DEFAULT_AUTH_AMOUNT = 3.0
-        private const val DEFAULT_RECURRING_AMOUNT = 299.0
+        private const val STATE_PENDING_OFFER = "pending_offer"
+        private const val STATE_SHOWN_OFFER = "shown_offer"
+        private const val STATE_SHOWN_AUTH_AMOUNT = "shown_auth_amount"
+        private const val STATE_SHOWN_RECURRING_AMOUNT = "shown_recurring_amount"
+        private const val STATE_PRICING_FROM_SERVER = "pricing_from_server"
+        private const val STATUS_REFRESH_TIMEOUT_MS = 5_000L
         private const val STATE_FADE_MS = 150L
         private const val PENDING_RING_ROTATION_MS = 1_200L
 

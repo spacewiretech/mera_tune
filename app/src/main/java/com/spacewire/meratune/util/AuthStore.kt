@@ -30,6 +30,18 @@ class AuthStore(context: Context) {
         }.apply()
     }
 
+    /** The stored profile (no timestamps), or null when logged out. */
+    fun getUser(): User? {
+        val id = getUserId()
+        if (id <= 0L) return null
+        return User(
+            id = id,
+            phone = prefs.getString(KEY_PHONE, null).orEmpty(),
+            name = prefs.getString(KEY_NAME, null)?.takeIf { it.isNotBlank() },
+            status = getStatus(),
+        )
+    }
+
     /** Updates the profile fields only; the API token is left untouched. */
     fun saveUser(user: User) {
         prefs.edit()

@@ -199,6 +199,15 @@
     <string name="member_row_photo">କଲ୍‌ରେ ଫଟୋ ଚାଲୁ କରନ୍ତୁ</string>
     <string name="member_row_family">ପରିବାର ପାଇଁ ଟ୍ୟୁନ୍ ତିଆରି କରନ୍ତୁ</string>
     <string name="member_cta">ଆପଣଙ୍କ ଟ୍ୟୁନ୍ ତିଆରି କରନ୍ତୁ</string>
+    <!-- Paid offer for returning users (no ₹3 trial) and its toasts: native review pending -->
+    <string name="paywall_title_paid">ସମ୍ପୂର୍ଣ୍ଣ ଆକ୍ସେସ୍ ପାଆନ୍ତୁ</string> <!-- native review pending -->
+    <string name="paywall_renewal_paid">ପ୍ରତି ମାସ • ଯେକୌଣସି ସମୟରେ ବାତିଲ କରନ୍ତୁ</string> <!-- native review pending -->
+    <string name="paywall_faq_q2_paid">₹%1$s/ମାସ ମେମ୍ବରସିପ୍ କିପରି କାମ କରେ?</string> <!-- native review pending -->
+    <string name="paywall_faq_a2_paid">ଆଜି ₹%1$s ଦେଇ ମେମ୍ବରସିପ୍ ଆରମ୍ଭ କରନ୍ତୁ। ଏହା ପ୍ରଥମ ମାସର ପେମେଣ୍ଟ। ପେମେଣ୍ଟ ସମୟରେ ଆପଣଙ୍କ UPI ଆପ୍‌ରେ ଅଟୋପେ ସେଟ୍ ହୁଏ, ତାପରେ ଆପଣ ବାତିଲ ନକରିବା ପର୍ଯ୍ୟନ୍ତ ପ୍ରତି ମାସ ₹%2$s ସ୍ୱୟଂଚାଳିତ ଭାବେ କଟିବ।</string> <!-- native review pending -->
+    <string name="paywall_faq_a4_paid">ହଁ, ଏବେ ₹%1$s କଟିବ। ଏହା ପ୍ରଥମ ମାସର ପେମେଣ୍ଟ ଏବଂ ଫେରସ୍ତ ହୁଏ ନାହିଁ। ତାପରେ ପ୍ରତି ମାସ ₹%2$s ଅଟୋପେ ଦ୍ୱାରା କଟିବ। ଆପଣ ଯେକୌଣସି ସମୟରେ ବାତିଲ କରିପାରିବେ; ବାତିଲ କଲା ପରେ ଆଉ କୌଣସି ଚାର୍ଜ କଟିବ ନାହିଁ।</string> <!-- native review pending -->
+    <string name="member_subtitle_paid">₹%1$s/ମାସ · ଯେକୌଣସି ସମୟରେ ବାତିଲ କରନ୍ତୁ</string> <!-- native review pending -->
+    <string name="paywall_offer_updated">ଦାମ ଅପଡେଟ୍ ହୋଇଛି, ଦୟାକରି ପୁଣି ଦେଖନ୍ତୁ</string> <!-- native review pending -->
+    <string name="paywall_already_member">ଆପଣ ପୂର୍ବରୁ ମେମ୍ବର ଅଛନ୍ତି</string> <!-- native review pending -->
     <!-- lane B -->
     <!-- UI refresh: native review pending -->
     <string name="song_choice_choose">ବାଛନ୍ତୁ</string>

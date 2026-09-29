@@ -199,6 +199,15 @@
     <string name="member_row_photo">ಕರೆಗಳಲ್ಲಿ ಫೋಟೋ ಆನ್ ಮಾಡಿ</string>
     <string name="member_row_family">ಕುಟುಂಬಕ್ಕಾಗಿ ಟ್ಯೂನ್‌ಗಳನ್ನು ಮಾಡಿ</string>
     <string name="member_cta">ನಿಮ್ಮ ಟ್ಯೂನ್ ಮಾಡಿ</string>
+    <!-- Paid offer for returning users (no ₹3 trial) and its toasts: native review pending -->
+    <string name="paywall_title_paid">ಪೂರ್ಣ ಪ್ರವೇಶ ಪಡೆಯಿರಿ</string> <!-- native review pending -->
+    <string name="paywall_renewal_paid">ಪ್ರತಿ ತಿಂಗಳು • ಯಾವಾಗ ಬೇಕಾದರೂ ರದ್ದುಮಾಡಿ</string> <!-- native review pending -->
+    <string name="paywall_faq_q2_paid">₹%1$s/ತಿಂಗಳು ಸದಸ್ಯತ್ವ ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತದೆ?</string> <!-- native review pending -->
+    <string name="paywall_faq_a2_paid">ಇಂದು ₹%1$s ಪಾವತಿಸಿ ಸದಸ್ಯತ್ವ ಆರಂಭಿಸಿ. ಇದು ಮೊದಲ ತಿಂಗಳ ಪಾವತಿ. ಪಾವತಿಯ ವೇಳೆ ನಿಮ್ಮ UPI ಆ್ಯಪ್‌ನಲ್ಲಿ ಆಟೋಪೇ ಹೊಂದಿಸಲಾಗುತ್ತದೆ, ನಂತರ ನೀವು ರದ್ದುಮಾಡುವವರೆಗೆ ಪ್ರತಿ ತಿಂಗಳು ₹%2$s ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಕಡಿತವಾಗುತ್ತದೆ.</string> <!-- native review pending -->
+    <string name="paywall_faq_a4_paid">ಹೌದು, ಈಗ ₹%1$s ಕಡಿತವಾಗುತ್ತದೆ. ಇದು ಮೊದಲ ತಿಂಗಳ ಪಾವತಿ ಮತ್ತು ಮರುಪಾವತಿಯಾಗುವುದಿಲ್ಲ. ನಂತರ ಪ್ರತಿ ತಿಂಗಳು ₹%2$s ಆಟೋಪೇ ಮೂಲಕ ಕಡಿತವಾಗುತ್ತದೆ. ಯಾವಾಗ ಬೇಕಾದರೂ ರದ್ದುಮಾಡಬಹುದು; ರದ್ದುಮಾಡಿದ ನಂತರ ಯಾವುದೇ ಶುಲ್ಕ ಕಡಿತವಾಗುವುದಿಲ್ಲ.</string> <!-- native review pending -->
+    <string name="member_subtitle_paid">₹%1$s/ತಿಂಗಳು · ಯಾವಾಗ ಬೇಕಾದರೂ ರದ್ದುಮಾಡಿ</string> <!-- native review pending -->
+    <string name="paywall_offer_updated">ಬೆಲೆ ನವೀಕರಿಸಲಾಗಿದೆ, ದಯವಿಟ್ಟು ಮತ್ತೆ ಪರಿಶೀಲಿಸಿ</string> <!-- native review pending -->
+    <string name="paywall_already_member">ನೀವು ಈಗಾಗಲೇ ಸದಸ್ಯರಾಗಿದ್ದೀರಿ</string> <!-- native review pending -->
     <!-- lane B -->
     <!-- UI refresh: native review pending -->
     <string name="song_choice_choose">ಆರಿಸಿ</string>

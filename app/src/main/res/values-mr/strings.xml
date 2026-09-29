@@ -199,6 +199,15 @@
     <string name="member_row_photo">कॉलवर फोटो सुरू करा</string>
     <string name="member_row_family">कुटुंबासाठी ट्यून बनवा</string>
     <string name="member_cta">तुमची ट्यून बनवा</string>
+    <!-- Paid offer for returning users (no ₹3 trial) and its toasts: native review pending -->
+    <string name="paywall_title_paid">पूर्ण ॲक्सेस मिळवा</string> <!-- native review pending -->
+    <string name="paywall_renewal_paid">दरमहा • कधीही रद्द करा</string> <!-- native review pending -->
+    <string name="paywall_faq_q2_paid">₹%1$s/महिना मेंबरशिप कशी चालते?</string> <!-- native review pending -->
+    <string name="paywall_faq_a2_paid">आज ₹%1$s देऊन मेंबरशिप सुरू करा. हे पहिल्या महिन्याचे पेमेंट आहे. पेमेंटच्या वेळी तुमच्या UPI ॲपमध्ये ऑटोपे सेट होतो, आणि नंतर तुम्ही रद्द करेपर्यंत दरमहा ₹%2$s आपोआप कापले जातील.</string> <!-- native review pending -->
+    <string name="paywall_faq_a4_paid">हो, आता ₹%1$s कापले जातील. हे पहिल्या महिन्याचे पेमेंट आहे आणि परत मिळत नाही. त्यानंतर दर महिन्याला ₹%2$s ऑटोपेने कापले जातील. तुम्ही कधीही रद्द करू शकता; रद्द केल्यानंतर पुढे कोणताही चार्ज कापला जाणार नाही.</string> <!-- native review pending -->
+    <string name="member_subtitle_paid">₹%1$s/महिना · कधीही रद्द करा</string> <!-- native review pending -->
+    <string name="paywall_offer_updated">किंमत अपडेट झाली आहे, कृपया पुन्हा तपासा</string> <!-- native review pending -->
+    <string name="paywall_already_member">तुम्ही आधीपासूनच मेंबर आहात</string> <!-- native review pending -->
     <!-- lane B -->
     <!-- UI refresh: native review pending -->
     <string name="song_choice_choose">निवडा</string>

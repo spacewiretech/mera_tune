@@ -52,10 +52,27 @@ android {
         }
     }
 
+    // Play upload key from local.properties (release.storeFile / storePassword / keyAlias /
+    // keyPassword; never committed). Without them the release build stays unsigned, as before.
+    val releaseStoreFile = localProperties.getProperty("release.storeFile")?.takeIf { it.isNotBlank() }
+    signingConfigs {
+        if (releaseStoreFile != null) {
+            create("release") {
+                storeFile = file(releaseStoreFile)
+                storePassword = localProperties.getProperty("release.storePassword")
+                keyAlias = localProperties.getProperty("release.keyAlias")
+                keyPassword = localProperties.getProperty("release.keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             optimization {
                 enable = false
+            }
+            if (releaseStoreFile != null) {
+                signingConfig = signingConfigs.getByName("release")
             }
         }
     }

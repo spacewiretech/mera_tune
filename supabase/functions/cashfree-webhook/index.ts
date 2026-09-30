@@ -57,6 +57,7 @@ import {
   webhookRoute,
 } from "../_shared/subscription-analytics.ts";
 import { activationFields, offerConfig } from "../_shared/subscription-offer.ts";
+import { chargeFailureRow } from "../_shared/charge-failures.ts";
 import {
   parseSignatureMode,
   signatureDecision,
@@ -411,8 +412,26 @@ async function handlePaymentSuccess(ctx: WebhookContext, data: Json) {
 }
 
 /**
+ * For retry-failed-charges: new failures to retry, and the outcome of its own retries. Best effort:
+ * a failed write is logged and never fails the webhook (the job's hourly sweep finds the charge).
+ */
+async function recordChargeFailure(ctx: WebhookContext, data: Json, subscription: SubscriptionRow) {
+  const row = chargeFailureRow(data, ctx.eventTimeMs, subscription);
+  if (!row) return;
+  try {
+    const { error } = await ctx.supabase
+      .from("charge_failures")
+      .upsert(row, { onConflict: "payment_id", ignoreDuplicates: true });
+    if (error) console.error("charge_failures write failed:", error.message);
+  } catch (err) {
+    console.error("charge_failures write failed:", err instanceof Error ? err.name : "unknown");
+  }
+}
+
+/**
  * PAYMENT_FAILED / PAYMENT_CANCELLED. Never inserts into subscription_payments: its UNIQUE
- * cf_payment_id would block the later successful retry of the same charge.
+ * cf_payment_id would block the later successful retry of the same charge. The charge is
+ * recorded in charge_failures for the retry job.
  */
 async function handlePaymentFailed(ctx: WebhookContext, data: Json) {
   const payment = parsePayment(data);
@@ -424,6 +443,8 @@ async function handlePaymentFailed(ctx: WebhookContext, data: Json) {
   if (!subscription) {
     return { received: true, skipped: "subscription_not_found" };
   }
+
+  await recordChargeFailure(ctx, data, subscription);
 
   const reason = failureReasonBucket(payment.failureText, payment.paymentStatus, "charge");
   await emit(ctx, subscription.user_id, {

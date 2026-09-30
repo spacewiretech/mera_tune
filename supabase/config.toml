@@ -433,3 +433,10 @@ entrypoint = "./functions/name-ringtones/index.ts"
 [functions.cashfree-webhook]
 enabled = true
 verify_jwt = false
+
+# Hourly failed-charge retries, called by pg_cron (charge-retry-hourly) with the x-job-secret header
+# from app_config; it authenticates by that secret, so a deploy from this repo must keep verify_jwt off.
+[functions.retry-failed-charges]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/retry-failed-charges/index.ts"

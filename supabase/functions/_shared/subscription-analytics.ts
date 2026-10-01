@@ -49,6 +49,19 @@ export const SERVER_EVENT_PROPS = {
   subscription_refund_processed: [
     "refund_status", "refund_amount", "currency", "refund_speed", "original_payment_type",
   ],
+  // retry-failed-charges (retry-failed-charges/analytics.ts)
+  payment_retry_requested: [
+    "subscription_id", "attempt", "retry_number", "retry_date", "failed_date", "days_since_failure",
+    "amount", "currency", "cf_payment_id", "failed_cf_payment_id",
+  ],
+  payment_retry_succeeded: [
+    "subscription_id", "attempt", "retry_date", "failed_date", "days_since_failure", "amount",
+    "currency", "cf_payment_id", "resolved_via",
+  ],
+  payment_retry_failed: [
+    "subscription_id", "attempt", "retry_date", "failed_date", "days_since_failure", "failure_reason",
+    "will_retry", "cf_payment_id", "resolved_via",
+  ],
 } as const satisfies Record<string, readonly string[]>;
 
 export type ServerEvent = keyof typeof SERVER_EVENT_PROPS;

@@ -12,7 +12,7 @@ Mixpanel is the product analytics tool for this project. All tracking goes throu
 | Init | `MeraTuneApplication.onCreate()` → `MixpanelAnalytics.init()`, then registers `AnalyticsLifecycleCallbacks` |
 | App helper | `app/src/main/java/com/spacewire/meratune/analytics/MixpanelAnalytics.kt` (value constants in `AnalyticsContract.kt`) |
 | Server helpers | `supabase/functions/_shared/mixpanel.ts` (HTTP), `_shared/subscription-analytics.ts` (subscription prop allowlists, failure buckets, dedupe keys), `generate-ringtone/analytics.ts` (generation props, which outcomes the server reports) |
-| Server senders | `cashfree-webhook`, `verify-subscription`, `generate-ringtone` |
+| Server senders | `cashfree-webhook`, `verify-subscription`, `generate-ringtone`, `retry-failed-charges` |
 
 ### Tracking plan
 
@@ -150,6 +150,16 @@ Sent after the response (`EdgeRuntime.waitUntil`) with `distinct_id` = the reque
 | `subscription_cancelled` | `SUBSCRIPTION_STATUS_CHANGED` to `CUSTOMER_CANCELLED` / `CANCELLED`, once per subscription row | `cancellation_status`, `subscription_id`, `renewals_before_cancel`, `cancelled_by` (`customer` / `merchant`), `previous_status` (`pending` / `trial` / `active`; a `monthly` row is `active` from activation), `cancelled_during_trial` (always `false` for a `monthly` row), `user_downgraded` (from the resulting `users.status`, decided by the delivery that wins the row) |
 | `subscription_status_changed` | Any other `SUBSCRIPTION_STATUS_CHANGED` status. Tracked only: access and `users.status` don't change. Repeated or out-of-order deliveries are skipped | `status`, `previous_status`, `transition`, `is_reactivation`, `next_schedule_date`, `subscription_id` |
 | `subscription_refund_processed` | `SUBSCRIPTION_REFUND_STATUS` for a payment in `subscription_payments` | `refund_status`, `refund_amount`, `currency`, `refund_speed`, `original_payment_type` (`auth` / `recurring`) |
+
+**Server: payment retries (`retry-failed-charges`)**
+
+Live mode only, once per failed charge and attempt (sent after the attempt row's compare-and-set). A recovered retry also sends `subscription_paid` with `is_retry_recovery = true`; revenue stays there.
+
+| Event | Trigger | Properties |
+|---|---|---|
+| `payment_retry_requested` | Cashfree accepted a RETRY: a new ₹299 charge, debited 24 h later (live mode only) | `subscription_id`, `attempt` (the job's slot 1–3), `retry_number` (Cashfree's retry count this cycle), `retry_date` (IST debit day), `failed_date` (IST day of the failed charge), `days_since_failure`, `amount`, `currency`, `cf_payment_id` (the new charge), `failed_cf_payment_id` |
+| `payment_retry_succeeded` | That charge was paid: its payment row from the success webhook (`resolved_via = payment_recorded`), or Cashfree after 22:00 IST on the day (`cashfree`) | `subscription_id`, `attempt`, `retry_date`, `failed_date`, `days_since_failure`, `amount`, `currency`, `cf_payment_id`, `resolved_via` |
+| `payment_retry_failed` | That charge failed: the webhook's `charge_failures` row (`webhook`), or Cashfree (`cashfree`) | `subscription_id`, `attempt`, `retry_date`, `failed_date`, `days_since_failure`, `failure_reason` (`insufficient_funds` / `not_insufficient_funds` / `charge_cancelled`), `will_retry`, `cf_payment_id`, `resolved_via` |
 
 **Trial counts come from `trial_payment_succeeded` with `is_trial != false`** (`false` is a returning user's paid first month; events before 2026-09-29 have no `is_trial` and are all trials). It is server truth and fires even when the user leaves the app before verify. `trial_payment_completed` stays for app-side attribution and fires in the same handler as Meta `Purchase` and Firebase `purchase`. Unconverted trials: `trial_expired`.
 

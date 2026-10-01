@@ -12,6 +12,14 @@
  * 2 and 3 fetch the mandate and its payments; a latest charge that failed for insufficient funds
  * gets a chain of three attempts, and its first due attempt is sent in the same run.
  */
+import {
+  type ResolvedVia,
+  retryEventKey,
+  retryFailedProps,
+  retryRequestedProps,
+  retrySucceededProps,
+  type RetryTracker,
+} from "./analytics.ts";
 import type { CashfreeClient, Limiter } from "./cashfree.ts";
 import {
   type AttemptRow,
@@ -23,7 +31,9 @@ import {
   discover,
   gateAfterFetch,
   gateBeforeFetch,
+  addDays,
   idempotencyKey,
+  istDay,
   istMidnightMs,
   latestCharge,
   nextCheckMs,
@@ -35,7 +45,8 @@ import {
 } from "./policy.ts";
 
 const DAY_MS = 86_400_000;
-const OPEN_CHAIN_ROWS = 900;
+/** Failed charges loaded per run from each of the two actionable sets (to send, to resolve). */
+const OPEN_CHAINS_PER_KIND = 600;
 const NEW_FAILURES_PER_RUN = 500;
 /** A requested retry with no outcome this long after its day is closed as `ended` / no_outcome. */
 const NO_OUTCOME_AFTER_MS = 7 * DAY_MS;
@@ -103,8 +114,12 @@ export type AttemptPatch = Partial<Omit<AttemptRecord, "id" | "attempt" | "faile
 export interface RetryStore {
   /** `checkAfterHours`: a charge is looked at from this time (IST) on its due day. */
   candidates(since: string, limit: number, only: string[], checkAfterHours: number): Promise<Candidate[]>;
-  /** Every attempt of each failed charge that still has a pending or requested attempt. */
-  openChains(limit: number): Promise<AttemptRecord[]>;
+  /**
+   * Every attempt of the failed charges that need action now, earliest first: a pending attempt
+   * scheduled up to `pendingThrough` (sendable, or late and to be skipped), or a requested one
+   * whose debit day is up to `requestedThrough` (its outcome may be in). At most `limit` each.
+   */
+  openChains(q: { limit: number; pendingThrough: string; requestedThrough: string }): Promise<AttemptRecord[]>;
   /** Unprocessed FAILED regular charges (retry_attempts 0) from `since` (IST day), newest first. */
   newFailures(since: string, limit: number): Promise<ChargeFailure[]>;
   failuresFor(paymentIds: string[]): Promise<ChargeFailure[]>;
@@ -127,6 +142,8 @@ export type JobDeps = {
   lookupLimiter: Limiter;
   cfg: RetryConfig;
   now?: () => number;
+  /** Mixpanel, live runs only; must not throw. */
+  track?: RetryTracker;
 };
 
 type Counts = Record<string, number>;
@@ -196,14 +213,23 @@ export async function runRetryJob(deps: JobDeps): Promise<JobReport> {
     !onlySet.size || onlySet.has(merchantId ?? "") || onlySet.has(cfId ?? "");
   const iso = (ms: number) => new Date(ms).toISOString();
 
-  const update = async (row: AttemptRecord, status: AttemptStatus, patch: AttemptPatch = {}) => {
+  /** True when this run moved the row (live only): the once-guard for its Mixpanel event. */
+  const update = async (row: AttemptRecord, status: AttemptStatus, patch: AttemptPatch = {}): Promise<boolean> => {
     const from = row.status;
     row.status = status;
     Object.assign(row, patch);
-    if (!live) return;
+    if (!live) return false;
     const terminal = status !== "pending" && status !== "requested";
     const ok = await store.updateAttempt(row.id, [from], { status, ...patch, ...(terminal ? { resolved_at: iso(now()) } : {}) });
     if (!ok) bump(report.errors, "attempt_moved_on");
+    return ok;
+  };
+  const track = (event: Parameters<RetryTracker>[0], a: AttemptRecord, props: Parameters<RetryTracker>[2]) => {
+    try {
+      deps.track?.(event, a.user_id, props, retryEventKey(event, a));
+    } catch {
+      bump(report.errors, "analytics");
+    }
   };
 
   const endFrom = async (chain: AttemptRecord[], fromAttempt: number, reason: string) => {
@@ -216,7 +242,12 @@ export async function runRetryJob(deps: JobDeps): Promise<JobReport> {
   };
 
   // ---- 1. open chains ----
-  const openRows = (await store.openChains(OPEN_CHAIN_ROWS)).filter((r) => inScope(r.merchant_subscription_id, r.cf_subscription_id));
+  const today = istDay(startMs);
+  const openRows = (await store.openChains({
+    limit: OPEN_CHAINS_PER_KIND,
+    pendingThrough: addDays(today, 1),
+    requestedThrough: today,
+  })).filter((r) => inScope(r.merchant_subscription_id, r.cf_subscription_id));
   const byFailure = new Map<string, AttemptRecord[]>();
   for (const r of openRows) {
     const chain = byFailure.get(r.failed_payment_id) ?? [];
@@ -243,12 +274,17 @@ export async function runRetryJob(deps: JobDeps): Promise<JobReport> {
     return (paidByRow.get(chain[0].subscription_row_id) ?? []).filter((p) => Date.parse(p.paid_at) >= since);
   };
 
-  const applyOutcome = async (chain: AttemptRecord[], a: AttemptRecord, outcome: RetryOutcome, via: string) => {
+  const applyOutcome = async (chain: AttemptRecord[], a: AttemptRecord, outcome: RetryOutcome, via: ResolvedVia) => {
     if (outcome.status === "succeeded") {
-      await update(a, "succeeded", { status_reason: via });
+      if (await update(a, "succeeded", { status_reason: via === "cashfree" ? "charge_success" : via })) {
+        track("payment_retry_succeeded", a, retrySucceededProps(a, via));
+      }
       bump(report.resolved, "succeeded");
     } else if (outcome.status === "failed") {
-      await update(a, "failed", { status_reason: outcome.reason });
+      const willRetry = outcome.chainContinues && chain.some((x) => x.attempt > a.attempt && x.status === "pending");
+      if (await update(a, "failed", { status_reason: outcome.reason })) {
+        track("payment_retry_failed", a, retryFailedProps(a, outcome.reason, willRetry, via));
+      }
       bump(report.resolved, `failed_${outcome.reason}`);
       if (!outcome.chainContinues) await endFrom(chain, a.attempt + 1, `retry_${outcome.reason}`);
     }
@@ -281,7 +317,7 @@ export async function runRetryJob(deps: JobDeps): Promise<JobReport> {
         return;
       }
       const outcome = retryOutcome(res.body);
-      if (outcome.status !== "pending") await applyOutcome(chain, a, outcome, "charge_success");
+      if (outcome.status !== "pending") await applyOutcome(chain, a, outcome, "cashfree");
       else if (now() > istMidnightMs(day) + NO_OUTCOME_AFTER_MS) {
         await update(a, "ended", { status_reason: "no_outcome" });
         bump(report.resolved, "no_outcome");
@@ -348,7 +384,7 @@ export async function runRetryJob(deps: JobDeps): Promise<JobReport> {
           day: a.scheduled_for,
           amount: mandate.recurringAmount ?? a.failed_amount,
         });
-        await update(a, "requested", {
+        const moved = await update(a, "requested", {
           retry_of_payment_id: gate.retryOf,
           retry_payment_id: check.paymentId || null,
           retry_cf_payment_id: check.cfPaymentId || null,
@@ -359,6 +395,7 @@ export async function runRetryJob(deps: JobDeps): Promise<JobReport> {
         });
         report.sends.requested++;
         bump(report.sends.by_day, a.scheduled_for);
+        if (moved) track("payment_retry_requested", a, retryRequestedProps(a, check.retryNumber));
         if (check.mismatches.length) {
           halted = true;
           report.stopped = "response_mismatch";

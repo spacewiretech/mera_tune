@@ -65,15 +65,29 @@ export function supabaseRetryStore(supabase: ServiceClient): RetryStore {
       }));
     },
 
-    async openChains(limit: number): Promise<AttemptRecord[]> {
-      const { data: open, error } = await supabase
-        .from("charge_retry_attempts")
-        .select("failed_payment_id")
-        .in("status", ["pending", "requested"])
-        .order("scheduled_for", { ascending: true })
-        .limit(limit);
-      if (error) throw new Error(`open attempts failed: ${error.message}`);
-      const ids = [...new Set((open ?? []).map((r) => String(r.failed_payment_id)))];
+    async openChains(q: { limit: number; pendingThrough: string; requestedThrough: string }): Promise<AttemptRecord[]> {
+      // Only chains that need action now: a backlog of requested retries waiting for their day
+      // must not crowd out the sends due today.
+      const [toSend, toResolve] = await Promise.all([
+        supabase
+          .from("charge_retry_attempts")
+          .select("failed_payment_id")
+          .eq("status", "pending")
+          .lte("scheduled_for", q.pendingThrough)
+          .order("scheduled_for", { ascending: true })
+          .limit(q.limit),
+        supabase
+          .from("charge_retry_attempts")
+          .select("failed_payment_id")
+          .eq("status", "requested")
+          .or(`retry_scheduled_for.lte.${q.requestedThrough},and(retry_scheduled_for.is.null,scheduled_for.lte.${q.requestedThrough})`)
+          .order("scheduled_for", { ascending: true })
+          .limit(q.limit),
+      ]);
+      for (const res of [toSend, toResolve]) {
+        if (res.error) throw new Error(`open attempts failed: ${res.error.message}`);
+      }
+      const ids = [...new Set([...(toSend.data ?? []), ...(toResolve.data ?? [])].map((r) => String(r.failed_payment_id)))];
       const rows: AttemptRecord[] = [];
       for (const part of chunks(ids, ID_CHUNK)) {
         const { data, error: chainError } = await supabase.from("charge_retry_attempts").select("*").in("failed_payment_id", part);

@@ -355,7 +355,9 @@ Deno.test("fixtures: every event carries allowlisted keys only and no PII", asyn
     "subscription_status_changed",
     "subscription_refund_processed",
   ]));
-  assertEquals(produced, new Set(Object.keys(SERVER_EVENT_PROPS)));
+  // The retry job's events are not webhook events; they are tested in charge_retry_job_test.ts.
+  const retryJobEvents = new Set(["payment_retry_requested", "payment_retry_succeeded", "payment_retry_failed"]);
+  assertEquals(produced, new Set(Object.keys(SERVER_EVENT_PROPS).filter((e) => !retryJobEvents.has(e))));
 });
 
 Deno.test("fixtures: card expiry, controlled and auth-payment PAYMENT_SUCCESS produce no event", async () => {

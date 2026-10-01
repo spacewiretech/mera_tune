@@ -1,5 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createServiceClient, type ServiceClient } from "../_shared/supabase-client.ts";
+import { mixpanelInsertId, resolveMixpanelToken, trackMixpanelEvent } from "../_shared/mixpanel.ts";
+import { pickEventProps } from "../_shared/subscription-analytics.ts";
+import type { RetryTracker } from "./analytics.ts";
 import { CashfreeClient, cashfreeAccounts, Limiter } from "./cashfree.ts";
 import { runRetryJob } from "./job.ts";
 import { retryConfig } from "./policy.ts";
@@ -7,7 +10,7 @@ import { supabaseRetryStore } from "./store.ts";
 
 /**
  * Retries ₹299 autopay charges that failed for insufficient funds (see policy.ts for the rules).
- * Called hourly by pg_cron (`charge-retry-hourly`, migration 20261001120000) with the
+ * Called hourly by pg_cron (`charge-retry-hourly`, migration 20260930120000) with the
  * `x-job-secret` header; `verify_jwt = false` in config.toml. Ships off: app_config
  * `charge_retry_mode` = off | dry_run | live. The body may only make a run safer:
  * `{ "dry_run": true, "only": ["mt_…"] }`.
@@ -23,6 +26,23 @@ async function getConfig(supabase: ServiceClient) {
   const config: Record<string, string> = {};
   for (const row of data ?? []) config[row.key] = row.value ?? "";
   return config;
+}
+
+/**
+ * Mixpanel sends start as events happen and are awaited after the run (at most 15 s more), so a
+ * slow Mixpanel never slows the sends. Failures are logged by trackMixpanelEvent, never thrown.
+ */
+function mixpanelTracker(config: Record<string, string>) {
+  const token = resolveMixpanelToken(config);
+  const pending: Promise<unknown>[] = [];
+  const track: RetryTracker = (event, userId, props, key) => {
+    pending.push((async () => {
+      const insertId = await mixpanelInsertId(key);
+      await trackMixpanelEvent(token, String(userId), event, pickEventProps(event, props), { insertId });
+    })().catch(() => console.error("retry-failed-charges analytics failed:", event)));
+  };
+  const flush = () => Promise.race([Promise.allSettled(pending), new Promise((ok) => setTimeout(ok, 15_000))]);
+  return { track, flush, count: () => pending.length };
 }
 
 /** Constant-time compare of the job secret; an unset secret never matches. */
@@ -69,7 +89,16 @@ Deno.serve(async (req: Request) => {
       lookupLimiter,
     });
 
-    const report = await runRetryJob({ store: supabaseRetryStore(supabase), cashfree, limiter, lookupLimiter, cfg });
+    const analytics = mixpanelTracker(config);
+    const report = await runRetryJob({
+      store: supabaseRetryStore(supabase),
+      cashfree,
+      limiter,
+      lookupLimiter,
+      cfg,
+      track: cfg.mode === "live" ? analytics.track : undefined,
+    });
+    await analytics.flush();
     console.log(JSON.stringify({
       fn: "retry-failed-charges",
       mode: report.mode,
@@ -84,6 +113,7 @@ Deno.serve(async (req: Request) => {
       rejected: report.sends.rejected,
       resolved: report.resolved,
       mismatches: report.mismatches.length,
+      mixpanel_events: analytics.count(),
       errors: report.errors,
       elapsed_ms: report.elapsed_ms,
     }));

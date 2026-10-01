@@ -355,6 +355,8 @@ export type RetryResponseCheck = {
   cfPaymentId: string;
   amount: number | null;
   scheduledFor: string | null;
+  /** Cashfree's count of retries on this cycle (1 for the first). */
+  retryNumber: number | null;
   /** Empty when the response is what was asked for. */
   mismatches: string[];
 };
@@ -372,7 +374,7 @@ export function checkRetryResponse(
   else if (paymentId === expected.retriedPaymentId) mismatches.push("same_payment_id");
   if (expected.amount == null || amount == null || Math.abs(amount - expected.amount) > 0.005) mismatches.push("amount");
   if (scheduledFor !== expected.day) mismatches.push("scheduled_date");
-  return { paymentId, cfPaymentId: text(body.cf_payment_id), amount, scheduledFor, mismatches };
+  return { paymentId, cfPaymentId: text(body.cf_payment_id), amount, scheduledFor, retryNumber: num(body.retry_attempts), mismatches };
 }
 
 export type SendErrorKind = "throttled" | "transient" | "rejected";

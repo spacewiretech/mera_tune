@@ -350,6 +350,7 @@ Deno.test("checkRetryResponse: a new charge, for the plan amount, on the day ask
     cfPaymentId: "1200000001",
     amount: 299,
     scheduledFor: "2026-10-05",
+    retryNumber: 1,
     mismatches: [],
   });
   assertEquals(checkRetryResponse({ ...good, payment_amount: 3 }, expected).mismatches, ["amount"]);

@@ -14,7 +14,7 @@ Product analytics for the MeraTune Android app. This document covers every Mixpa
 | Init | `MeraTuneApplication.onCreate()` → `MixpanelAnalytics.init()`, then `registerActivityLifecycleCallbacks(AnalyticsLifecycleCallbacks(…))` |
 | Project token (app) | `BuildConfig.MIXPANEL_TOKEN` from `mixpanel.token` in `local.properties` |
 | Server helpers | `supabase/functions/_shared/mixpanel.ts` (HTTP), `supabase/functions/_shared/subscription-analytics.ts` (allowlists, buckets, dedupe keys), `supabase/functions/generate-ringtone/analytics.ts` (generation props and reporting rules) |
-| Server senders | `supabase/functions/cashfree-webhook/index.ts`, `supabase/functions/verify-subscription/index.ts`, `supabase/functions/generate-ringtone/index.ts` |
+| Server senders | `supabase/functions/cashfree-webhook/index.ts`, `supabase/functions/verify-subscription/index.ts`, `supabase/functions/generate-ringtone/index.ts`, `supabase/functions/retry-failed-charges/index.ts` |
 | `distinct_id` | Database primary key `users.id` as a string. Never phone or email. |
 
 All new Mixpanel tracking must go through `MixpanelAnalytics` in the app or `_shared/mixpanel.ts` on the server. Do not call the Mixpanel SDK or HTTP API from random activities or functions.
@@ -535,7 +535,7 @@ These three go through one path: logged-in check → `AnalyticsDailyCap.tryAcqui
 
 ---
 
-## Event catalog — server (12)
+## Event catalog — server (15)
 
 Sent through `_shared/mixpanel.ts`. `platform` is always `"server"`, same `distinct_id` as the app (`users.id`). `cleanProps` drops blanks, reserved keys and PII-looking keys. Never sent: phone, email, the user's name in any form (typed, normalized or spoken) or the generated title, the full UPI VPA (only `upi_handle`, the PSP part after `@`), refund notes or bank free text. No app super properties are attached.
 
@@ -592,6 +592,18 @@ Each event keeps only its allowlisted properties (`SERVER_EVENT_PROPS` in `subsc
 | `subscription_cancelled` | `SUBSCRIPTION_STATUS_CHANGED` with `CUSTOMER_CANCELLED` / `CANCELLED` | Skipped when the row is already cancelled; conditional update. `users.status` is downgraded to `cancelled` only for the user's latest subscription and only from `trial` / `active`. `user_downgraded` is decided by the delivery that wins the row, from the resulting `users.status`, so a retry or a concurrent delivery still reports it | `cancellation_status`, `subscription_id`, `renewals_before_cancel`, `cancelled_by` (`customer` / `merchant`), `previous_status` (`pending` / `trial` / `active`), `cancelled_during_trial`, `user_downgraded` | `cancel:<subscription row id>` |
 | `subscription_status_changed` | `SUBSCRIPTION_STATUS_CHANGED`, any other status | **Tracked only**: writes `cashfree_status` / `cashfree_status_at` (compare-and-set), never `subscriptions.status` or `users.status`. Skipped when the status equals the stored one or the event is older than `cashfree_status_at` | `status`, `previous_status`, `transition`, `is_reactivation`, `next_schedule_date`, `subscription_id` | `status:<cf subscription id>:<status>:<event time>` |
 | `subscription_refund_processed` | `SUBSCRIPTION_REFUND_STATUS` | User resolved through `subscription_payments.cf_payment_id`; skipped and logged if not found. No people update | `refund_status`, `refund_amount`, `currency`, `refund_speed`, `original_payment_type` (`auth` / `recurring`) | `refund:<refund id>:<refund status>` |
+
+### Payment retries (`retry-failed-charges`, 3)
+
+Sent by the retry job in `live` mode only (never in `dry_run`), after the attempt row's compare-and-set, so each fires once per failed charge and attempt; `$insert_id` = `mixpanelInsertId("<event>:<failed payment_id>:<attempt>")`, `time` = the run. Builders in `retry-failed-charges/analytics.ts`; no people updates. A recovered retry also sends the webhook's `subscription_paid` with `is_retry_recovery = true` (revenue stays there); a failed one sends `subscription_renewal_failed` with `retry_attempts` ≥ 1 when the failed-payment webhook is on.
+
+| Event | Trigger | Properties |
+|-------|---------|------------|
+| `payment_retry_requested` | Cashfree accepted a RETRY: a new ₹299 charge, debited 24 h later (live mode only) | `subscription_id`, `attempt` (the job's slot 1–3), `retry_number` (Cashfree's retry count this cycle), `retry_date` (IST debit day), `failed_date` (IST day of the failed charge), `days_since_failure`, `amount`, `currency`, `cf_payment_id` (the new charge), `failed_cf_payment_id` |
+| `payment_retry_succeeded` | That charge was paid: its payment row from the success webhook (`resolved_via = payment_recorded`), or Cashfree after 22:00 IST on the day (`cashfree`) | `subscription_id`, `attempt`, `retry_date`, `failed_date`, `days_since_failure`, `amount`, `currency`, `cf_payment_id`, `resolved_via` |
+| `payment_retry_failed` | That charge failed: the webhook's `charge_failures` row (`webhook`), or Cashfree (`cashfree`) | `subscription_id`, `attempt`, `retry_date`, `failed_date`, `days_since_failure`, `failure_reason` (`insufficient_funds` / `not_insufficient_funds` / `charge_cancelled`), `will_retry`, `cf_payment_id`, `resolved_via` |
+
+Retry funnel: `payment_retry_requested → payment_retry_succeeded`, broken down by `attempt` or `retry_date`. Recovered revenue: `subscription_paid` where `is_retry_recovery = true`.
 
 ### Property notes
 
@@ -778,7 +790,8 @@ Names and values from the name-ringtone spec for features that are not built yet
 | Incoming call (capped) | 3 (`call_theme_displayed`, `incoming_call_action_tapped`, `incoming_call_overlay_displayed`) |
 | Generation (server) | 3 (`name_lookup_completed`, `ringtone_created`, `ringtone_generation_failed`; the last is also an app event) |
 | Subscription (server) | 9 (`trial_payment_succeeded`, `trial_expired`, `mandate_auth_failed`, `subscription_paid`, `subscription_renewal_failed`, `subscription_renewal_notified`, `subscription_cancelled`, `subscription_status_changed`, `subscription_refund_processed`) |
-| **Total** | **57** distinct event names: 46 app + 12 server, `ringtone_generation_failed` counted once (plus 3 SDK automatic events) |
+| Payment retries (server) | 3 (`payment_retry_requested`, `payment_retry_succeeded`, `payment_retry_failed`) |
+| **Total** | **60** distinct event names: 46 app + 15 server, `ringtone_generation_failed` counted once (plus 3 SDK automatic events) |
 
 Renamed on this branch before release (no history to migrate): `song_picker_viewed` → `sample_list_viewed` (`song_count` → `sample_count`), `sample_song_played` → `sample_previewed` and `sample_song_selected` → `sample_selected` (`tune_id` → `sample_id`), `auth_failed` with `stage = verify_otp` → `otp_verification_failed`, `trial_activated` → `trial_payment_succeeded`, `subscription_payment_failed` → `subscription_renewal_failed`, `create_ringtone_cta_tapped.source` `empty_search` → `search_bar`. The app's `ringtone_created` moved to `generate-ringtone`.
 

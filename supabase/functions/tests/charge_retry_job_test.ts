@@ -16,6 +16,11 @@ import {
   runRetryJob,
 } from "../retry-failed-charges/job.ts";
 import { type AttemptStatus, idempotencyKey, retryConfig } from "../retry-failed-charges/policy.ts";
+import { daysSinceFailure, type RetryEvent, retryEventKey } from "../retry-failed-charges/analytics.ts";
+import type { MixpanelProps } from "../_shared/mixpanel.ts";
+import { pickEventProps, SERVER_EVENT_PROPS } from "../_shared/subscription-analytics.ts";
+
+type Tracked = { event: RetryEvent; userId: number; props: MixpanelProps; key: string };
 
 const ist = (s: string) => Date.parse(`${s}+05:30`);
 const MT = "mt_877432_1790408546604";
@@ -64,8 +69,13 @@ class MemoryStore implements RetryStore {
     const open = new Set(this.attempts.filter((a) => a.status === "pending" || a.status === "requested").map((a) => a.subscription_row_id));
     return Promise.resolve(this.cands.filter((c) => !open.has(c.subscription_row_id)).slice(0, limit));
   }
-  openChains() {
-    const open = new Set(this.attempts.filter((a) => a.status === "pending" || a.status === "requested").map((a) => a.failed_payment_id));
+  openChains(q: { limit: number; pendingThrough: string; requestedThrough: string }) {
+    const pick = (rows: AttemptRecord[]) => rows.sort((x, y) => x.scheduled_for.localeCompare(y.scheduled_for)).slice(0, q.limit);
+    const toSend = pick(this.attempts.filter((a) => a.status === "pending" && a.scheduled_for <= q.pendingThrough));
+    const toResolve = pick(this.attempts.filter((a) =>
+      a.status === "requested" && (a.retry_scheduled_for || a.scheduled_for) <= q.requestedThrough
+    ));
+    const open = new Set([...toSend, ...toResolve].map((a) => a.failed_payment_id));
     return Promise.resolve(this.attempts.filter((a) => open.has(a.failed_payment_id)).map((a) => ({ ...a })));
   }
   recurringPayments(rowIds: number[], sinceIso: string) {
@@ -220,7 +230,11 @@ function setup(opts: {
     lookupLimiter,
     fetchImpl: cf.fetch,
   });
-  return { store, cf, run: () => runRetryJob({ store, cashfree, limiter, lookupLimiter, cfg, now }) };
+  const events: Tracked[] = [];
+  const track = (event: RetryEvent, userId: number, props: MixpanelProps, key: string) => {
+    events.push({ event, userId, props, key });
+  };
+  return { store, cf, events, run: () => runRetryJob({ store, cashfree, limiter, lookupLimiter, cfg, now, track }) };
 }
 
 Deno.test("dry_run: plans and reports the first send, writes nothing, POSTs nothing", async () => {
@@ -559,4 +573,144 @@ Deno.test("no webhook record: the retry's outcome is read at 22:00 IST, and the 
     ["requested", "2026-10-01"],
     ["pending", null],
   ]);
+});
+
+// ---- Mixpanel ----
+
+/** Drops undefined values, as cleanProps does before sending. */
+function sentProps(t: Tracked): MixpanelProps {
+  return Object.fromEntries(Object.entries(pickEventProps(t.event, t.props)).filter(([, v]) => v !== undefined));
+}
+
+Deno.test("mixpanel: a live send tracks payment_retry_requested once, with allowlisted props only", async () => {
+  const store = new MemoryStore([CANDIDATE]);
+  const cf = new FakeCashfree();
+  const first = setup({ store, cf, now: ist("2026-09-28T07:00:00") });
+  await first.run();
+  assertEquals(first.events.length, 1);
+  const [t] = first.events;
+  assertEquals(t.event, "payment_retry_requested");
+  assertEquals(t.userId, 877432);
+  assertEquals(t.key, `payment_retry_requested:${FAILED_ID}:1`);
+  assertEquals(sentProps(t), {
+    subscription_id: MT,
+    attempt: 1,
+    retry_date: "2026-09-29",
+    failed_date: "2026-09-27",
+    days_since_failure: 2,
+    retry_number: 1,
+    amount: 299,
+    currency: "INR",
+    cf_payment_id: "1200000001",
+    failed_cf_payment_id: "1117138074",
+  });
+  // Every prop the builder sets is allowlisted (nothing is dropped).
+  for (const k of Object.keys(t.props)) assert((SERVER_EVENT_PROPS.payment_retry_requested as readonly string[]).includes(k), k);
+
+  // The next run in the same hour sends nothing new.
+  const again = setup({ store, cf, now: ist("2026-09-28T08:00:00") });
+  await again.run();
+  assertEquals(again.events.length, 0);
+});
+
+Deno.test("mixpanel: outcomes are tracked once each: failed (will_retry, via webhook), then succeeded (payment recorded)", async () => {
+  const store = new MemoryStore([CANDIDATE]);
+  const cf = new FakeCashfree();
+  await setup({ store, cf, now: ist("2026-09-28T07:00:00") }).run();
+  store.recordFailure(store.attempts[0].retry_payment_id!, INSUFFICIENT, 1, "2026-09-29");
+
+  const resolved = setup({ store, cf, now: ist("2026-09-29T02:00:00") });
+  await resolved.run();
+  assertEquals(resolved.events.map((e) => e.event), ["payment_retry_failed"]);
+  assertEquals(sentProps(resolved.events[0]), {
+    subscription_id: MT,
+    attempt: 1,
+    retry_date: "2026-09-29",
+    failed_date: "2026-09-27",
+    days_since_failure: 2,
+    failure_reason: "insufficient_funds",
+    will_retry: true,
+    cf_payment_id: "1200000001",
+    resolved_via: "webhook",
+  });
+
+  const sent = setup({ store, cf, now: ist("2026-09-30T02:00:00") });
+  await sent.run();
+  assertEquals(sent.events.map((e) => [e.event, e.props.attempt, e.props.retry_date]), [["payment_retry_requested", 2, "2026-10-01"]]);
+
+  store.paid.push({ subscription_row_id: 567939, cf_payment_id: store.attempts[1].retry_cf_payment_id!, paid_at: "2026-09-30T19:00:00.000Z" });
+  const won = setup({ store, cf, now: ist("2026-10-01T02:00:00") });
+  await won.run();
+  assertEquals(won.events.map((e) => e.event), ["payment_retry_succeeded"]);
+  assertEquals(sentProps(won.events[0]), {
+    subscription_id: MT,
+    attempt: 2,
+    retry_date: "2026-10-01",
+    failed_date: "2026-09-27",
+    days_since_failure: 4,
+    amount: 299,
+    currency: "INR",
+    cf_payment_id: "1200000002",
+    resolved_via: "payment_recorded",
+  });
+  assertEquals(won.events[0].key, retryEventKey("payment_retry_succeeded", store.attempts[1]));
+
+  const later = setup({ store, cf, now: ist("2026-10-01T03:00:00") });
+  await later.run();
+  assertEquals(later.events.length, 0);
+});
+
+Deno.test("mixpanel: a retry failing for another reason says will_retry false", async () => {
+  const store = new MemoryStore([CANDIDATE]);
+  const cf = new FakeCashfree();
+  await setup({ store, cf, now: ist("2026-09-28T07:00:00") }).run();
+  store.recordFailure(store.attempts[0].retry_payment_id!, "Mandate revoked by customer", 1, "2026-09-29");
+  const r = setup({ store, cf, now: ist("2026-09-29T02:00:00") });
+  await r.run();
+  assertEquals(r.events.map((e) => [e.event, e.props.failure_reason, e.props.will_retry]), [
+    ["payment_retry_failed", "not_insufficient_funds", false],
+  ]);
+});
+
+Deno.test("mixpanel: dry runs send nothing", async () => {
+  const dry = setup({ mode: "dry_run", now: ist("2026-09-28T07:00:00") });
+  const report = await dry.run();
+  assertEquals(report.sends.would_send, 1);
+  assertEquals(dry.events.length, 0);
+});
+
+Deno.test("daysSinceFailure: whole IST days, undefined when unknown or backwards", () => {
+  assertEquals(daysSinceFailure("2026-09-27", "2026-10-05"), 8);
+  assertEquals(daysSinceFailure("2026-09-27", "2026-09-29"), 2);
+  assertEquals(daysSinceFailure("2026-12-30", "2027-01-05"), 6);
+  assertEquals(daysSinceFailure("2026-09-27", "2026-09-26"), undefined);
+  assertEquals(daysSinceFailure("", "2026-09-29"), undefined);
+});
+
+Deno.test("open chains: retries waiting for their day never crowd out today's sends", async () => {
+  // 5 chains already requested for 2 Oct (waiting), 1 chain whose attempt for 3 Oct is due to go
+  // out on 2 Oct. With room for only 2 chains of each kind, the 3 Oct send still goes.
+  const store = new MemoryStore([]);
+  const base = {
+    user_id: 877432, account: "primary", merchant_subscription_id: MT, cf_subscription_id: "359414437",
+    failed_cf_payment_id: null, failed_amount: 299, failed_on: "2026-09-30", status_reason: null,
+  };
+  for (let i = 0; i < 5; i++) {
+    store.attempts.push({ ...base, id: 100 + i, subscription_row_id: 1000 + i, failed_payment_id: `waiting_${i}`, attempt: 1,
+      scheduled_for: "2026-10-02", status: "requested", retry_payment_id: `r_${i}`, retry_scheduled_for: "2026-10-02",
+      idempotency_key: `k_${i}` } as AttemptRecord);
+  }
+  store.attempts.push({ ...base, id: 200, subscription_row_id: 567939, failed_payment_id: FAILED_ID, failed_on: "2026-10-01",
+    attempt: 1, scheduled_for: "2026-10-03", status: "pending", idempotency_key: "k_send" } as AttemptRecord);
+
+  const loaded = await store.openChains({ limit: 2, pendingThrough: "2026-10-03", requestedThrough: "2026-10-02" });
+  assert(loaded.some((a) => a.failed_payment_id === FAILED_ID));
+  // The day before 2 Oct, nothing requested for 2 Oct is loaded yet.
+  const early = await store.openChains({ limit: 2, pendingThrough: "2026-10-02", requestedThrough: "2026-10-01" });
+  assertEquals(early.filter((a) => a.status === "requested").length, 0);
+
+  const cf = new FakeCashfree();
+  const r = await setup({ store, cf, now: ist("2026-10-02T09:00:00") }).run();
+  assertEquals(r.sends.requested, 1);
+  assertEquals(store.attempts.find((a) => a.id === 200)?.retry_scheduled_for, "2026-10-03");
 });
